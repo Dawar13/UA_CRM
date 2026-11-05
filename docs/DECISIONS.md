@@ -350,3 +350,11 @@ Container jobs first make sure git is installed (otherwise checkout falls back t
 **Decision.** The Repository gains `listMemberRows(memberId)` and `listMemberHistory(memberId, range)`, behind hooks `useMemberRows` and `useMemberHistory`; row mutations invalidate both. The pure `activityByDay` (domain) turns them into 30 days of held, moved and missed, and `summariseSheet` (domain) computes the folder front from a sheet's rows.
 
 **Consequences.** Phase 1's SupabaseRepository must implement the two reads (one query each, filtered by the member's rows).
+
+## D-030 · 6 Nov 2026 · An opened row goes to the top of the grid
+
+**Context.** CI's visual test of the expanded row was flaky after M0.6. With the folder front open, a row's details are taller than the visible rows, and `scrollToIndex(…, 'auto')` aligned the end of the row once its details were measured: on a fast machine the grid landed with the row and its stage tracker cut off, on a slow one it stayed at the top. People opening a row from search saw the same jump.
+
+**Decision.** Opening a row (deep link, search jump, click or Enter) aligns it to the top of the grid, just under the header, with its details below. Start alignment depends only on the fixed-height rows above it, so the grid always lands in the same place. No scroll is issued when the row is already there (a no-op scroll raced with focus returning from the search dialog in WebKit). The visual tests also wait for the side panel's idle-loaded 30-day field and contact chips, and give `/design` sections up to 15 s to settle.
+
+**Consequences.** An e2e test checks that a deep-linked row opens from its top on desktop and at 1024px. The expanded-row visual baselines change once more.

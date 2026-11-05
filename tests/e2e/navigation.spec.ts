@@ -126,6 +126,24 @@ test.describe('navigation', () => {
     await expect(summary()).toContainText('Owned by Dawar · 7 stages', { ignoreCase: true })
   })
 
+  test('a deep-linked row opens from its top, even when its details are taller than the view', async ({
+    page,
+  }) => {
+    // Regression: with the folder front open the details no longer fit, and the grid used to
+    // land at a timing-dependent offset that cut off the row and the stage tracker.
+    await openSheet(page, 'dawar', 'customers', ids.sunitaKulkarni)
+    await expect(expandedRow(page)).toBeVisible()
+    const view = await grid(page).boundingBox()
+    const row = await gridRow(page, ids.sunitaKulkarni).boundingBox()
+    if (!view || !row) throw new Error('Expected the grid and the row to be on screen')
+    // Just under the 38px header, never above it.
+    expect(row.y).toBeGreaterThanOrEqual(view.y + 37)
+    expect(row.y).toBeLessThanOrEqual(view.y + 38 + 52)
+    await expect(
+      expandedRow(page).getByRole('button', { name: 'Move to Pilot scoped' }),
+    ).toBeInViewport()
+  })
+
   test('a deep link with ?row= opens that row expanded', async ({ page }) => {
     await openSheet(page, 'dawar', 'customers', ids.karthikSubramanian)
 

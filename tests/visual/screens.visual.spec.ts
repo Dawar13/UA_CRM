@@ -1,3 +1,4 @@
+import type { Page } from '@playwright/test'
 import { expect, gotoApp, setTheme, test } from '../support/fixtures'
 
 /**
@@ -7,6 +8,16 @@ import { expect, gotoApp, setTheme, test } from '../support/fixtures'
  * than compared against Linux pixels.
  */
 test.skip(process.platform !== 'linux', 'Visual baselines are Linux-only (Docker or CI).')
+
+/**
+ * The side panel loads its 30-day field and contact chips once the browser is idle, which on a
+ * slow CI runner can come after the page first looks still. Wait for both, and the fonts.
+ */
+async function settled(page: Page) {
+  await expect(page.getByLabel('Loading the last 30 days')).toHaveCount(0, { timeout: 15_000 })
+  await expect(page.getByTestId('event-contact').first()).toBeVisible({ timeout: 15_000 })
+  await page.evaluate(() => document.fonts.ready)
+}
 
 const designSections = [
   'design-colours',
@@ -38,7 +49,7 @@ for (const theme of ['light', 'dark'] as const) {
 
     test('main screen', async ({ page }) => {
       await gotoApp(page, '/m/dawar/customers', { waitForReady: true })
-      await page.evaluate(() => document.fonts.ready)
+      await settled(page)
       await expect(page).toHaveScreenshot(`main-${theme}.png`)
     })
 
@@ -46,7 +57,7 @@ for (const theme of ['light', 'dark'] as const) {
       test.skip(testInfo.project.name !== 'desktop', 'Desktop only')
       await gotoApp(page, '/m/dawar/customers?row=r-dawar-customers-02', { waitForReady: true })
       await expect(page.getByTestId('expanded-row')).toBeVisible()
-      await page.evaluate(() => document.fonts.ready)
+      await settled(page)
       await expect(page).toHaveScreenshot(`expanded-${theme}.png`)
     })
 
@@ -56,7 +67,7 @@ for (const theme of ['light', 'dark'] as const) {
       await page.keyboard.press('ControlOrMeta+k')
       await page.keyboard.type('menon')
       await expect(page.getByTestId('palette-result')).toHaveCount(2)
-      await page.evaluate(() => document.fonts.ready)
+      await settled(page)
       await expect(page).toHaveScreenshot(`palette-${theme}.png`)
     })
 
@@ -67,7 +78,8 @@ for (const theme of ['light', 'dark'] as const) {
       for (const id of designSections) {
         const section = page.getByTestId(id)
         await section.scrollIntoViewIfNeeded()
-        await expect(section).toHaveScreenshot(`${id}-${theme}.png`)
+        // A long page on a slow runner needs longer to settle; the comparison is unchanged.
+        await expect(section).toHaveScreenshot(`${id}-${theme}.png`, { timeout: 15_000 })
       }
     })
   })

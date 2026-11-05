@@ -203,11 +203,20 @@ export function SheetGrid({
     initialRect: { width: 1200, height: 800 },
   })
 
-  // A deep link or search jump makes the expanded row the active one and brings it into view.
+  // A deep link, a search jump or expanding a row makes it the active one and puts it at the top
+  // of the grid, just under the header, with its details below. Aligning to the start depends
+  // only on the rows above it (all one fixed height), so the grid always lands in the same place;
+  // aligning to the end (`auto`) waited on the details' measured height and could cut off the
+  // row and its stage tracker when the details are taller than the visible rows.
+  // When the row is already in place, no scroll is issued at all (a no-op scroll races with focus
+  // returning from the search dialog in WebKit).
   useEffect(() => {
     if (expandedIndex < 0) return
     setActive((a) => ({ ...a, row: expandedIndex }))
-    virtualizer.scrollToIndex(expandedIndex, { align: 'auto' })
+    const target = virtualizer.getOffsetForIndex(expandedIndex, 'start')?.[0]
+    const current = scrollRef.current?.scrollTop
+    if (target !== undefined && current !== undefined && Math.abs(current - target) < 1) return
+    virtualizer.scrollToIndex(expandedIndex, { align: 'start' })
   }, [expandedIndex, virtualizer])
 
   // A jump (search, a link chip, a calendar chip) also brings keyboard focus to the grid, so the
