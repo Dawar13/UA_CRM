@@ -112,6 +112,10 @@ export interface Repository {
   search(query: string, options?: { limit?: number }): Promise<SearchResult[]>
   /** Events of one member that overlap the range, sorted by start. */
   listCalendarEvents(memberId: Id, range: DateRange): Promise<CalendarEvent[]>
+  /** Live rows across every sheet one member owns, for the activity field. */
+  listMemberRows(memberId: Id): Promise<Row[]>
+  /** History of every row one member owns with `at` in the range, oldest first. */
+  listMemberHistory(memberId: Id, range: DateRange): Promise<HistoryEntry[]>
 
   // ---------- Phase 0: mutations (row + history atomically) ----------
   updateStage(rowId: Id, stageIndex: number, ctx: MutationContext): Promise<MutationResult>

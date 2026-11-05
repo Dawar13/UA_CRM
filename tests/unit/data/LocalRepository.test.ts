@@ -449,6 +449,37 @@ describe('calendar', () => {
   })
 })
 
+describe('member-wide reads', () => {
+  it('lists one member’s live rows across every sheet', async () => {
+    const rows = await repo.listMemberRows(DAWAR)
+    const counts = await repo.countRows(DAWAR)
+    const total = Object.values(counts).reduce((a, b) => a + b, 0)
+    expect(rows).toHaveLength(total)
+    expect(rows.every((r) => r.memberId === DAWAR && r.deletedAt === null)).toBe(true)
+  })
+
+  it('lists one member’s history in a range, oldest first, and sees mutations', async () => {
+    const range = {
+      from: new Date('2026-10-07T00:00:00+05:30').toISOString(),
+      to: new Date('2026-11-06T00:00:00+05:30').toISOString(),
+    }
+    const before = await repo.listMemberHistory(DAWAR, range)
+    expect(before.length).toBeGreaterThan(0)
+    const dawarRows = new Set((await repo.listMemberRows(DAWAR)).map((r) => r.id))
+    expect(before.every((h) => dawarRows.has(h.rowId))).toBe(true)
+    expect(before.every((h) => h.at >= range.from && h.at < range.to)).toBe(true)
+    expect(before.map((h) => h.at)).toEqual([...before.map((h) => h.at)].sort())
+
+    const target = (await repo.listMemberRows(DAWAR)).find((r) => r.warmth !== 'cold')
+    if (!target) throw new Error('Expected a row')
+    await repo.updateWarmth(target.id, 'cold', ctx)
+    const after = await repo.listMemberHistory(DAWAR, range)
+    expect(after).toHaveLength(before.length + 1)
+    const dhruvHistory = await repo.listMemberHistory(DHRUV, range)
+    expect(dhruvHistory.some((h) => dawarRows.has(h.rowId))).toBe(false)
+  })
+})
+
 describe('perf sheet', () => {
   it('adds a valid 2,000-row Customers sheet for the first member, once', {
     timeout: 30_000,

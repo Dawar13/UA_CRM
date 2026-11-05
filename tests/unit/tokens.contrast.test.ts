@@ -1,13 +1,23 @@
 /**
  * Contrast is tested, not assumed (CLAUDE.md §3.2). Text pairs need 4.5:1; meaningful graphics
- * (stage dots, hollow outlines, focus rings) need 3:1. Both themes.
+ * (hollow outlines, focus rings) need 3:1. Both themes.
+ *
+ * Stage cells, warmth squares and the activity field are supplementary: every one of them sits
+ * next to text that says the same thing (the stage name, the warmth label, the counts and
+ * tooltips), so their fills are judged by eye, not by the 3:1 rule (D-027).
  */
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { contrastRatio, formatRatio, parseHex, relativeLuminance } from '@/styles/contrast'
 import { renderTokensCss } from '@/styles/renderTokensCss'
-import { brand, type ThemeColours, type ThemeName, themes } from '@/styles/tokens'
+import {
+  FOLDER_COUNT,
+  STAGE_STEPS,
+  type ThemeColours,
+  type ThemeName,
+  themes,
+} from '@/styles/tokens'
 
 type Role = keyof ThemeColours
 
@@ -16,6 +26,8 @@ const GRAPHIC = 3
 
 /** Backgrounds that body and label text sit on. Expanded rows use row-selected. */
 const textSurfaces: Role[] = ['bg', 'surfaceSubtle', 'surfaceRaised', 'rowSelected']
+
+const range = (n: number) => Array.from({ length: n }, (_, i) => i + 1)
 
 const textPairs: [Role, Role][] = [
   ...(['text', 'textSecondary', 'textMuted'] as const).flatMap((fg) =>
@@ -32,21 +44,40 @@ const textPairs: [Role, Role][] = [
   ['primaryFg', 'primaryHover'],
   ['dangerFg', 'danger'],
   ['dangerFg', 'dangerHover'],
-  ['warm', 'warmBg'],
-  ['waiting', 'waitingBg'],
-  ['cold', 'coldBg'],
-  ['overdue', 'bg'],
-  ['overdue', 'rowSelected'],
-  ['today', 'bg'],
-  ['today', 'rowSelected'],
-  ['lost', 'bg'],
-  ['lost', 'rowSelected'],
   ['brandTintFg', 'brandTint'],
   ['textSecondary', 'pillBg'],
+  ['textSecondary', 'tile'],
+  ['avatarFg', 'avatarBottom'],
+  // Dates.
+  ['todayFg', 'todayBg'],
+  ['todayFg', 'todayBgTop'],
+  ['today', 'bg'],
+  ['overdue', 'bg'],
+  ['overdue', 'rowSelected'],
+  // Stage blocks carry their name and date as text.
+  ...range(STAGE_STEPS).map((n): [Role, Role] => [`stageFg${n}` as Role, `stage${n}` as Role]),
+  ['stageWonFg', 'stageWon'],
+  ['stageLostFg', 'stageLost'],
+  ['textSecondary', 'stageLostDone'],
+  ['textMuted', 'stageTrack'],
+  ['wonFg', 'bg'],
+  ['wonFg', 'rowSelected'],
+  ['lost', 'bg'],
+  ['lost', 'rowSelected'],
+  // Warmth chips: a two-stop gradient, so the text must pass on both stops.
+  ...(['warm', 'waiting', 'cold'] as const).flatMap((w): [Role, Role][] => [
+    [w, `${w}Bg` as Role],
+    [w, `${w}BgTop` as Role],
+  ]),
+  // Folder tabs and the top of each folder front.
+  ...range(FOLDER_COUNT).flatMap((n): [Role, Role][] => [
+    ['folderFg', `folder${n}Top` as Role],
+    ['folderFg', `folder${n}Bottom` as Role],
+  ]),
 ]
 
-const graphicRoles: Role[] = ['stageFuture', 'stageDone', 'stageWon', 'stageLost', 'focusRing']
-const graphicSurfaces: Role[] = ['bg', 'surfaceSubtle', 'rowSelected']
+const graphicRoles: Role[] = ['focusRing', 'borderStrong']
+const graphicSurfaces: Role[] = ['bg', 'surfaceSubtle', 'surfaceRaised', 'rowSelected']
 
 const themeNames = Object.keys(themes) as ThemeName[]
 
@@ -54,7 +85,6 @@ describe('contrast helpers', () => {
   it('computes WCAG ratios', () => {
     expect(contrastRatio('#000000', '#FFFFFF')).toBeCloseTo(21, 5)
     expect(contrastRatio('#FFFFFF', '#FFFFFF')).toBeCloseTo(1, 5)
-    expect(contrastRatio('#FFFFFF', brand[600])).toBeGreaterThanOrEqual(4.5)
     expect(relativeLuminance('#FFFFFF')).toBeCloseTo(1, 5)
     expect(formatRatio(4.5678)).toBe('4.56:1')
   })
@@ -86,23 +116,13 @@ describe.each(themeNames)('%s theme', (themeName) => {
     },
   )
 
-  it('keeps the hollow-dot outline (border-strong) at 3:1 on every surface', () => {
-    for (const bg of ['bg', 'surfaceSubtle', 'surfaceRaised', 'rowSelected'] as const) {
-      expect(contrastRatio(t.borderStrong, t[bg])).toBeGreaterThanOrEqual(GRAPHIC)
-    }
-  })
-})
-
-describe('light theme specifics', () => {
-  it('uses brand-700 for links and white text on brand-600', () => {
-    expect(themes.light.link).toBe(brand[700])
-    expect(contrastRatio(brand[700], '#FFFFFF')).toBeGreaterThanOrEqual(TEXT)
-    expect(themes.light.primary).toBe(brand[600])
-    expect(contrastRatio('#FFFFFF', brand[600])).toBeGreaterThanOrEqual(TEXT)
-  })
-
-  it('uses brand-50 for the expanded row tint', () => {
-    expect(themes.light.rowSelected).toBe(brand[50])
+  it('steps the stage ramp and the folders from one end of the palette to the other', () => {
+    const stages = range(STAGE_STEPS).map((n) => relativeLuminance(t[`stage${n}` as Role]))
+    const sorted = [...stages].sort((a, b) => (themeName === 'light' ? b - a : a - b))
+    expect(stages).toEqual(sorted)
+    const folders = range(FOLDER_COUNT).map((n) => relativeLuminance(t[`folder${n}Top` as Role]))
+    const sortedFolders = [...folders].sort((a, b) => (themeName === 'light' ? a - b : b - a))
+    expect(folders).toEqual(sortedFolders)
   })
 })
 

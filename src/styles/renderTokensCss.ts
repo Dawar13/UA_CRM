@@ -1,5 +1,7 @@
 import {
+  bluePalette,
   brand,
+  brandMark,
   fonts,
   layout,
   lineHeights,
@@ -23,6 +25,8 @@ function themeBlock(colours: ThemeColours, indent: string): string {
 export function renderTokensCss(): string {
   const shared = [
     ...Object.entries(brand).map(([step, hex]) => `  --brand-${step}: ${hex};`),
+    ...bluePalette.map((hex, i) => `  --blue-${i + 1}: ${hex};`),
+    `  --brand-mark: ${brandMark.css};`,
     `  --soft-gradient: ${softGradient.css};`,
     ...tagPalette.map((t) => `  --tag-${t.name}: ${t.hex};`),
     ...Object.entries(typeScale).map(([k, v]) => `  --font-size-${k}: ${v}px;`),

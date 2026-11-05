@@ -18,6 +18,8 @@ export {
 export {
   useCalendarEvents,
   useHistory,
+  useMemberHistory,
+  useMemberRows,
   useMembers,
   useRow,
   useRowCounts,

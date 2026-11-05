@@ -113,6 +113,8 @@ function invalidateRow(qc: QueryClient, row: Row): Promise<unknown> {
     qc.invalidateQueries({ queryKey: queryKeys.rowLocation(row.id) }),
     qc.invalidateQueries({ queryKey: queryKeys.history(row.id) }),
     qc.invalidateQueries({ queryKey: queryKeys.rowCounts(row.memberId) }),
+    qc.invalidateQueries({ queryKey: queryKeys.memberRows(row.memberId) }),
+    qc.invalidateQueries({ queryKey: ['memberHistory', row.memberId] }),
     qc.invalidateQueries({ queryKey: ['search'] }),
   ])
 }

@@ -12,6 +12,9 @@ export const queryKeys = {
   history: (rowId: Id) => ['history', rowId] as const,
   search: (query: string) => ['search', query] as const,
   events: (memberId: Id, from: string, to: string) => ['events', memberId, from, to] as const,
+  memberRows: (memberId: Id) => ['memberRows', memberId] as const,
+  memberHistory: (memberId: Id, from: string, to: string) =>
+    ['memberHistory', memberId, from, to] as const,
 }
 
 /** Shared by every row mutation, so concurrent ones invalidate only when the last settles. */

@@ -91,6 +91,25 @@ export function useSearch(query: string): UseQueryResult<SearchResult[]> {
   })
 }
 
+export function useMemberRows(memberId: Id | undefined): UseQueryResult<Row[]> {
+  const repo = useRepository()
+  return useQuery({
+    queryKey: queryKeys.memberRows(memberId ?? ''),
+    queryFn: memberId ? () => repo.listMemberRows(memberId) : skipToken,
+  })
+}
+
+export function useMemberHistory(
+  memberId: Id | undefined,
+  range: DateRange,
+): UseQueryResult<HistoryEntry[]> {
+  const repo = useRepository()
+  return useQuery({
+    queryKey: queryKeys.memberHistory(memberId ?? '', range.from, range.to),
+    queryFn: memberId ? () => repo.listMemberHistory(memberId, range) : skipToken,
+  })
+}
+
 export function useCalendarEvents(
   memberId: Id | undefined,
   range: DateRange,

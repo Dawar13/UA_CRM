@@ -305,6 +305,24 @@ export class LocalRepository implements Repository {
       .toArray()
   }
 
+  async listMemberRows(memberId: Id): Promise<Row[]> {
+    const rows = await this.db.rows.where('memberId').equals(memberId).toArray()
+    return rows.filter((r) => r.deletedAt === null)
+  }
+
+  async listMemberHistory(memberId: Id, range: DateRange): Promise<HistoryEntry[]> {
+    const from = new Date(range.from).toISOString()
+    const to = new Date(range.to).toISOString()
+    const ids = new Set(
+      (await this.db.rows.where('memberId').equals(memberId).primaryKeys()) as Id[],
+    )
+    return this.db.history
+      .where('at')
+      .between(from, to, true, false)
+      .filter((h) => ids.has(h.rowId))
+      .sortBy('at')
+  }
+
   // ---------- Mutations ----------
 
   updateStage(rowId: Id, stageIndex: number, ctx: MutationContext): Promise<MutationResult> {
