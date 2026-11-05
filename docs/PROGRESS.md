@@ -136,15 +136,17 @@ Screenshots: `docs/screenshots/m0.4-main-*.png`, `m0.4-expanded-*.png`, `m0.4-pa
 
 ### Results (local, Windows 11)
 
-| Layer                       | Result                                                                          |
-| --------------------------- | ------------------------------------------------------------------------------- |
-| Lint and typecheck          | Clean                                                                           |
-| Unit and component (Vitest) | 505 passed in 29 files                                                          |
-| Coverage                    | 91.3% lines overall (threshold 70%); 100% lines in `src/domain` (threshold 90%) |
-| End to end                  | 104 passed (desktop, narrow and webkit-smoke)                                   |
-| Accessibility               | 8 passed, zero serious or critical                                              |
-| Performance                 | Passed, repeated 4 times                                                        |
-| Visual                      | Skipped on Windows by design; runs in CI once baselines exist                   |
+nCI is green on `main` with the baselines: [run 42045378731](https://github.com/Dawar13/UA_CRM/actions/runs/42045378731). Lint, typecheck, unit and component tests with coverage, build, e2e, a11y, visual and perf all pass.
+
+| Layer                       | Result                                                                                           |
+| --------------------------- | ------------------------------------------------------------------------------------------------ |
+| Lint and typecheck          | Clean                                                                                            |
+| Unit and component (Vitest) | 505 passed in 29 files                                                                           |
+| Coverage                    | 91.3% lines overall (threshold 70%); 100% lines in `src/domain` (threshold 90%)                  |
+| End to end                  | 104 passed (desktop, narrow and webkit-smoke)                                                    |
+| Accessibility               | 8 passed, zero serious or critical                                                               |
+| Performance                 | Passed, repeated 4 times                                                                         |
+| Visual                      | Skipped on Windows by design; 38 Linux baselines (desktop and narrow, light and dark) pass in CI |
 
 ### Try this
 
@@ -163,7 +165,7 @@ Screenshots: `docs/screenshots/m0.5-perf-2000-light.png`, `-dark.png`.
 
 ### Known issues
 
-- Until the Visual baselines workflow has run once, the visual step of CI fails with missing snapshots.
+- After an intentional visual change, run the Visual baselines workflow, then CI (Actions → CI → Run workflow), then pull.
 - WebKit's IndexedDB is slow in its Windows build, so the `webkit-smoke` project runs with 2 workers and a 60 s timeout.
 
 ### Next
