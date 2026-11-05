@@ -25,6 +25,7 @@
   --color-bg: var(--bg);
   --color-surface-subtle: var(--surface-subtle);
   --color-surface-raised: var(--surface-raised);
+  --color-surface-hover: var(--surface-hover);
   --color-border: var(--border);
   --color-border-strong: var(--border-strong);
   --color-text: var(--text);
@@ -34,6 +35,9 @@
   --color-primary: var(--primary);
   --color-primary-hover: var(--primary-hover);
   --color-primary-fg: var(--primary-fg);
+  --color-danger: var(--danger);
+  --color-danger-hover: var(--danger-hover);
+  --color-danger-fg: var(--danger-fg);
   --color-focus: var(--focus-ring);
   --color-row-hover: var(--row-hover);
   --color-row-selected: var(--row-selected);
@@ -96,6 +100,11 @@
 
   --ease-out: var(--motion-ease-out);
   --animate-fade-in: fade-in var(--duration-fast) var(--motion-ease-out);
+  /* Popovers, menus, tooltips and dialogs: 120 to 180 ms, ease-out in, a touch faster out. */
+  --animate-fade-out: fade-out 100ms ease-in;
+  --animate-pop-in: pop-in var(--duration-fast) var(--motion-ease-out);
+  --animate-pop-out: pop-out 100ms ease-in;
+  --animate-dialog-in: pop-in var(--duration-base) var(--motion-ease-out);
 }
 
 @keyframes fade-in {
@@ -104,6 +113,37 @@
   }
   to {
     opacity: 1;
+  }
+}
+
+@keyframes fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes pop-out {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.96);
   }
 }
 
@@ -145,19 +185,25 @@
   }
 }
 
-@layer utilities {
-  .tabular-nums {
-    font-variant-numeric: tabular-nums;
-  }
+/* Custom utilities (declared with @utility so variants such as group-focus/grid: apply). */
+@utility focus-ring {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
 
-  .focus-ring {
-    outline: 2px solid var(--focus-ring);
-    outline-offset: 2px;
-  }
+@utility focus-ring-inset {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
 
-  .focus-ring-inset {
-    outline: 2px solid var(--focus-ring);
-    outline-offset: -2px;
+/* A row reached from search or a link chip flashes the brand tint once. */
+@keyframes row-flash {
+  0%,
+  35% {
+    background-color: var(--brand-tint-strong);
+  }
+  100% {
+    background-color: var(--row-selected);
   }
 }
 

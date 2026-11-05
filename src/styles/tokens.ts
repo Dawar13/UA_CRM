@@ -44,6 +44,8 @@ export interface ThemeColours {
   bg: string
   surfaceSubtle: string
   surfaceRaised: string
+  /** Hover and highlight on raised surfaces: menu items, secondary buttons. */
+  surfaceHover: string
   border: string
   /** ≥3:1 on bg, surface-subtle, surface-raised and row-selected; used for hollow stage dots. */
   borderStrong: string
@@ -56,6 +58,10 @@ export interface ThemeColours {
   primary: string
   primaryHover: string
   primaryFg: string
+  /** Danger button fill (destructive confirmations) and its text colour. */
+  danger: string
+  dangerHover: string
+  dangerFg: string
   /** Visible 2px focus ring. */
   focusRing: string
   /** Row hover tint. */
@@ -101,6 +107,8 @@ export const themes: Record<ThemeName, ThemeColours> = {
     bg: '#FFFFFF',
     surfaceSubtle: '#F8FAFD',
     surfaceRaised: '#FFFFFF',
+    // Keeps text-muted at 4.56:1 for highlighted menu items.
+    surfaceHover: '#F1F4F8',
     border: '#E0E5E9',
     // CLAUDE.md #8A9399 was 2.99:1 on surface-subtle; nearest passing value.
     borderStrong: '#858E94',
@@ -112,6 +120,10 @@ export const themes: Record<ThemeName, ThemeColours> = {
     primary: brand[600],
     primaryHover: brand[700],
     primaryFg: '#FFFFFF',
+    // Cold red: white text at 6.47:1 (hover 8.31:1).
+    danger: '#B91C1C',
+    dangerHover: '#991B1B',
+    dangerFg: '#FFFFFF',
     // brand-400 is 2.27:1 on white, below the 3:1 floor for focus indicators. brand-600 keeps
     // the blue intent at 4.56:1.
     focusRing: brand[600],
@@ -132,7 +144,9 @@ export const themes: Record<ThemeName, ThemeColours> = {
     waitingBg: '#FEF3C7',
     cold: '#B91C1C',
     coldBg: '#FEE2E2',
-    lost: '#DC2626',
+    // CLAUDE.md #DC2626 was 4.49:1 on brand-50 (the lost line sits in the expanded row);
+    // nearest passing value. The lost dot keeps #DC2626 (stageLost).
+    lost: '#D92525',
     overdue: '#B91C1C',
     today: brand[700],
     pillBg: '#F8FAFD',
@@ -144,6 +158,8 @@ export const themes: Record<ThemeName, ThemeColours> = {
     bg: '#071117',
     surfaceSubtle: '#0F1A21',
     surfaceRaised: '#17232C',
+    // A step lighter than surface-raised; text-muted stays at 4.68:1.
+    surfaceHover: '#1F2D37',
     border: '#27353E',
     // CLAUDE.md #5E6A72 was 2.88:1 on surface-raised; nearest passing value.
     borderStrong: '#66737B',
@@ -154,6 +170,10 @@ export const themes: Record<ThemeName, ThemeColours> = {
     primary: brand[600],
     primaryHover: brand[700],
     primaryFg: '#FFFFFF',
+    // White text at 4.83:1 (hover 6.47:1).
+    danger: '#DC2626',
+    dangerHover: '#B91C1C',
+    dangerFg: '#FFFFFF',
     focusRing: brand[400],
     rowHover: '#0F1A21',
     // Dark equivalent of brand-50: a deep blue tint that keeps muted text ≥4.5:1.
