@@ -1,14 +1,14 @@
 # Dependencies and builds
 node_modules
 dist
-dist-e2e
+dist-*
 coverage
 *.tsbuildinfo
 .vitest
 
 # Playwright
 playwright-report
-test-results
+test-results*
 blob-report
 playwright/.cache
 

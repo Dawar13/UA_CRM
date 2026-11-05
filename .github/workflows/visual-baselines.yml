@@ -1,0 +1,73 @@
+name: Visual baselines
+
+# Produces the Linux visual baselines without local Docker and commits them to the branch it runs
+# on. Run it from the Actions tab ("Run workflow"), then pull. Re-run it only when a visual change
+# is intentional. (A push made by this workflow does not start CI; the next push does.)
+on:
+  workflow_dispatch:
+    inputs:
+      update:
+        description: Which snapshots to rewrite
+        type: choice
+        options: [changed, all, missing]
+        default: all
+
+permissions:
+  contents: write
+
+env:
+  COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"
+
+jobs:
+  baselines:
+    name: Update visual baselines
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Keep this tag equal to the installed @playwright/test version (see ci.yml).
+    container:
+      image: mcr.microsoft.com/playwright:v1.64.1-noble
+    env:
+      HOME: /root
+    steps:
+      - name: Ensure git is available
+        # Without git, checkout falls back to a plain download with no .git directory.
+        run: command -v git || (apt-get update && apt-get install -y --no-install-recommends git)
+
+      - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/setup
+
+      - name: Update snapshots
+        run: >-
+          pnpm exec playwright test --project=desktop --project=narrow tests/visual
+          --update-snapshots=${{ inputs.update }}
+
+      - name: Commit the baselines
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tests/visual/__screenshots__
+          if git diff --cached --quiet; then
+            echo "Baselines are already up to date."
+            exit 0
+          fi
+          git commit -m "test(visual): update Linux visual baselines"
+          git push
+
+      - name: Upload baselines
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: visual-baselines
+          path: tests/visual/__screenshots__/
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload Playwright report
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

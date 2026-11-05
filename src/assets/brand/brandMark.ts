@@ -5,7 +5,7 @@
  *
  * If the founders supply a logo later, replace the files in src/assets/brand/ only.
  */
-import { brand } from '../../styles/tokens'
+import { brand } from '../../styles/tokens.ts'
 
 export const BRAND_MARK_SIZE = 28
 export const BRAND_MARK_RADIUS = 8

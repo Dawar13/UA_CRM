@@ -1,0 +1,43 @@
+name: Set up Node, pnpm and dependencies
+description: >-
+  Installs the Node version pinned in .nvmrc, enables pnpm through corepack (pinned by the
+  packageManager field, exactly as on a developer machine), restores the pnpm store cache and runs
+  a frozen install.
+
+runs:
+  using: composite
+  steps:
+    - name: Trust the workspace for git
+      shell: bash
+      # Inside container jobs the checkout belongs to another user, and git refuses to run there
+      # ("dubious ownership"). The `prepare` script (lefthook install) and baseline commits need git.
+      run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+    - name: Set up Node
+      uses: actions/setup-node@v7
+      with:
+        node-version-file: .nvmrc
+        # pnpm does not exist yet at this point; the store is cached below instead.
+        package-manager-cache: false
+
+    - name: Enable pnpm through corepack
+      shell: bash
+      env:
+        COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"
+      run: |
+        # Node 26 no longer bundles corepack. Keep the version in step with docs/DECISIONS.md.
+        npm install --global --no-fund --no-audit corepack@0.36.0
+        corepack enable
+        echo "pnpm $(pnpm --version)"
+        echo "PNPM_STORE=$(pnpm store path --silent)" >> "$GITHUB_ENV"
+
+    - name: Cache the pnpm store
+      uses: actions/cache@v6
+      with:
+        path: ${{ env.PNPM_STORE }}
+        key: pnpm-store-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('pnpm-lock.yaml') }}
+        restore-keys: pnpm-store-${{ runner.os }}-${{ runner.arch }}-
+
+    - name: Install dependencies
+      shell: bash
+      run: pnpm install --frozen-lockfile

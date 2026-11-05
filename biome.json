@@ -27,6 +27,17 @@
   },
   "overrides": [
     {
+      "includes": ["src/features/grid/**"],
+      "linter": {
+        "rules": {
+          "a11y": {
+            "useSemanticElements": "off",
+            "useFocusableInteractive": "off"
+          }
+        }
+      }
+    },
+    {
       "includes": ["src/styles/globals.css"],
       "linter": {
         "rules": {

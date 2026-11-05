@@ -1,0 +1,112 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"
+
+jobs:
+  quality:
+    name: Lint, typecheck, unit and component tests, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/setup
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Unit and component tests with coverage
+        # Fails below 70% lines overall or 90% lines in src/domain (vitest.config.ts).
+        run: pnpm test:coverage
+
+      - name: Coverage summary
+        if: ${{ !cancelled() && hashFiles('coverage/coverage-summary.json') != '' }}
+        run: |
+          node --input-type=module -e '
+            import { readFileSync } from "node:fs"
+            const total = JSON.parse(readFileSync("coverage/coverage-summary.json", "utf8")).total
+            const rows = ["lines", "statements", "branches", "functions"].map(
+              (key) => `| ${key} | ${total[key].pct}% | ${total[key].covered} / ${total[key].total} |`,
+            )
+            console.log(["### Coverage", "", "| Metric | Covered | Count |", "| --- | --- | --- |", ...rows].join("\n"))
+          ' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload coverage report
+        if: ${{ !cancelled() && hashFiles('coverage/coverage-summary.json') != '' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage
+          path: coverage/
+          retention-days: 14
+
+      - name: Build
+        run: pnpm build
+
+  browser:
+    name: End-to-end, accessibility, visual and performance tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Keep this tag equal to the installed @playwright/test version (package.json and
+    # pnpm-lock.yaml); scripts/visual-update.ts reads the same version for local baselines.
+    container:
+      image: mcr.microsoft.com/playwright:v1.64.1-noble
+    env:
+      # The image runs as root; keep HOME consistent for git, corepack and the browsers.
+      HOME: /root
+    steps:
+      - name: Ensure git is available
+        # Without git, checkout falls back to a plain download with no .git directory.
+        run: command -v git || (apt-get update && apt-get install -y --no-install-recommends git)
+
+      - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/setup
+
+      # Browsers come with the image, so there is no `playwright install` step.
+      - name: End-to-end tests
+        run: pnpm test:e2e
+
+      - name: Accessibility tests
+        if: ${{ !cancelled() }}
+        run: pnpm test:a11y
+
+      - name: Visual regression tests
+        if: ${{ !cancelled() }}
+        run: pnpm test:visual
+
+      - name: Performance smoke tests
+        if: ${{ !cancelled() }}
+        run: pnpm test:perf
+
+      - name: Upload Playwright report
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 14
+
+      - name: Upload traces and diffs
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-results
+          path: test-results/
+          retention-days: 14
