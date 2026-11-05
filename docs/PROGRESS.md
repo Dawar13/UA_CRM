@@ -136,7 +136,7 @@ Screenshots: `docs/screenshots/m0.4-main-*.png`, `m0.4-expanded-*.png`, `m0.4-pa
 
 ### Results (local, Windows 11)
 
-nCI is green on `main` with the baselines: [run 42045378731](https://github.com/Dawar13/UA_CRM/actions/runs/42045378731). Lint, typecheck, unit and component tests with coverage, build, e2e, a11y, visual and perf all pass.
+CI is green on `main` with the baselines: [run 42045378731](https://github.com/Dawar13/UA_CRM/actions/runs/42045378731). Lint, typecheck, unit and component tests with coverage, build, e2e, a11y, visual and perf all pass.
 
 | Layer                       | Result                                                                                           |
 | --------------------------- | ------------------------------------------------------------------------------------------------ |
