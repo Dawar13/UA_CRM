@@ -1,0 +1,16 @@
+# pnpm 12 reads project settings from this file (.npmrc is auth and registry only).
+engineStrict: true
+
+# Dependency install scripts are blocked unless listed here (pnpm 11+ strictDepBuilds).
+# Each choice is logged in docs/DECISIONS.md.
+allowBuilds:
+  # Postinstall only prints a funding banner.
+  core-js: false
+  # Postinstall only warns about version-range style in dependents.
+  protobufjs: false
+  # Postinstall only prints an Open Collective banner.
+  tesseract.js: false
+  # Postinstall verifies the platform binary that tsx relies on.
+  esbuild: true
+  # Postinstall would install git hooks; the "prepare" script does that instead.
+  lefthook: false

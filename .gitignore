@@ -1,0 +1,26 @@
+# Dependencies and builds
+node_modules
+dist
+dist-e2e
+coverage
+*.tsbuildinfo
+.vitest
+
+# Playwright
+playwright-report
+test-results
+blob-report
+playwright/.cache
+
+# Environment (only the example is committed)
+.env*
+!.env.example
+
+# Real contact files for runtime import never go into git
+data/import/
+
+# OS and editor
+.DS_Store
+Thumbs.db
+*.log
+.idea

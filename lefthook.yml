@@ -1,0 +1,8 @@
+pre-commit:
+  piped: true
+  jobs:
+    - name: biome
+      glob: "*.{js,ts,tsx,jsx,json,jsonc,css}"
+      run: pnpm exec biome check --no-errors-on-unmatched --files-ignore-unknown=true {staged_files}
+    - name: typecheck
+      run: pnpm typecheck

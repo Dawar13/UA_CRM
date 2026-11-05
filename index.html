@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en-IN" data-theme="system">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="description" content="Utopian Autonomy internal CRM" />
+    <title>UA · Internal CRM</title>
+    <script>
+      // Sets the theme before first paint so there is never a flash of the wrong theme.
+      // Keep the key and values in sync with src/app/theme.tsx.
+      ;(() => {
+        let mode = 'system'
+        try {
+          const stored = localStorage.getItem('ua-crm:theme')
+          if (stored === 'light' || stored === 'dark' || stored === 'system') mode = stored
+        } catch {}
+        document.documentElement.setAttribute('data-theme', mode)
+      })()
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
