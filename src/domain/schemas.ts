@@ -3,7 +3,7 @@
  * schema is the single definition. Pure: no React, no I/O.
  */
 import { z } from 'zod'
-import { tagColourNames } from '../styles/tokens'
+import { type TagColour, tagColourNames } from '../styles/tokens'
 
 export const idSchema = z.string().min(1)
 
@@ -203,7 +203,7 @@ export const rowSchema = z.object({
 export const tagSchema = z.object({
   id: idSchema,
   name: z.string().min(1),
-  colour: z.enum(tagColourNames as [string, ...string[]]),
+  colour: z.enum(tagColourNames as [TagColour, ...TagColour[]]),
   createdAt: isoDateTimeSchema,
 })
 
