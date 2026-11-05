@@ -1,19 +1,191 @@
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import { useTheme } from '@/app/theme'
 import { WarmthChip } from '@/components/crm/WarmthChip'
 import { cn } from '@/lib/cn'
 import { contrastRatio, formatRatio } from '@/styles/contrast'
 import {
+  bluePalette,
   brand,
+  brandMark,
   softGradient,
   type ThemeColours,
-  tagPalette,
   themes,
   toCssVarName,
 } from '@/styles/tokens'
 import { Section, Specimen } from './layout'
 
 type Role = keyof ThemeColours
+
+/** A folder front: the folder colour fading into paper. */
+export function folderFront(colour: string): string {
+  return [
+    `linear-gradient(180deg, ${colour} 0%,`,
+    `color-mix(in srgb, ${colour} 62%, transparent) 24%,`,
+    `color-mix(in srgb, ${colour} 24%, transparent) 56%,`,
+    'transparent 100%), var(--bg)',
+  ].join(' ')
+}
+
+/** The slanted ear after a folder tab face, `height` px tall. */
+export function folderEar(height: number): string {
+  return `path('M0 0 C 6 0, 8 4, 10 10 L 18 ${height} L 0 ${height} Z')`
+}
+
+/* Foundation blocks ------------------------------------------------------------------------ */
+
+function Block({
+  title,
+  detail,
+  className,
+  style,
+}: {
+  title: string
+  detail: ReactNode
+  className?: string
+  style?: CSSProperties
+}) {
+  return (
+    <div
+      className={cn('flex min-h-0 flex-col justify-between gap-3 rounded-card p-3.5', className)}
+      style={style}
+    >
+      <span className="text-[13px] font-semibold">{title}</span>
+      <span className="font-mono text-[11px] leading-[1.5]">{detail}</span>
+    </div>
+  )
+}
+
+function Foundation({ t }: { t: ThemeColours }) {
+  return (
+    <div className="grid h-[280px] grid-cols-[1.3fr_1fr_1fr_1fr] gap-2.5">
+      <Block
+        title="Sky to paper"
+        className="border border-border text-text [&>span:first-child]:text-folder-fg"
+        style={{ background: folderFront('var(--folder1-bottom)') }}
+        detail={
+          <>
+            {t.folder1Bottom} → paper
+            <br />
+            The folder front. Colour fades into the sheet.
+          </>
+        }
+      />
+      <div className="flex flex-col gap-2.5">
+        <Block
+          title="Paper"
+          className="flex-1 border border-border bg-bg text-text"
+          detail={`${t.bg} · every surface`}
+        />
+        <Block
+          title="Mist"
+          className="flex-1 border border-border bg-surface-subtle text-text"
+          detail={`${t.surfaceSubtle} · side panel, wells`}
+        />
+      </div>
+      <div className="flex flex-col gap-2.5">
+        <Block title="Ink" className="flex-[1.4] bg-text text-bg" detail={`${t.text} · text`} />
+        <Block
+          title="Slate"
+          className="flex-1 bg-secondary text-bg"
+          detail={`${t.textSecondary} · secondary text`}
+        />
+      </div>
+      <div className="flex flex-col gap-2.5">
+        <Block
+          title="UA blue"
+          className="flex-[1.4] bg-[image:var(--brand-mark)] text-today-fg"
+          detail={
+            <>
+              {brandMark.from} → {brandMark.to}
+              <br />
+              Brand mark, the open member
+            </>
+          }
+        />
+        <Block title="Link blue" className="flex-1 bg-link text-bg" detail={`${t.link} · links`} />
+      </div>
+    </div>
+  )
+}
+
+/* Blue palette and folders ---------------------------------------------------------------- */
+
+function BluePalette() {
+  return (
+    <div className="flex flex-wrap items-start gap-x-4 gap-y-3">
+      <span className="pt-1 font-mono text-[10.5px] text-muted">Palette</span>
+      <ol aria-label="Blue palette, navy to white" className="flex flex-wrap gap-1">
+        {bluePalette.map((hex, i) => (
+          <li key={hex} className="flex flex-col items-center gap-1.5">
+            <span
+              aria-hidden="true"
+              className="h-[22px] w-11 rounded-full shadow-[inset_0_0_0_1px_var(--border)]"
+              style={{ background: `var(--blue-${i + 1})` }}
+            />
+            <span className="font-mono text-[9.5px] text-muted">{hex}</span>
+          </li>
+        ))}
+      </ol>
+    </div>
+  )
+}
+
+const folderNames = [
+  ['01', 'Deep', 'Customers'],
+  ['02', 'Cyan', 'Investors'],
+  ['03', 'Sky', 'Advisors'],
+  ['04', 'Mist', 'Connectors'],
+  ['05', 'Frost', 'Service providers'],
+] as const
+
+function Folders({ t }: { t: ThemeColours }) {
+  const hex: [string, string][] = [
+    [t.folder1Top, t.folder1Bottom],
+    [t.folder2Top, t.folder2Bottom],
+    [t.folder3Top, t.folder3Bottom],
+    [t.folder4Top, t.folder4Bottom],
+    [t.folder5Top, t.folder5Bottom],
+  ]
+  return (
+    <div className="grid grid-cols-5 gap-3">
+      {folderNames.map(([no, name, sheet], i) => {
+        const n = i + 1
+        const face = `linear-gradient(180deg, var(--folder${n}-top), var(--folder${n}-bottom))`
+        return (
+          <div key={no} className="flex min-w-0 flex-col">
+            <div className="flex h-8 text-folder-fg">
+              <span
+                className="flex items-center gap-2 rounded-tl-[8px] pr-1 pl-3"
+                style={{ background: face }}
+              >
+                <span className="font-mono text-[10.5px] font-semibold">{no}</span>
+                <span className="text-[13px] font-semibold">{name}</span>
+              </span>
+              <span
+                aria-hidden="true"
+                className="w-[18px]"
+                style={{ background: face, clipPath: folderEar(32) }}
+              />
+            </div>
+            <div
+              className="flex h-[120px] flex-col justify-between rounded-[0_10px_10px_10px] border border-t-0 border-border px-3.5 py-3"
+              style={{ background: folderFront(`var(--folder${n}-bottom)`) }}
+            >
+              <span className="font-mono text-[10.5px] font-semibold tracking-[0.08em] text-folder-fg uppercase">
+                {sheet}
+              </span>
+              <span className="font-mono text-[10.5px] text-secondary">
+                {hex[i]?.[0]} → {hex[i]?.[1]}
+              </span>
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+/* Contrast swatches ----------------------------------------------------------------------- */
 
 interface SwatchSpec {
   /** CSS custom property, for example "--brand-600". */
@@ -42,7 +214,7 @@ function Swatch({ spec }: { spec: SwatchSpec }) {
           {passes === undefined ? null : (
             <span
               className={cn(
-                'rounded-full px-1.5 text-2xs leading-4 font-medium',
+                'rounded-chip px-1.5 text-2xs leading-4 font-medium',
                 passes ? 'bg-warm-bg text-warm' : 'bg-cold-bg text-cold',
               )}
             >
@@ -122,11 +294,12 @@ export function ColoursSection() {
     role(t, 'surfaceSubtle', 'bg'),
     role(t, 'surfaceRaised', 'bg'),
     role(t, 'surfaceHover', 'bg'),
+    role(t, 'tile', 'bg'),
     role(t, 'border', 'bg'),
     role(t, 'borderStrong', 'bg', 3),
     role(t, 'text', 'bg', 4.5),
-    role(t, 'textSecondary', 'bg', 4.5),
-    role(t, 'textMuted', 'rowSelected', 4.5),
+    role(t, 'textSecondary', 'surfaceSubtle', 4.5),
+    role(t, 'textMuted', 'surfaceHover', 4.5),
   ]
 
   const accentSpecs: SwatchSpec[] = [
@@ -135,34 +308,34 @@ export function ColoursSection() {
     role(t, 'focusRing', 'bg', 3),
     role(t, 'rowSelected', 'bg'),
     role(t, 'brandTint', 'bg'),
+    role(t, 'brandTintFg', 'bg', 4.5),
     role(t, 'today', 'bg', 4.5),
     role(t, 'overdue', 'bg', 4.5),
     role(t, 'lost', 'rowSelected', 4.5),
+    role(t, 'wonFg', 'bg', 4.5),
     role(t, 'danger', 'bg', 3),
-  ]
-
-  const stageSpecs: SwatchSpec[] = [
-    role(t, 'stageDone', 'rowSelected', 3),
-    role(t, 'stageCurrentRing', 'bg'),
-    role(t, 'stageFuture', 'rowSelected', 3),
-    role(t, 'stageWon', 'rowSelected', 3),
-    role(t, 'stageLost', 'rowSelected', 3),
-    role(t, 'stageLine', 'bg'),
   ]
 
   return (
     <Section
       id="colours"
-      title="Colour"
-      caption={`Calm, near-white surfaces dominate (deep ink in dark); UA blue is for action, selection and progress. Ratios are computed live for the ${resolved} theme.`}
+      title="Foundation"
+      caption={`Paper white everywhere, mist for the side panel, ink for text. The UA blue is for the brand mark and the open member; link blue for links. Ratios are computed live for the ${resolved} theme.`}
     >
-      <Specimen title="Brand ramp" caption="OKLCH, hue ~240. brand-500 is decorative only.">
-        <SwatchGrid specs={brandSpecs} />
+      <Foundation t={t} />
+      <Specimen
+        title="Folders"
+        caption="Each sheet takes one of five folder colours by position. The front fades to paper."
+      >
+        <div className="flex flex-col gap-5">
+          <Folders t={t} />
+          <BluePalette />
+        </div>
       </Specimen>
       <Specimen title="Neutrals" caption="Surfaces, hairlines and the three text roles.">
         <SwatchGrid specs={neutralSpecs} />
       </Specimen>
-      <Specimen title="Accent and status" caption="Links, focus, selection and dates.">
+      <Specimen title="Accent and status" caption="Links, focus, selection, dates and outcomes.">
         <SwatchGrid specs={accentSpecs} />
       </Specimen>
       <div className="grid gap-6 lg:grid-cols-2">
@@ -178,9 +351,14 @@ export function ColoursSection() {
                 Delete
               </span>
             </PairSample>
-            <PairSample label="Internal CRM label" fg={t.brandTintFg} bg={t.brandTint}>
-              <span className="rounded-full bg-brand-tint px-2 py-0.5 text-xs font-medium text-brand-tint-fg">
+            <PairSample label="Internal CRM label" fg={t.brandTintFg} bg={t.bg}>
+              <span className="inline-flex h-[21px] items-center rounded-chip border border-brand-tint-strong px-1.5 font-mono text-[10.5px] font-semibold tracking-[0.08em] text-brand-tint-fg uppercase">
                 Internal CRM
+              </span>
+            </PairSample>
+            <PairSample label="Today" fg={t.todayFg} bg={t.todayBg}>
+              <span className="rounded-chip bg-[image:linear-gradient(180deg,var(--today-bg-top),var(--today-bg))] px-1.5 py-0.5 font-mono text-[11.5px] font-semibold text-today-fg">
+                Today
               </span>
             </PairSample>
             <PairSample label="Warm" fg={t.warm} bg={t.warmBg}>
@@ -195,41 +373,27 @@ export function ColoursSection() {
           </div>
         </Specimen>
         <div className="flex flex-col gap-6">
-          <Specimen title="Stage dots" caption="Graphics, at least 3:1 on the expanded row.">
-            <SwatchGrid specs={stageSpecs} />
+          <Specimen title="Brand ramp" caption="OKLCH, hue ~240. Focus rings and accents.">
+            <SwatchGrid specs={brandSpecs} />
           </Specimen>
-          <Specimen title="Tag hues" caption="A 6px dot in a neutral pill.">
-            <div className="grid grid-cols-4 gap-x-4 gap-y-3">
-              {tagPalette.map((tag) => (
-                <div key={tag.name} className="flex items-center gap-2">
-                  <span
-                    className="size-3 shrink-0 rounded-full"
-                    style={{ background: `var(--tag-${tag.name})` }}
-                  />
-                  <div className="flex min-w-0 flex-col">
-                    <span className="text-xs text-text">{tag.name}</span>
-                    <span className="font-mono text-2xs text-muted">{tag.hex}</span>
-                  </div>
-                </div>
-              ))}
+          <Specimen
+            title="Soft gradient"
+            caption="Only for the sign-in background and empty-state art."
+          >
+            <div className="flex flex-col gap-3">
+              <div
+                className="h-16 rounded-control"
+                style={{ background: 'var(--soft-gradient)' }}
+              />
+              <div className="flex justify-between font-mono text-xs text-muted">
+                <span>{softGradient.from}</span>
+                <span>{softGradient.via}</span>
+                <span>{softGradient.to}</span>
+              </div>
             </div>
           </Specimen>
         </div>
       </div>
-      <Specimen
-        title="Soft gradient"
-        caption="Only for the 3px top strip, the sign-in background and empty-state art."
-      >
-        <div className="flex flex-col gap-3">
-          <div className="h-[3px] rounded-full" style={{ background: 'var(--soft-gradient)' }} />
-          <div className="h-16 rounded-control" style={{ background: 'var(--soft-gradient)' }} />
-          <div className="flex justify-between font-mono text-xs text-muted">
-            <span>{softGradient.from}</span>
-            <span>{softGradient.via}</span>
-            <span>{softGradient.to}</span>
-          </div>
-        </div>
-      </Specimen>
     </Section>
   )
 }

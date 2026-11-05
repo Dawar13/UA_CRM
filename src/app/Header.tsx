@@ -67,10 +67,9 @@ export function Header({ members, member }: { members: readonly Member[]; member
   const setShortcutsOpen = useUiStore((s) => s.setShortcutsOpen)
 
   return (
-    <header className="flex h-[var(--header-height)] shrink-0 items-center gap-6 border-b border-border bg-bg px-4">
+    <header className="flex h-(--header-height) shrink-0 items-center gap-6 border-b border-border bg-bg px-5">
       <BrandLockup />
-      <span aria-hidden className="h-5 w-px bg-border" />
-      <nav aria-label="Members" className="flex h-full min-w-0 items-stretch">
+      <nav aria-label="Members" className="flex min-w-0 items-center">
         <MemberTabs
           members={members.map((m) => ({ id: m.id, name: m.name }))}
           value={member.id}
@@ -81,24 +80,27 @@ export function Header({ members, member }: { members: readonly Member[]; member
         />
       </nav>
 
-      <div className="ml-auto flex items-center gap-1.5">
+      <div className="ml-auto flex min-w-0 items-center gap-2">
         <Tooltip content="Search and commands" shortcut={['Mod', 'K']}>
+          {/* A soft pill: no border, the input fill, the shortcut on a paper keycap. */}
           <button
             type="button"
             onClick={() => setPaletteOpen(true)}
-            className="mr-1 inline-flex h-8 w-56 items-center gap-2 rounded-control border border-border bg-surface-subtle px-2.5 text-sm text-muted transition-colors duration-[var(--duration-fast)] hover:border-border-strong hover:text-secondary"
+            className="inline-flex h-[34px] w-[300px] min-w-0 shrink items-center gap-2 rounded-[8px] bg-surface-hover pr-1.5 pl-2.5 text-sm text-muted transition-colors duration-(--duration-fast) ease-out hover:bg-tile hover:text-secondary"
             data-testid="search-trigger"
           >
-            <Search aria-hidden className="size-4" />
-            <span className="flex-1 text-left">Search</span>
-            <Kbd keys={['Mod', 'K']} />
+            <Search aria-hidden className="size-4 shrink-0" />
+            <span className="min-w-0 flex-1 truncate text-left">
+              Search people, companies, tags
+            </span>
+            <Kbd keys={['Mod', 'K']} joined />
           </button>
         </Tooltip>
-        <ThemeToggle />
+        <ThemeToggle variant="secondary" size="lg" />
         <Menu>
           <MenuTrigger asChild>
-            <IconButton aria-label="More" tooltip="More">
-              <MoreHorizontal className="size-4" />
+            <IconButton aria-label="More" tooltip="More" variant="secondary" size="lg">
+              <MoreHorizontal />
             </IconButton>
           </MenuTrigger>
           <MenuContent align="end" className="w-64">

@@ -35,10 +35,10 @@ describe('pickTagColour', () => {
 describe('tagColourHex', () => {
   it('maps each palette name to its hex', () => {
     for (const { name, hex } of tagPalette) expect(tagColourHex(name)).toBe(hex)
-    expect(tagColourHex('indigo')).toBe('#6366F1')
+    expect(tagColourHex('indigo')).toBe('#7C83F2')
   })
 
   it('falls back to slate for unknown names', () => {
-    expect(tagColourHex('magenta' as TagColour)).toBe('#64748B')
+    expect(tagColourHex('magenta' as TagColour)).toBe('#8B98A9')
   })
 })

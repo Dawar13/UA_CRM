@@ -31,18 +31,22 @@ None of the three is optional. A screen that works but looks rough is not done, 
 ### 2.1 Layout
 
 ```
-+--[3px soft gradient strip]-----------------------------------------------+
-| [UA] Utopian Autonomy  Internal CRM | Today  Dawar  Dhruv  +  | Ctrl K  ... |
 +--------------------------------------------------------------------------+
-| Customers  Investors  Advisors  Connectors  Service providers  + Sheet   |
-+--------------------------------------------------------------------------+
-| > quick add (Phase 1)                                                     |
+| [UA] Utopian Autonomy  INTERNAL CRM | (Dawar) Dhruv |   Search  Ctrl K  ... |
 +---------------------------------------------------------+----------------+
-| Name | Warmth | Stage (dots) | Tags | Last touch | Next  | This week      |
-| ...grid rows...                                         | (calendar      |
-| [expanded row: stage tracker, next action, history]     |  panel)        |
+| /01 Customers 12\ /02 Investors 6\ /03 …\   (folder tabs)| THIS WEEK      |
+| +-------------------------------------------------------+| 7-day strip    |
+| | 01 — CUSTOMERS            folder front (blue → white)  || last 30 days   |
+| | People · Open pipeline    | Pipeline: capsule + squares|| (dot field)    |
+| | Won    · Due              |                            ||                |
+| +-------------------------------------------------------+| agenda cards   |
+| | > quick add (Phase 1)                                  ||                |
+| | Person | Warmth | Stage (bar) | Tags | Last touch | Next||                |
+| | ...grid rows...  [expanded row: tracker, history]      ||                |
 +---------------------------------------------------------+----------------+
 ```
+
+Each sheet is a **folder**: its tab rises from a row of folder tabs and joins the folder front, a summary of the sheet (figures and the pipeline) that fades from the folder's blue into the white sheet below. Clicking the active tab folds the front away to one line.
 
 - **Member tabs** are at the top level, and one member tab is on screen at a time, full width. The **Today** tab shows the day of whoever is signed in.
 - **Sheets** sit inside a member tab. Each member creates and owns their own sheets. When a sheet is created, it starts from a template or from blank.
@@ -56,7 +60,7 @@ None of the three is optional. A screen that works but looks rough is not done, 
 | Sheet         | A category of contacts, such as Customers | Owned by one member; has its own columns and its own stages, or none                                                                  |
 | Row           | One person                                | Belongs to one sheet. Core fields are fixed; custom fields are per sheet                                                              |
 | Column        | A field on a sheet                        | Typed. Can be added, renamed, reordered, hidden and resized. System columns can be hidden but not deleted                             |
-| Warmth        | How engaged the person is right now       | Exactly one of Warm (green), Waiting (amber, ball in their court), Cold (red), or empty. Set by hand, never automatic                 |
+| Warmth        | How engaged the person is right now       | Exactly one of Warm (olive green), Waiting (ochre, ball in their court), Cold (brick), or empty. Set by hand, never automatic         |
 | Stage         | How far the relationship has progressed   | An ordered list per sheet; the last stage is the win (Paid, Committed, Done). The date each stage is reached is stamped automatically |
 | Lost          | The relationship is closed                | A separate flag that records the stage it stopped at and the date. Reopen clears it. Cold is not Lost: cold can be revived            |
 | Tag           | A label that cuts across sheets           | Many per row. One shared tag library across all sheets and members. Each tag has a colour, auto-assigned and editable                 |
@@ -213,75 +217,69 @@ Everything runs in the browser, in a Web Worker.
 
 ### 3.2 Visual identity
 
-**White is the dominant colour.** The UA blue is for action, selection and progress. Other colours appear only where they carry meaning: warmth, stage outcome, tags.
+The founders approved this look in M0.6 (5 Nov 2026). It is calm and art-like: paper white, one blue palette for structure and progress, and an earthy "field" palette for warmth and activity. Colours carry meaning; soft gradients and joined shapes replace pills and dots. The full system is in `src/styles/tokens.ts` and on the `/design` page.
 
-**Brand colours.** These were sampled from the founder's reference images. The ramp is built in OKLCH at hue ~240.
+**Paper and ink.** White is the dominant colour. Surfaces are paper white with a mist side panel, hairline borders and soft shadows only on floating cards.
 
-| Token         | Hex     | Use                                                                                                                    |
-| ------------- | ------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `--brand-50`  | #EBF9FF | Selected row tint, subtle highlights                                                                                   |
-| `--brand-100` | #D3F2FF | Hover tint on brand elements                                                                                           |
-| `--brand-200` | #AAE3FF | Current-stage ring (light)                                                                                             |
-| `--brand-300` | #7ECEFF |                                                                                                                        |
-| `--brand-400` | #46B5F9 | Focus ring; links and progress in dark mode                                                                            |
-| `--brand-500` | #1CA6EF | The sampled vivid UA blue. Brand mark, gradient strip, large decorative fills only (2.7:1 on white, so never for text) |
-| `--brand-600` | #007BC1 | Primary button fill with white text (4.56:1); done-stage dots in light mode                                            |
-| `--brand-700` | #006AA8 | Link and accent text on white (5.8:1)                                                                                  |
-| `--brand-800` | #005387 | Current-stage ring (dark)                                                                                              |
-| `--brand-900` | #003C68 |                                                                                                                        |
+| Token              | Light   | Dark    |
+| ------------------ | ------- | ------- |
+| `--bg`             | #FFFFFF | #0A1116 |
+| `--surface-subtle` | #F7F9FB | #0C151B |
+| `--surface-raised` | #FFFFFF | #0E181F |
+| `--border`         | #E4E9ED | #1C2932 |
+| `--border-strong`  | #858E94 | #66737B |
+| `--text`           | #0E1A22 | #E6EDF1 |
+| `--text-secondary` | #4A5761 | #A9B5BD |
+| `--text-muted`     | #646F78 | #87949D |
+| `--link`           | #0B6AA6 | #7CC8F5 |
 
-**Soft gradient** (sampled): `linear-gradient(90deg, #6CAAFD 0%, #B5DBFF 50%, #70BEFF 100%)`. Use it only for the 3px strip at the very top of the app, the sign-in screen background and empty-state art. Never behind text or data.
+**The blue palette** (from the founders' reference), navy to white: #03045E, #033E8A, #0078B7, #0096C8, #00B4D7, #48CAE4, #91E0EF, #AEE8F4, #CAF1F8, #FFFFFF. It is used for:
+- **Folders.** Each sheet's tab is a two-stop gradient, deepest first: 01 #0096C8 → #00B4D7, 02 #00B4D7 → #48CAE4, 03 #48CAE4 → #91E0EF, 04 #91E0EF → #AEE8F4, 05 #AEE8F4 → #CAF1F8 (sheet n takes folder n mod 5). The folder front fades from its colour to paper. Ink text. In dark mode the tabs run #0078B7 down to #03045E with white text.
+- **Stages.** Open stages step from light (early) to deep (far along): #CAF1F8, #91E0EF, #48CAE4, #00B4D7, #0096C8, #0078B7.
+- **The pipeline capsule:** #CAF1F8 → #033E8A across the stages (reversed in dark mode).
+- **Primary buttons:** #0078B7 with white text. The focus ring is #0078B7 (light) and #48CAE4 (dark).
+- **The brand mark and today markers:** a sky gradient (#6CC4F6 → #1C9BEA for the mark; #48CAE4 → #00B4D7 with ink text for today).
 
-**Neutrals:**
+**The field palette** (from the founders' dot-chart reference): olive and sage greens, yellow ochre, orange and brick, with sand at zero and blue as the rare accent.
 
-| Token              | Light                                 | Dark    |
-| ------------------ | ------------------------------------- | ------- |
-| `--bg`             | #FFFFFF                               | #071117 |
-| `--surface-subtle` | #F8FAFD                               | #0F1A21 |
-| `--surface-raised` | #FFFFFF                               | #17232C |
-| `--border`         | #E0E5E9                               | #27353E |
-| `--border-strong`  | #8A9399 (≥3:1, for hollow stage dots) | #5E6A72 |
-| `--text`           | #141C21                               | #E5ECF1 |
-| `--text-secondary` | #565F65                               | #A6AFB7 |
-| `--text-muted`     | #6B737A                               | #8C969E |
+| Meaning                      | Light                                                 | Dark                         |
+| ---------------------------- | ----------------------------------------------------- | ---------------------------- |
+| Warm chip (text / soft fill) | #3D6A29 on #F1F7E8 → #E3EFD3, square #8CC36F          | #B9DDA3 on #293C2B → #213126 |
+| Waiting chip                 | #77570F on #FCF5E0 → #F7E9C2, square #EBC155          | #EFD394 on #3C3824 → #2E2D20 |
+| Cold chip                    | #963520 on #FBEAE3 → #F6D7CB, square #D9603D          | #F2B19B on #3C241F → #2F1F1D |
+| Won stage                    | #6FB257 (label text #3D7A2A)                          | #7DBE62 (#A5D98A)            |
+| Lost stage                   | #D9603D (text #A93A26); lost people are charcoal dots | #E06A4C (#F2A58E)            |
+| Activity held (up)           | #D6E7C0 → #4F9C46, deeper as a day gets busier        | dim to bright                |
+| Activity missed (down)       | #F1CD62 → #EC9C47 → #D9603D → #B23B2A                 | same                         |
+| Stage moved / zero line      | #3A9AD9 / sand #EADFC2                                | #3A9AD9 / #4A4330            |
 
-**Semantic colours:**
+Warmth squares in the folder front have three shades each: deeper means the person was touched more recently (within 7 days, within 14, older).
 
-| Meaning                           | Light fg / bg        | Dark fg / bg      |
-| --------------------------------- | -------------------- | ----------------- |
-| Warm                              | #15803D / #DCFCE7    | #86EFAC / #0F2A1B |
-| Waiting                           | #854D0E / #FEF3C7    | #FCD34D / #2B2108 |
-| Cold                              | #B91C1C / #FEE2E2    | #FCA5A5 / #2E1111 |
-| Won stage (Paid, Committed, Done) | #16A34A dot          | #4ADE80 dot       |
-| Lost                              | #DC2626 dot and text | #F87171           |
+**Stage bar:** in the grid, one joined bar (a cell per stage, 1px gaps, ends rounded) next to the stage name; reached cells take the ramp, the win is olive, unreached cells a pale track, skipped cells are hatched, and a lost row greys its reached cells and marks the next one brick. In the expanded row the same blocks are larger, with the name and date inside and a ring on the current stage.
 
-**Stage dots:**
-- Done stages are filled (`--brand-600` light, `--brand-400` dark).
-- The current stage is filled with a 3px ring (`--brand-200` light, `--brand-800` dark).
-- Future stages are hollow, with a 1.5px `--border-strong` outline.
-- Lost is a filled red dot placed at the next stage position.
-- State is conveyed by shape as well as colour.
+**Tag palette:** a small coloured square beside the tag name, no pill. The 8 softened hues are indigo #7C83F2, violet #A28CF4, pink #EE8FB5, orange #F2A06E, amber #E9BC5C, lime #8DC46E, teal #4FC2B4, slate #8B98A9. New tags take the least-used hue.
 
-**Tag palette:** a coloured 6px dot inside a neutral pill. The 8 hues are indigo #6366F1, violet #8B5CF6, pink #EC4899, orange #F97316, amber #F59E0B, lime #65A30D, teal #14B8A6, slate #64748B. New tags take the least-used hue.
+**Gradients** are soft and purposeful: folder tabs and fronts, warmth and today chips, the brand mark, monogram avatars (grey) and the capsule. Never behind body text that would lose contrast. The old 3px strip at the top of the app is gone; the soft sampled gradient (#6CAAFD → #B5DBFF → #70BEFF) remains only for the sign-in background and empty-state art.
 
-**Contrast is tested, not assumed.** Body and label text must be ≥ 4.5:1. Meaningful graphics (dots, focus rings, chip borders) must be ≥ 3:1. This applies in both themes and is enforced by a unit test over the token file. If a hex above fails, adjust the hex, keep the intent, and log the change.
+**Contrast is tested, not assumed.** Body and label text must be ≥ 4.5:1, including text on every folder colour, stage block and chip gradient stop. Focus rings and hollow outlines must be ≥ 3:1. Stage cells, warmth squares and activity dots are supplementary: each sits beside text that says the same thing, so they are not held to 3:1. This applies in both themes and is enforced by a unit test over the token file. If a hex above fails, adjust the hex, keep the intent, and log the change.
 
 ### 3.3 Typography, spacing, motion
 
-- **Fonts:** Geist Variable for the UI and Geist Mono Variable for the quick-add input and code-like values. Both are self-hosted through Fontsource. Number cells use `font-variant-numeric: tabular-nums`.
-- **Type scale:** 12 / 13 / **14 (base)** / 16 / 20 / 24 px. Weights 400, 500 and 600. Headings at 600 with letter-spacing -0.01em. Line height 1.45 for UI and 1.6 for long text.
-- **Spacing:** a 4px grid. Grid rows are 40px (comfortable, the default) or 32px (compact, Phase 1 toggle). The header is 52px and the sheet bar 40px.
-- **Corners:** 6px for controls, 10px for cards and popovers, full rounding for chips.
-- **Surfaces:** 1px hairline borders and no heavy shadows. Popovers and menus get one soft shadow.
-- **Motion:** 120 to 180 ms, ease-out. Row expansion animates height. `prefers-reduced-motion` disables non-essential motion.
-- **Focus:** a visible 2px `--brand-400` ring with a 2px offset on every focusable element.
+- **Fonts:** Geist Variable for the UI and Geist Mono Variable for labels, dates, money, counts and the quick-add input. Both are self-hosted through Fontsource. Numbers use `font-variant-numeric: tabular-nums`.
+- **Type scale:** 12 / 13 / **14 (base)** / 16 / 20 / 24 px for UI text; figures on the folder front are 40px (27px when long) at weight 400 with tight tracking. Section labels are Geist Mono, 10.5 to 11.5px, uppercase, letter-spacing 0.08 to 0.1em. Weights 400, 500 and 600 (550 for names). Line height 1.45 for UI and 1.6 for long text.
+- **Spacing:** a 4px grid. Grid rows are 52px (comfortable, two lines: name, then title and company) or 40px (compact, Phase 1 toggle). The header is 56px; the active folder tab is 40px and the others 31px.
+- **Corners:** squarer than before: 4px for chips and badges, 6px for controls, 8px for the top of folder tabs, 10px for cards and popovers. Avatars are rounded squares.
+- **Surfaces:** 1px hairline borders. Floating cards get one soft shadow; the pipeline card on the folder front is frosted glass.
+- **Motion:** 120 to 180 ms, ease-out. Folder tabs rise when chosen; row expansion animates height. `prefers-reduced-motion` disables non-essential motion.
+- **Focus:** a visible 2px focus ring with a 2px offset on every focusable element.
 
 ### 3.4 Branding in the header
 
 From left to right:
-- **Brand mark:** a 28px rounded square (radius 8) filled with `--brand-500`, with a white "UA" monogram in Geist 600.
+- **Brand mark:** a 28px rounded square (radius 7) with the sky gradient, and a white "UA" monogram in Geist 700.
 - **Wordmark:** "Utopian Autonomy", 15px, weight 600, `--text`.
-- **Label:** an "Internal CRM" pill, 12px, `--brand-700` on `--brand-50`.
+- **Label:** "INTERNAL CRM" in Geist Mono caps, 10.5px, link blue, with a light blue hairline (radius 4).
+- **Members:** a segmented control; the open member is a raised white pill.
 
 The browser tab title is "UA · Internal CRM", and the favicon is the brand mark. If the founders later supply a logo, replace `src/assets/brand/` only.
 

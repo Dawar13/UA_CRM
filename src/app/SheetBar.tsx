@@ -7,6 +7,10 @@ import type { Member, Sheet } from '@/domain/types'
 import { sheetPath } from './navigation'
 import { useUiStore } from './uiStore'
 
+/**
+ * The folder tabs above the open sheet, with the side panel toggle at the right end. Clicking the
+ * open sheet's tab again folds or unfolds its folder front.
+ */
 export function SheetBar({
   member,
   sheets,
@@ -20,9 +24,10 @@ export function SheetBar({
   const { data: counts } = useRowCounts(member.id)
   const panelOpen = useUiStore((s) => s.panelOpen)
   const togglePanel = useUiStore((s) => s.togglePanel)
+  const toggleSummary = useUiStore((s) => s.toggleSummary)
 
   return (
-    <div className="flex h-[var(--sheet-bar-height)] shrink-0 items-stretch gap-4 border-b border-border bg-bg pl-4 pr-2">
+    <div className="flex h-[var(--sheet-bar-height)] shrink-0 items-stretch gap-3">
       <nav aria-label={`${member.name}'s sheets`} className="flex min-w-0 flex-1 items-stretch">
         <SheetTabs
           sheets={sheets.map((s) => ({ id: s.id, name: s.name }))}
@@ -32,6 +37,7 @@ export function SheetBar({
             const next = sheets.find((s) => s.id === id)
             if (next) navigate(sheetPath(member.slug, next.slug))
           }}
+          onActiveTabClick={toggleSummary}
         />
       </nav>
       <div className="flex items-center">

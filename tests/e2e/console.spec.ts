@@ -10,7 +10,6 @@ import {
   sheetTab,
   toast,
   undoToast,
-  warmthChip,
 } from './helpers'
 
 // The console guard in tests/support/fixtures.ts already fails any test that logs a console error
@@ -61,8 +60,7 @@ for (const theme of ['light', 'dark'] as const) {
       await expandedRow(page).getByRole('button', { name: 'Move to Plant visit' }).click()
       await expandedRow(page).getByRole('button', { name: 'Mark lost' }).click()
       await expandedRow(page).getByRole('button', { name: 'Reopen' }).click()
-      await warmthChip(expandedRow(page)).click()
-      await page.getByRole('menu').getByRole('menuitemradio', { name: /Cold/ }).click()
+      await expandedRow(page).getByRole('radio', { name: 'Cold' }).click()
       await expect(toast(page, 'Warmth set to Cold')).toBeVisible()
       await expandedRow(page)
         .getByRole('button', { name: /^Show all/ })

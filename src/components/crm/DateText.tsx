@@ -64,7 +64,10 @@ function dateView(date: FuzzyDate | string, due: boolean, now: Date): DateView {
 
 export interface DateTextProps {
   date: FuzzyDate | string | null
-  /** "due" colours overdue dates red and shows "Today" for today. */
+  /**
+   * "due" is for next-action dates: today reads "Today" in a small blue chip, overdue dates are
+   * brick and semibold, and other dates take the main text colour.
+   */
   variant?: 'plain' | 'due'
   className?: string
 }
@@ -76,7 +79,8 @@ export interface DateTextProps {
 export function DateText({ date, variant = 'plain', className }: DateTextProps) {
   const now = useNow()
   if (date === null) return null
-  const { value, text, today, overdue } = dateView(date, variant === 'due', now)
+  const due = variant === 'due'
+  const { value, text, today, overdue } = dateView(date, due, now)
 
   return (
     <Tooltip content={<DateTooltip value={value} />}>
@@ -85,9 +89,12 @@ export function DateText({ date, variant = 'plain', className }: DateTextProps) 
         data-due={today ? 'today' : overdue ? 'overdue' : undefined}
         className={cn(
           'whitespace-nowrap tabular-nums',
-          today && 'font-medium text-today',
-          overdue && 'text-overdue',
+          due && !today && !overdue && 'text-text',
           className,
+          // After className, so a due state always shows whatever the caller's colour or weight.
+          today &&
+            'inline-block rounded-chip bg-[image:linear-gradient(180deg,var(--today-bg-top),var(--today-bg))] px-[7px] py-0.5 font-mono text-[11.5px] leading-[1.3] font-semibold tracking-[0.02em] text-today-fg',
+          overdue && 'font-semibold text-overdue',
         )}
       >
         {overdue ? <span className="sr-only">Overdue: </span> : null}

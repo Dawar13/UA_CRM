@@ -74,32 +74,49 @@ export interface KbdProps extends Omit<ComponentPropsWithRef<'kbd'>, 'children'>
   keys: readonly KeyName[]
   /** "subtle" for use inside menus and tooltips. */
   tone?: 'default' | 'subtle'
+  /**
+   * One keycap for the whole shortcut ("Ctrl K", "⌘K"), as on the header search pill. By default
+   * each key gets its own keycap.
+   */
+  joined?: boolean
 }
 
-/** A keyboard shortcut, one keycap per key. */
-export function Kbd({ keys, tone = 'default', className, ...props }: KbdProps) {
+const keycapClassName = cn(
+  'inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-chip px-[5px]',
+  'font-mono text-2xs font-medium leading-none tabular-nums',
+)
+
+const toneClassName = {
+  // A hairline ring rather than a border, so keycaps never change the line height around them.
+  default: 'bg-bg text-secondary shadow-[0_0_0_1px_var(--border)]',
+  subtle: 'bg-transparent text-muted shadow-[0_0_0_1px_var(--border)]',
+} as const
+
+/** A keyboard shortcut in Geist Mono: one keycap per key, or one for the whole shortcut. */
+export function Kbd({ keys, tone = 'default', joined = false, className, ...props }: KbdProps) {
   const apple = isApplePlatform()
+  const labels = keys.map((key) => keyLabel(key, apple))
   return (
     <kbd
-      className={cn('inline-flex items-center gap-0.5 font-sans not-italic', className)}
+      className={cn('inline-flex items-center gap-1 font-mono not-italic', className)}
       {...props}
     >
-      {keys.map((key, i) => (
-        <kbd
-          // Keys can repeat ("Shift", "Shift" is unusual but harmless); position keeps them unique.
-          // biome-ignore lint/suspicious/noArrayIndexKey: the key list is static and ordered.
-          key={`${key}-${i}`}
-          className={cn(
-            'inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-[4px] px-1',
-            'font-sans text-2xs font-medium leading-none tabular-nums',
-            tone === 'default'
-              ? 'border border-border bg-surface-subtle text-secondary shadow-[inset_0_-1px_0_var(--border)]'
-              : 'border border-border/80 bg-transparent text-muted',
-          )}
-        >
-          {keyLabel(key, apple)}
+      {joined ? (
+        <kbd className={cn(keycapClassName, toneClassName[tone])}>
+          {labels.join(apple ? '' : ' ')}
         </kbd>
-      ))}
+      ) : (
+        labels.map((label, i) => (
+          <kbd
+            // Keys can repeat ("Shift", "Shift" is unusual but harmless); position keeps them unique.
+            // biome-ignore lint/suspicious/noArrayIndexKey: the key list is static and ordered.
+            key={`${label}-${i}`}
+            className={cn(keycapClassName, toneClassName[tone])}
+          >
+            {label}
+          </kbd>
+        ))
+      )}
     </kbd>
   )
 }

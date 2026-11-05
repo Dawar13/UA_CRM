@@ -98,6 +98,34 @@ test.describe('navigation', () => {
     await expect(page).toHaveURL(/\/m\/dhruv\/investors$/)
   })
 
+  test('clicking the open sheet tab folds its front, and the fold is remembered', async ({
+    page,
+  }) => {
+    await openSheet(page, 'dawar', 'customers')
+    const summary = () => page.getByRole('region', { name: 'Customers summary' })
+    // With no saved choice the front starts open on tall screens and folded on short ones.
+    const tall = (page.viewportSize()?.height ?? 0) >= 820
+    await expect(summary()).toHaveAttribute('data-state', tall ? 'open' : 'closed')
+    if (!tall) await sheetTab(page, 'Customers').click()
+    await expect(summary()).toHaveAttribute('data-state', 'open')
+    await expect(
+      summary().getByRole('button', { name: 'Collapse the sheet summary' }),
+    ).toHaveAttribute('aria-expanded', 'true')
+
+    await sheetTab(page, 'Customers').click()
+    await expect(summary()).toHaveAttribute('data-state', 'closed')
+    await expect(summary()).toContainText('12 people')
+    await expect(page).toHaveURL(/\/m\/dawar\/customers$/)
+
+    await reloadApp(page)
+    await expect(summary()).toHaveAttribute('data-state', 'closed')
+
+    // Enter on the open tab unfolds it again.
+    await sheetTab(page, 'Customers').press('Enter')
+    await expect(summary()).toHaveAttribute('data-state', 'open')
+    await expect(summary()).toContainText('Owned by Dawar · 7 stages', { ignoreCase: true })
+  })
+
   test('a deep link with ?row= opens that row expanded', async ({ page }) => {
     await openSheet(page, 'dawar', 'customers', ids.karthikSubramanian)
 

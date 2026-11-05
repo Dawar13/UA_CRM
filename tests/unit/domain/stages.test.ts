@@ -9,7 +9,9 @@ import {
   previousStageIndex,
   reopen,
   restoreStage,
+  STAGE_RAMP_STEPS,
   snapshotStage,
+  stageRampStep,
   stageState,
   stageView,
 } from '@/domain/stages'
@@ -403,5 +405,47 @@ describe('nextStageIndex and previousStageIndex', () => {
     expect(previousStageIndex(lost, sheet)).toBeNull()
     expect(nextStageIndex(makeRow(), connectors)).toBeNull()
     expect(previousStageIndex(makeRow({ stageIndex: 1 }), connectors)).toBeNull()
+  })
+})
+
+describe('stageRampStep', () => {
+  const ramp = (count: number) =>
+    Array.from({ length: count - 1 }, (_, i) => stageRampStep(i, count))
+
+  it('spans light to deep over the open stages of a seven-stage sheet', () => {
+    expect(ramp(7)).toEqual([1, 2, 3, 4, 5, 6])
+  })
+
+  it('spreads shorter pipelines across the whole ramp', () => {
+    expect(ramp(6)).toEqual([1, 2, 4, 5, 6])
+    expect(ramp(4)).toEqual([1, 4, 6])
+    expect(ramp(3)).toEqual([1, 6])
+  })
+
+  it('uses the middle step for sheets with two stages or fewer', () => {
+    expect(stageRampStep(0, 2)).toBe(4)
+    expect(stageRampStep(1, 2)).toBe(4)
+    expect(stageRampStep(0, 1)).toBe(4)
+  })
+
+  it('stays within the ramp, even for the win stage and long pipelines', () => {
+    expect(stageRampStep(6, 7)).toBe(STAGE_RAMP_STEPS)
+    expect(stageRampStep(-1, 7)).toBe(1)
+    for (let count = 1; count <= 20; count++) {
+      for (let i = 0; i < count; i++) {
+        const step = stageRampStep(i, count)
+        expect(step).toBeGreaterThanOrEqual(1)
+        expect(step).toBeLessThanOrEqual(STAGE_RAMP_STEPS)
+      }
+    }
+  })
+
+  it('never gets lighter further along', () => {
+    for (let count = 3; count <= 20; count++) {
+      const steps = ramp(count)
+      for (let i = 1; i < steps.length; i++) {
+        expect(steps[i]).toBeGreaterThanOrEqual(steps[i - 1] ?? 0)
+      }
+    }
   })
 })

@@ -58,22 +58,26 @@ test.describe('warmth', () => {
     await expect(warmthChip(gridRow(page, ids.rohanMehta))).toHaveAccessibleName('Warmth: Warm')
   })
 
-  test('the menu digits and Clear work in the expanded row', async ({ page }) => {
+  test('the warmth chips in the expanded row choose, clear with 0, and persist', async ({
+    page,
+  }) => {
     await openSheet(page, 'dawar', 'customers', ids.rohanMehta)
-    const chip = warmthChip(expandedRow(page))
-    await expect(chip).toHaveAccessibleName('Warmth: Warm')
+    const group = expandedRow(page).getByRole('radiogroup', { name: 'Warmth' })
+    await expect(group.getByRole('radio', { name: 'Warm' })).toHaveAttribute('aria-checked', 'true')
 
-    await chip.click()
-    await expect(page.getByRole('menu')).toBeVisible()
-    await page.keyboard.press('2')
-    await expect(page.getByRole('menu')).toBeHidden()
-    await expect(chip).toHaveAccessibleName('Warmth: Waiting')
+    await group.getByRole('radio', { name: 'Waiting' }).click()
+    await expect(group.getByRole('radio', { name: 'Waiting' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    )
+    await expect(toast(page, 'Warmth set to Waiting')).toBeVisible()
     // The grid row shows the same value.
     await expect(warmthChip(gridRow(page, ids.rohanMehta))).toHaveAccessibleName('Warmth: Waiting')
 
-    await chip.click()
-    await page.getByRole('menu').getByRole('menuitem', { name: /Clear/ }).click()
-    await expect(chip).toHaveAccessibleName('Warmth: none, set warmth')
+    // The menu digits work in the group too: 0 clears.
+    await group.getByRole('radio', { name: 'Waiting' }).focus()
+    await page.keyboard.press('0')
+    await expect(group.getByRole('radio', { checked: true })).toHaveCount(0)
     await expect(toast(page, 'Warmth cleared')).toBeVisible()
     // The history records each change.
     const history = expandedRow(page).getByTestId('history-entry')
@@ -81,7 +85,14 @@ test.describe('warmth', () => {
     await expect(history.filter({ hasText: 'Warmth cleared' })).toHaveCount(1)
 
     await reloadApp(page)
-    await expect(warmthChip(expandedRow(page))).toHaveAccessibleName('Warmth: none, set warmth')
+    await expect(
+      expandedRow(page)
+        .getByRole('radiogroup', { name: 'Warmth' })
+        .getByRole('radio', { checked: true }),
+    ).toHaveCount(0)
+    await expect(warmthChip(gridRow(page, ids.rohanMehta))).toHaveAccessibleName(
+      'Warmth: none, set warmth',
+    )
   })
 
   test('W cycles warmth on the active row and persists across reload', async ({ page }) => {

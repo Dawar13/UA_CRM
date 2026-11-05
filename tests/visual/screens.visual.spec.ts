@@ -11,6 +11,10 @@ test.skip(process.platform !== 'linux', 'Visual baselines are Linux-only (Docker
 const designSections = [
   'design-colours',
   'design-type',
+  'design-stages',
+  'design-field',
+  'design-activity',
+  'design-shape',
   'design-brand',
   'design-buttons',
   'design-inputs',

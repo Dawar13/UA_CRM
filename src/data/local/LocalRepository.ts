@@ -316,11 +316,10 @@ export class LocalRepository implements Repository {
     const ids = new Set(
       (await this.db.rows.where('memberId').equals(memberId).primaryKeys()) as Id[],
     )
-    return this.db.history
-      .where('at')
-      .between(from, to, true, false)
-      .filter((h) => ids.has(h.rowId))
-      .sortBy('at')
+    // One bulk read of the index range, filtered in memory: a cursor filter would hold the
+    // history store for every entry and make row writes queue behind it.
+    const entries = await this.db.history.where('at').between(from, to, true, false).toArray()
+    return entries.filter((h) => ids.has(h.rowId))
   }
 
   // ---------- Mutations ----------

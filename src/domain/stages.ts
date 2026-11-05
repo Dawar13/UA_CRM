@@ -222,6 +222,21 @@ export function stageView(
   }))
 }
 
+/** Steps in the open-stage colour ramp (`--stage1` light … `--stage6` deep). */
+export const STAGE_RAMP_STEPS = 6
+
+/**
+ * Colour step (1 to 6) of stage `index` in a sheet of `stageCount` stages: light early, deep far
+ * along. The last stage is the win and has its own colour, so the ramp spans the open stages:
+ * the first is step 1 and the last open one (index stageCount − 2) is step 6. Sheets with two
+ * stages or fewer use the middle step 4. Always within 1 to 6.
+ */
+export function stageRampStep(index: number, stageCount: number): number {
+  if (stageCount <= 2) return 4
+  const step = Math.round((index * (STAGE_RAMP_STEPS - 1)) / (stageCount - 2)) + 1
+  return Math.min(STAGE_RAMP_STEPS, Math.max(1, step))
+}
+
 /** Next and previous stage index for `]` and `[`; null at the ends or when lost. */
 export function nextStageIndex(row: Row, sheet: Sheet): number | null {
   if (sheet.stages.length === 0 || row.lost) return null

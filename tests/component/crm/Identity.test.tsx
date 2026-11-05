@@ -1,6 +1,5 @@
 import { screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { monogramPaths } from '@/assets/brand/brandMark'
 import { AvatarInitials, avatarHue } from '@/components/crm/AvatarInitials'
 import { BrandLockup, BrandMark } from '@/components/crm/BrandLockup'
 import { tagColourNames } from '@/styles/tokens'
@@ -10,27 +9,34 @@ describe('BrandLockup', () => {
   it('shows the mark, "Utopian Autonomy" and the "Internal CRM" label', () => {
     renderUi(<BrandLockup />)
     expect(screen.getByText('Utopian Autonomy')).toBeInTheDocument()
+    // M0.6: the label is Geist Mono caps in link blue with a hairline, not a filled pill.
     const label = screen.getByText('Internal CRM')
     expect(label.className).toContain('text-brand-tint-fg')
-    expect(label.className).toContain('bg-brand-tint')
+    expect(label.className).toContain('border-brand-tint-strong')
+    expect(label.className).toContain('font-mono')
+    expect(label.className).toContain('uppercase')
     expect(screen.getByTestId('brand-mark')).toHaveAttribute('aria-hidden', 'true')
   })
 })
 
 describe('BrandMark', () => {
-  it('draws the favicon monogram on a 28px brand-500 square', () => {
+  // M0.6: the mark is the sky gradient (--brand-mark) with a white "UA", 7px corners at 28px.
+  it('is a 28px square in the brand gradient with a white UA', () => {
     renderUi(<BrandMark />)
-    const svg = screen.getByTestId('brand-mark')
-    expect(svg).toHaveAttribute('width', '28')
-    expect(svg.querySelector('rect')).toHaveAttribute('rx', '8')
-    expect(svg.querySelector('rect')?.getAttribute('class')).toContain('fill-brand-500')
-    const paths = [...svg.querySelectorAll('path')].map((p) => p.getAttribute('d'))
-    expect(paths).toEqual([monogramPaths.u, monogramPaths.a, monogramPaths.aBar])
+    const mark = screen.getByTestId('brand-mark')
+    expect(mark).toHaveTextContent('UA')
+    expect(mark).toHaveStyle({ width: '28px', height: '28px', borderRadius: '7px' })
+    expect(mark.className).toContain('var(--brand-mark)')
+    expect(mark.className).toContain('text-white')
   })
 
-  it('scales', () => {
+  it('scales, keeping its proportions', () => {
     renderUi(<BrandMark size={40} />)
-    expect(screen.getByTestId('brand-mark')).toHaveAttribute('height', '40')
+    expect(screen.getByTestId('brand-mark')).toHaveStyle({
+      width: '40px',
+      height: '40px',
+      borderRadius: '10px',
+    })
   })
 })
 
@@ -47,13 +53,32 @@ describe('AvatarInitials', () => {
     expect(screen.getByText('RM').className).toContain('size-7')
   })
 
-  it('picks a deterministic hue from the tag palette', () => {
+  // The redesign drops the per-name tint for one calm slate gradient on a squarer tile.
+  it('uses the avatar gradient and 6px corners for every name', () => {
+    renderUi(
+      <>
+        <AvatarInitials name="Rohan Mehta" size="md" />
+        <AvatarInitials name="Priya Raghavan" />
+      </>,
+    )
+    for (const text of ['RM', 'PR']) {
+      const cls = screen.getByText(text).className
+      expect(cls).toContain(
+        'bg-[image:linear-gradient(180deg,var(--avatar-top),var(--avatar-bottom))]',
+      )
+      expect(cls).toContain('text-avatar-fg')
+      expect(cls).toContain('rounded-[6px]')
+      expect(cls).toContain('text-[10.5px]')
+      expect(cls).toContain('font-semibold')
+      expect(cls).not.toContain('rounded-full')
+      expect(cls).not.toContain('--tag-')
+    }
+  })
+
+  it('still offers a deterministic hue from the tag palette', () => {
     const hue = avatarHue('Rohan Mehta')
     expect(tagColourNames).toContain(hue)
     expect(avatarHue('  rohan mehta ')).toBe(hue)
-    renderUi(<AvatarInitials name="Rohan Mehta" />)
-    expect(screen.getByText('RM')).toHaveAttribute('data-hue', hue)
-    expect(screen.getByText('RM').className).toContain(`var(--tag-${hue})`)
   })
 
   it('spreads names across hues', () => {

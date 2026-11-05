@@ -31,7 +31,9 @@ test.describe('branding', () => {
     // The favicon is the brand mark: an SVG in the vivid UA blue that the browser can load.
     const svg = decodeURIComponent(href.replace(/^data:image\/svg\+xml(;charset=utf-8)?,/i, ''))
     expect(svg).toContain('<svg')
-    expect(svg.toUpperCase()).toContain('#1CA6EF')
+    // The brand mark's sky gradient (M0.6).
+    expect(svg.toUpperCase()).toContain('#6CC4F6')
+    expect(svg.toUpperCase()).toContain('#1C9BEA')
     const loaded = await page.evaluate(
       (src) =>
         new Promise<{ width: number; height: number }>((resolve, reject) => {
@@ -46,13 +48,19 @@ test.describe('branding', () => {
     expect(loaded.height).toBeGreaterThan(0)
   })
 
-  test('the soft gradient strip sits at the very top', async ({ page }) => {
+  // M0.6 dropped the 3px gradient strip: the 56px header now sits at the very top, and the brand
+  // mark carries the sky gradient instead.
+  test('the 56px header sits at the very top, with the mark in the sky gradient', async ({
+    page,
+  }) => {
     await gotoApp(page, '/', { waitForReady: true })
-    const strip = page.locator('#root > div > div').first()
-    const box = await strip.boundingBox()
+    const header = page.getByRole('banner')
+    const box = await header.boundingBox()
     expect(box?.y).toBe(0)
-    expect(box?.height).toBe(3)
-    const background = await strip.evaluate((el) => getComputedStyle(el).backgroundImage)
+    expect(box?.height).toBe(56)
+    const mark = header.getByTestId('brand-mark')
+    await expect(mark).toHaveText('UA')
+    const background = await mark.evaluate((el) => getComputedStyle(el).backgroundImage)
     expect(background).toContain('linear-gradient')
   })
 })

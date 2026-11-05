@@ -34,6 +34,7 @@ import {
   MenuTrigger,
   menuContentClassName,
   menuItemClassName,
+  menuLabelClassName,
 } from '@/components/ui/Menu'
 import { Pill } from '@/components/ui/Pill'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/Popover'
@@ -43,7 +44,7 @@ import { Textarea } from '@/components/ui/Textarea'
 import { toast, undoToast } from '@/components/ui/Toast'
 import { Tooltip, tooltipContentClassName } from '@/components/ui/Tooltip'
 import { cn } from '@/lib/cn'
-import { Mono, Section, Specimen, StateLabel } from './layout'
+import { Caps, Mono, Section, Specimen, StateLabel } from './layout'
 
 /* Type ------------------------------------------------------------------------------------ */
 
@@ -111,9 +112,49 @@ export function TypeSection() {
     <Section
       id="type"
       title="Type"
-      caption="Geist and Geist Mono, self-hosted. 14px base on a 12 / 13 / 14 / 16 / 20 / 24 scale; headings at 600 with -0.01em tracking."
+      caption="Geist and Geist Mono, self-hosted. Big figures at 400 with tight tracking; a 14px base for body text; Geist Mono caps for labels, dates and money."
     >
-      <Specimen bodyClassName="p-0">
+      <Specimen bodyClassName="py-2">
+        <div className="divide-y divide-border">
+          <div className="grid grid-cols-[minmax(0,1fr)_200px] items-end gap-4 pt-2 pb-4">
+            <span className="flex items-end gap-8 text-text tabular-nums">
+              <span className="text-[68px] leading-none font-normal tracking-[-0.045em]">
+                ₹2.2 Cr
+              </span>
+              <span className="text-[40px] leading-none font-normal tracking-[-0.03em]">12</span>
+            </span>
+            <Caps>
+              Figures
+              <br />
+              Geist 400 · 40 to 68
+            </Caps>
+          </div>
+          <div className="grid grid-cols-[minmax(0,1fr)_200px] items-end gap-4 py-4">
+            <span className="flex flex-col">
+              <span className="text-md font-[550] tracking-[-0.01em] text-text">
+                Sunita Kulkarni
+              </span>
+              <span className="text-sm text-muted">Operations Director · Deccan Castings</span>
+            </span>
+            <Caps>
+              Body
+              <br />
+              Geist 14 · 550 for names
+            </Caps>
+          </div>
+          <div className="grid grid-cols-[minmax(0,1fr)_200px] items-end gap-4 pt-4 pb-2">
+            <span className="font-mono text-xs font-semibold tracking-[0.1em] text-text uppercase">
+              Open pipeline · Thu 5 Nov · 4:00 pm · ₹25 L
+            </span>
+            <Caps>
+              Labels, dates, money
+              <br />
+              Geist Mono
+            </Caps>
+          </div>
+        </div>
+      </Specimen>
+      <Specimen title="Scale" bodyClassName="p-0">
         <div className="divide-y divide-border">
           {typeRows.map((row) => (
             <div
@@ -168,14 +209,14 @@ export function BrandSection() {
     <Section
       id="brand"
       title="Brand"
-      caption="The mark is drawn from the same SVG as the favicon. Wordmark 15px at 600; the label is brand-700 on brand-50."
+      caption="The mark is a 28px square in the sky gradient with a white UA in Geist 700. Wordmark 15px at 600; the label is Geist Mono caps in link blue with a hairline."
     >
       <div className="grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <Specimen title="Header lockup" bodyClassName="p-0">
-          <div className="flex h-[52px] items-center border-b border-border px-5">
+          <div className="flex h-14 items-center border-b border-border px-5">
             <BrandLockup />
           </div>
-          <div className="flex h-[52px] items-center bg-surface-subtle px-5">
+          <div className="flex h-14 items-center bg-surface-subtle px-5">
             <BrandLockup />
           </div>
         </Specimen>
@@ -223,7 +264,7 @@ export function ButtonsSection() {
     <Section
       id="buttons"
       title="Buttons"
-      caption="Primary is the brand-600 fill with white text. Hover, focus and active are forced here so every state is visible at once."
+      caption="Primary is the UA blue fill (--primary) with white text; everything else stays quiet. Hover, focus and active are forced here so every state is visible at once."
     >
       <Specimen title="Variants and states" bodyClassName="overflow-x-auto">
         <div className="grid min-w-[720px] grid-cols-[96px_repeat(5,minmax(0,1fr))] items-center gap-x-4 gap-y-4">
@@ -464,12 +505,12 @@ function DemoMenu() {
 function StaticMenu() {
   return (
     <div aria-hidden="true" className={cn(menuContentClassName, 'w-56')}>
-      <div className="px-2 pt-2 pb-1 text-xs font-medium text-muted">Warmth</div>
+      <div className={menuLabelClassName}>Warmth</div>
       {(
         [
-          ['Warm', 'bg-warm', '1', true],
-          ['Waiting', 'bg-waiting', '2', false],
-          ['Cold', 'bg-cold', '3', false],
+          ['Warm', 'bg-warm-cell', '1', true],
+          ['Waiting', 'bg-waiting-cell', '2', false],
+          ['Cold', 'bg-cold-cell', '3', false],
         ] as const
       ).map(([label, dot, key, highlighted]) => (
         <div
@@ -477,7 +518,7 @@ function StaticMenu() {
           data-highlighted={highlighted ? '' : undefined}
           className={cn(menuItemClassName, 'pl-7')}
         >
-          <span className={cn('size-1.5 rounded-full', dot)} />
+          <span className={cn('size-1.5 rounded-[1.5px]', dot)} />
           <span className="flex-1">{label}</span>
           <Kbd keys={[key]} tone="subtle" />
         </div>
@@ -496,7 +537,7 @@ export function MenusSection() {
     <Section
       id="menus"
       title="Menus and overlays"
-      caption="Raised surface, 1px hairline, 10px corners and one soft shadow. They open in 120ms with a slight scale and respect reduced motion."
+      caption="Raised surface, 1px hairline, 10px corners and one soft shadow; group labels in Geist Mono caps. They open in 120ms with a slight scale and respect reduced motion."
     >
       <div className="grid gap-6 lg:grid-cols-2">
         <Specimen title="Menu" caption="Try it, or read the static drawing">
@@ -604,18 +645,18 @@ export function FeedbackSection() {
               <div key={width} className="flex items-center gap-3">
                 <Skeleton className="size-6 rounded-full" />
                 <Skeleton className="h-3" style={{ width: `${width * 40}%` }} />
-                <Skeleton className="ml-auto h-5 w-16 rounded-full" />
+                <Skeleton className="ml-auto h-5 w-16 rounded-chip" />
                 <Skeleton className="h-2 w-20" />
               </div>
             ))}
           </div>
         </Specimen>
-        <Specimen title="Pills" caption="Neutral values, counts and the brand label">
+        <Specimen title="Pills" caption="Neutral values and counts, with chip corners">
           <div className="flex flex-wrap items-center gap-2">
             <Pill>Decision maker</Pill>
             <Pill>Foundries and forging shops</Pill>
             <Pill tone="outline">Advisory equity</Pill>
-            <Pill tone="brand">Internal CRM</Pill>
+            <Pill tone="brand">Pilot candidate</Pill>
             <Pill size="md">₹25 L</Pill>
             <Pill className="tabular-nums">+3</Pill>
           </div>

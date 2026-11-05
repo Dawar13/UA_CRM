@@ -17,11 +17,13 @@ export const iconButtonVariants = cva(
         ghost:
           'text-secondary hover:bg-surface-hover hover:text-text active:bg-surface-subtle data-[state=open]:bg-surface-hover data-[state=open]:text-text',
         secondary:
-          'border border-border bg-surface-raised text-secondary hover:bg-surface-hover hover:text-text active:bg-surface-subtle data-[state=open]:bg-surface-hover',
+          'border border-border bg-surface-raised text-secondary hover:bg-surface-hover hover:text-text active:bg-surface-subtle data-[state=open]:bg-surface-hover data-[state=open]:text-text',
       },
       size: {
         sm: 'size-7 [&_svg]:size-4',
         md: 'size-8 [&_svg]:size-[18px]',
+        /** 34px, for the header. */
+        lg: 'size-[34px] [&_svg]:size-4',
       },
     },
     defaultVariants: { variant: 'ghost', size: 'md' },
@@ -37,7 +39,7 @@ export interface IconButtonProps extends Omit<ComponentPropsWithRef<'button'>, '
   shortcut?: readonly KeyName[]
   tooltipSide?: 'top' | 'right' | 'bottom' | 'left'
   variant?: 'ghost' | 'secondary'
-  size?: 'sm' | 'md'
+  size?: 'sm' | 'md' | 'lg'
   children: ReactNode
 }
 

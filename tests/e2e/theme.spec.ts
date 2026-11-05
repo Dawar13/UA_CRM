@@ -3,7 +3,8 @@ import { expect, gotoApp, setTheme, THEME_STORAGE_KEY, test } from '../support/f
 import { reloadApp } from './helpers'
 
 const LIGHT_BG = 'rgb(255, 255, 255)'
-const DARK_BG = 'rgb(7, 17, 23)'
+// --bg in dark: #0A1116 since the M0.6 redesign (was #071117).
+const DARK_BG = 'rgb(10, 17, 22)'
 
 interface ThemeProbe {
   /** data-theme when the first animation frame ran. */

@@ -103,9 +103,9 @@ test.describe('stage', () => {
     await expect(stageDots(row)).toHaveAccessibleName('Stage 5 of 7: Pilot scoped')
     await expect(trackerStage(page, 'Pilot scoped')).toHaveAttribute('aria-current', 'step')
     await expect(trackerStage(page, 'Pilot scoped')).toContainText('5 Nov')
-    // The skipped Plant visit counts as done, with no date.
+    // The skipped Plant visit counts as done, with no date: it reads "Skipped".
     await expect(trackerStage(page, 'Plant visit')).toHaveAttribute('data-state', 'done')
-    await expect(trackerStage(page, 'Plant visit')).toContainText('no date')
+    await expect(trackerStage(page, 'Plant visit')).toContainText('Skipped')
     // Earlier dates are kept.
     await expect(trackerStage(page, 'First call')).toContainText('21 Oct')
 
@@ -118,7 +118,7 @@ test.describe('stage', () => {
     await expect(trackerStage(page, 'Plant visit')).toHaveAttribute('data-state', 'future')
   })
 
-  test('Mark lost shows the lost line and a red dot; Reopen clears it; both persist', async ({
+  test('Mark lost shows the lost line and a brick bar cell; Reopen clears it; both persist', async ({
     page,
   }) => {
     await openSheet(page, 'dawar', 'customers', ids.rohanMehta)
@@ -130,13 +130,15 @@ test.describe('stage', () => {
     await expect(stageDots(row)).toHaveAccessibleName('Lost after First call')
     const lostDot = stageDots(row).locator('[data-state="lost-marker"]')
     await expect(lostDot).toHaveCount(1)
-    // The red dot sits at the next stage position (Plant visit).
+    // The brick cell sits at the next stage position (Plant visit), in --stage-lost (#D9603D).
     await expect(stageDots(row).locator('[data-state]').nth(3)).toHaveAttribute(
       'data-state',
       'lost-marker',
     )
     const red = await lostDot.evaluate((el) => getComputedStyle(el).backgroundColor)
-    expect(red).toBe('rgb(220, 38, 38)')
+    expect(red).toBe('rgb(217, 96, 61)')
+    // The words beside the bar say so too, so colour is never the only signal.
+    await expect(row.locator('[data-stage-label]')).toHaveText('Lost · First call')
     await expect(toast(page, 'Marked lost')).toBeVisible()
     await expect(tracker(page).getByRole('button', { name: 'Mark lost' })).toHaveCount(0)
 

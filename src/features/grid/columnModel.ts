@@ -34,7 +34,8 @@ function text(value: string | null | undefined): SortValue {
   return t === '' ? undefined : t
 }
 
-function isFuzzyDate(value: unknown): value is FuzzyDate {
+/** True for a stored fuzzy date ({ date, precision }) in a custom field. */
+export function isFuzzyDate(value: unknown): value is FuzzyDate {
   return (
     typeof value === 'object' &&
     value !== null &&
@@ -43,7 +44,8 @@ function isFuzzyDate(value: unknown): value is FuzzyDate {
   )
 }
 
-function isLinkRef(value: unknown): value is LinkRef {
+/** True for a stored person link (a row link or free text) in a custom field. */
+export function isLinkRef(value: unknown): value is LinkRef {
   if (typeof value !== 'object' || value === null) return false
   const kind = (value as { kind?: unknown }).kind
   return kind === 'row' || kind === 'text'

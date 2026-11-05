@@ -13,6 +13,7 @@ import { formatPhone } from '@/domain/identity'
 import { stageView } from '@/domain/stages'
 import type { ColumnDef, FuzzyDate, LinkRef, Row, Sheet, Tag, Warmth } from '@/domain/types'
 import { useNow } from '@/lib/useNow'
+import { isFuzzyDate, isLinkRef } from './columnModel'
 
 /** libphonenumber parsing is the costliest part of a row, so formatted numbers are cached. */
 const phoneDisplayCache = new Map<string, string>()
@@ -32,21 +33,6 @@ export interface CellContext {
   onWarmthChange: (row: Row, warmth: Warmth | null) => void
 }
 
-function isFuzzyDate(value: unknown): value is FuzzyDate {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    typeof (value as { date?: unknown }).date === 'string' &&
-    typeof (value as { precision?: unknown }).precision === 'string'
-  )
-}
-
-function isLinkRef(value: unknown): value is LinkRef {
-  if (typeof value !== 'object' || value === null) return false
-  const kind = (value as { kind?: unknown }).kind
-  return kind === 'row' || kind === 'text'
-}
-
 function Truncate({ children, className }: { children: ReactNode; className?: string }) {
   return <span className={`block min-w-0 truncate ${className ?? ''}`}>{children}</span>
 }
@@ -61,13 +47,37 @@ function LinkText({ link }: { link: LinkRef }) {
   return link.kind === 'row' ? <LinkedRowName rowId={link.rowId} /> : link.text
 }
 
+/** Next-action dates and last touch read in Geist Mono with tabular figures. */
+const DUE_DATE_CLASS = 'font-mono text-xs font-medium'
+
+/** A 56px date slot (it grows for longer dates such as "Early Dec"), then the action text. */
 function NextActionCell({ row }: { row: Row }) {
   const next = row.nextAction
   if (!next || (!next.text && !next.date)) return null
   return (
-    <span className="flex min-w-0 items-baseline gap-2">
-      {next.date ? <DateText date={next.date} variant="due" className="shrink-0" /> : null}
-      <Truncate className="text-text">{next.text}</Truncate>
+    <span className="flex w-full min-w-0 items-center gap-2.5">
+      <span className="min-w-14 shrink-0">
+        {next.date ? <DateText date={next.date} variant="due" className={DUE_DATE_CLASS} /> : null}
+      </span>
+      <Truncate className="text-[13.5px] text-text">{next.text}</Truncate>
+    </span>
+  )
+}
+
+/** Avatar, then the name over "Title · Company", both truncating. */
+function NameCell({ row }: { row: Row }) {
+  const detail = [row.title, row.company].filter(Boolean).join(' · ')
+  return (
+    <span className="flex min-w-0 items-center gap-[11px]">
+      <AvatarInitials name={row.name} size="md" />
+      <span className="flex min-w-0 flex-col">
+        <Truncate className="text-[14px] leading-[1.3] font-[550] tracking-[-0.005em] text-text">
+          {row.name}
+        </Truncate>
+        {detail ? (
+          <Truncate className="text-xs leading-[1.35] text-muted">{detail}</Truncate>
+        ) : null}
+      </span>
     </span>
   )
 }
@@ -75,12 +85,7 @@ function NextActionCell({ row }: { row: Row }) {
 function SystemCell({ def, row, ctx }: { def: ColumnDef; row: Row; ctx: CellContext }) {
   switch (def.key) {
     case 'name':
-      return (
-        <span className="flex min-w-0 items-center gap-2.5">
-          <AvatarInitials name={row.name} size="sm" />
-          <Truncate className="font-medium text-text">{row.name}</Truncate>
-        </span>
-      )
+      return <NameCell row={row} />
     case 'company':
     case 'title':
     case 'email':
@@ -103,19 +108,28 @@ function SystemCell({ def, row, ctx }: { def: ColumnDef; row: Row; ctx: CellCont
         />
       )
     case 'stage':
-      return ctx.sheet.stages.length > 0 ? <StageDots stages={stageView(row, ctx.sheet)} /> : null
+      return ctx.sheet.stages.length > 0 ? (
+        <StageDots stages={stageView(row, ctx.sheet)} lost={row.lost !== null} />
+      ) : null
     case 'tags': {
       const tags = row.tagIds
         .map((id) => ctx.tagMap.get(id))
         .filter((t): t is Tag => t !== undefined)
-      return tags.length > 0 ? <TagList tags={tags} max={2} className="w-full" /> : null
+      // Sheets with stages have less room: one tag and a count; two otherwise.
+      return tags.length > 0 ? (
+        <TagList tags={tags} max={ctx.sheet.stages.length > 0 ? 1 : 2} className="w-full" />
+      ) : null
     }
     case 'lastTouch':
-      return row.lastTouchAt ? <DateText date={row.lastTouchAt} className="text-secondary" /> : null
+      return row.lastTouchAt ? (
+        <DateText date={row.lastTouchAt} className="font-mono text-[12.5px] text-secondary" />
+      ) : null
     case 'nextAction':
       return <NextActionCell row={row} />
     case 'nextDate':
-      return row.nextAction?.date ? <DateText date={row.nextAction.date} variant="due" /> : null
+      return row.nextAction?.date ? (
+        <DateText date={row.nextAction.date} variant="due" className={DUE_DATE_CLASS} />
+      ) : null
     case 'introducedBy':
       return row.introducedBy ? (
         <Truncate className="text-secondary">

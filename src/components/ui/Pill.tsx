@@ -2,9 +2,9 @@ import { cva, type VariantProps } from 'class-variance-authority'
 import type { ComponentPropsWithRef } from 'react'
 import { cn } from '@/lib/cn'
 
-/** A small, fully rounded label: dropdown values, counts, the "Internal CRM" label. */
+/** A small label with chip corners (4px): dropdown values and counts. */
 export const pillVariants = cva(
-  'inline-flex max-w-full shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full text-xs leading-none',
+  'inline-flex max-w-full shrink-0 items-center gap-1.5 whitespace-nowrap rounded-chip text-xs leading-none',
   {
     variants: {
       tone: {

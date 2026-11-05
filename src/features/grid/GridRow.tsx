@@ -56,7 +56,7 @@ export const GridRow = memo(function GridRow({
       data-flash={isFlashing || undefined}
       onClick={(e) => handlers.onRowClick(e, row)}
       className={cn(
-        'group/row grid cursor-default border-b border-border bg-bg transition-colors duration-[var(--duration-fast)]',
+        'group/row grid cursor-default border-b border-tile bg-bg transition-colors duration-[var(--duration-fast)]',
         'hover:bg-row-hover',
         isExpanded && 'border-transparent bg-row-selected hover:bg-row-selected',
         'data-[flash]:animate-[row-flash_1.2s_var(--motion-ease-out)]',

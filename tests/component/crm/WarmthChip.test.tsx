@@ -1,6 +1,11 @@
 import { screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import { nextWarmthFromKey, WarmthChip, warmthAccessibleName } from '@/components/crm/WarmthChip'
+import {
+  nextWarmthFromKey,
+  WarmthChip,
+  WarmthRadioGroup,
+  warmthAccessibleName,
+} from '@/components/crm/WarmthChip'
 import { renderUi } from '../ui/renderUi'
 
 describe('nextWarmthFromKey', () => {
@@ -22,14 +27,23 @@ describe('nextWarmthFromKey', () => {
 
 describe('WarmthChip, display only', () => {
   it.each([
-    ['warm', 'Warm', 'text-warm'],
-    ['waiting', 'Waiting', 'text-waiting'],
-    ['cold', 'Cold', 'text-cold'],
-  ] as const)('shows %s with its semantic colours', (value, label, cls) => {
+    ['warm', 'Warm'],
+    ['waiting', 'Waiting'],
+    ['cold', 'Cold'],
+  ] as const)('shows %s as a soft chip with a square in its colour', (value, label) => {
     renderUi(<WarmthChip value={value} />)
     const chip = screen.getByText(label)
     expect(chip).toHaveAttribute('data-warmth', value)
-    expect(chip.className).toContain(cls)
+    expect(chip.className).toContain(`text-${value}`)
+    expect(chip.className).toContain(
+      `bg-[image:linear-gradient(180deg,var(--${value}-bg-top),var(--${value}-bg))]`,
+    )
+    expect(chip.className).toContain(`shadow-[inset_0_0_0_1px_var(--${value}-border)]`)
+    expect(chip.className).toContain('rounded-chip')
+    expect(chip.className).toContain('font-semibold')
+    const square = chip.querySelector('[aria-hidden="true"]')
+    expect(square?.className).toContain(`bg-${value}-cell`)
+    expect(square?.className).toContain('size-1.5')
     expect(chip).toHaveTextContent(`Warmth: ${label}`)
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
   })
@@ -144,10 +158,99 @@ describe('WarmthChip, interactive', () => {
   })
 
   it.each([
-    ['sm', 'h-5'],
-    ['md', 'h-6'],
+    ['sm', 'h-[22px]'],
+    ['md', 'h-[30px]'],
   ] as const)('has a %s size', (size, cls) => {
     renderUi(<WarmthChip value="warm" onChange={vi.fn()} size={size} />)
     expect(screen.getByRole('button', { name: 'Warmth: Warm' }).className).toContain(cls)
+  })
+})
+
+describe('WarmthRadioGroup', () => {
+  it('is a radio group of Warm, Waiting and Cold with the value checked', () => {
+    renderUi(<WarmthRadioGroup value="waiting" onChange={vi.fn()} />)
+    const group = screen.getByRole('radiogroup', { name: 'Warmth' })
+    expect(group).toBeInTheDocument()
+    const radios = screen.getAllByRole('radio')
+    expect(radios.map((r) => r.textContent)).toEqual(['Warm', 'Waiting', 'Cold'])
+    expect(radios.map((r) => r.getAttribute('aria-checked'))).toEqual(['false', 'true', 'false'])
+    expect(radios.map((r) => r.getAttribute('aria-keyshortcuts'))).toEqual(['1', '2', '3'])
+  })
+
+  it('gives the chosen chip its soft gradient and the others a hairline', () => {
+    renderUi(<WarmthRadioGroup value="cold" onChange={vi.fn()} />)
+    const cold = screen.getByRole('radio', { name: 'Cold' })
+    expect(cold.className).toContain('bg-[image:linear-gradient(180deg,var(--cold-bg-top)')
+    expect(cold.className).toContain('text-cold')
+    expect(cold.className).toContain('font-semibold')
+    const warm = screen.getByRole('radio', { name: 'Warm' })
+    expect(warm.className).toContain('bg-bg')
+    expect(warm.className).toContain('shadow-[inset_0_0_0_1px_var(--border)]')
+    expect(warm.className).toContain('h-[30px]')
+    expect(warm.className).toContain('rounded-control')
+    expect(warm.querySelector('.bg-warm-cell')).toHaveAttribute('aria-hidden', 'true')
+  })
+
+  it('chooses by click and clears when the chosen chip is clicked again', async () => {
+    const onChange = vi.fn()
+    const { user, rerender } = renderUi(<WarmthRadioGroup value={null} onChange={onChange} />)
+    await user.click(screen.getByRole('radio', { name: 'Waiting' }))
+    expect(onChange).toHaveBeenLastCalledWith('waiting')
+    rerender(<WarmthRadioGroup value="waiting" onChange={onChange} />)
+    await user.click(screen.getByRole('radio', { name: 'Waiting' }))
+    expect(onChange).toHaveBeenLastCalledWith(null)
+  })
+
+  it('is one tab stop; arrows move focus without choosing and Space chooses', async () => {
+    const onChange = vi.fn()
+    const { user } = renderUi(<WarmthRadioGroup value="warm" onChange={onChange} />)
+    await user.tab()
+    expect(screen.getByRole('radio', { name: 'Warm' })).toHaveFocus()
+    await user.keyboard('{ArrowRight}{ArrowRight}')
+    expect(screen.getByRole('radio', { name: 'Cold' })).toHaveFocus()
+    expect(onChange).not.toHaveBeenCalled()
+    await user.keyboard('{ArrowRight}')
+    expect(screen.getByRole('radio', { name: 'Warm' })).toHaveFocus()
+    await user.keyboard('{ArrowLeft}{End}{Home}{ArrowDown}')
+    expect(screen.getByRole('radio', { name: 'Waiting' })).toHaveFocus()
+    await user.keyboard(' ')
+    expect(onChange).toHaveBeenCalledTimes(1)
+    expect(onChange).toHaveBeenCalledWith('waiting')
+    await user.tab()
+    expect(document.body).toHaveFocus()
+  })
+
+  it('takes the first chip as the tab stop when no warmth is set', async () => {
+    const { user } = renderUi(<WarmthRadioGroup value={null} onChange={vi.fn()} />)
+    await user.tab()
+    expect(screen.getByRole('radio', { name: 'Warm' })).toHaveFocus()
+  })
+
+  it.each([
+    ['3', 'cold'],
+    ['0', null],
+  ] as const)('chooses with the digit %s', async (key, expected) => {
+    const onChange = vi.fn()
+    const { user } = renderUi(<WarmthRadioGroup value="warm" onChange={onChange} />)
+    await user.tab()
+    await user.keyboard(key)
+    expect(onChange).toHaveBeenCalledTimes(1)
+    expect(onChange).toHaveBeenCalledWith(expected)
+  })
+
+  it('ignores the digit of the current value', async () => {
+    const onChange = vi.fn()
+    const { user } = renderUi(<WarmthRadioGroup value="warm" onChange={onChange} />)
+    await user.tab()
+    await user.keyboard('1')
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
+  it('disables every chip', async () => {
+    const onChange = vi.fn()
+    const { user } = renderUi(<WarmthRadioGroup value="warm" onChange={onChange} disabled />)
+    for (const radio of screen.getAllByRole('radio')) expect(radio).toBeDisabled()
+    await user.click(screen.getByRole('radio', { name: 'Cold' }))
+    expect(onChange).not.toHaveBeenCalled()
   })
 })

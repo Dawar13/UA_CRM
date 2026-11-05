@@ -36,17 +36,26 @@ function Members({ onChange }: { onChange: (id: string) => void }) {
   )
 }
 
-function Sheets({ onChange }: { onChange: (id: string) => void }) {
+function Sheets({
+  onChange,
+  onActiveTabClick,
+  list = sheets,
+}: {
+  onChange: (id: string) => void
+  onActiveTabClick?: () => void
+  list?: readonly { id: string; name: string }[]
+}) {
   const [value, setValue] = useState('s-customers')
   return (
     <SheetTabs
-      sheets={sheets}
+      sheets={list}
       counts={{ 's-customers': 12, 's-investors': 2000 }}
       value={value}
       onValueChange={(id) => {
         setValue(id)
         onChange(id)
       }}
+      onActiveTabClick={onActiveTabClick}
     />
   )
 }
@@ -86,13 +95,72 @@ describe('MemberTabs', () => {
 })
 
 describe('SheetTabs', () => {
-  it('names each tab by its sheet and shows counts visually', () => {
+  it('names each tab by its sheet and shows its number and count visually', () => {
     renderUi(<Sheets onChange={vi.fn()} />)
     expect(screen.getByRole('tablist', { name: 'Sheets' })).toBeInTheDocument()
+    // The folder design puts the sheet's number before its name ("01 Customers 12").
     const customers = screen.getByRole('tab', { name: 'Customers' })
-    expect(customers).toHaveTextContent('Customers12')
-    expect(screen.getByRole('tab', { name: 'Investors' })).toHaveTextContent('2,000')
-    expect(screen.getByRole('tab', { name: 'Connectors' })).toHaveTextContent(/^Connectors$/)
+    expect(customers).toHaveTextContent('01Customers12')
+    expect(screen.getByRole('tab', { name: 'Investors' })).toHaveTextContent('02Investors2,000')
+    expect(screen.getByRole('tab', { name: 'Connectors' })).toHaveTextContent(/^03Connectors$/)
+  })
+
+  it('gives each sheet a folder colour by position, round again after five', () => {
+    const list = Array.from({ length: 7 }, (_, i) => ({ id: `s-${i}`, name: `Sheet ${i + 1}` }))
+    renderUi(<Sheets onChange={vi.fn()} list={list} />)
+    const tabs = screen.getAllByRole('tab')
+    expect(tabs.map((tab) => tab.getAttribute('data-folder'))).toEqual([
+      '1',
+      '2',
+      '3',
+      '4',
+      '5',
+      '1',
+      '2',
+    ])
+    expect(tabs[2]?.style.getPropertyValue('--tab-top')).toBe('var(--folder3-top)')
+    expect(tabs[2]?.style.getPropertyValue('--tab-bottom')).toBe('var(--folder3-bottom)')
+  })
+
+  it('stands the open tab taller than the rest', async () => {
+    const { user } = renderUi(<Sheets onChange={vi.fn()} />)
+    const height = (name: string) => screen.getByRole('tab', { name }).style.height
+    expect(height('Customers')).toBe('40px')
+    expect(height('Investors')).toBe('31px')
+    await user.click(screen.getByRole('tab', { name: 'Investors' }))
+    expect(height('Investors')).toBe('40px')
+    expect(height('Customers')).toBe('31px')
+  })
+
+  it('clicking the open tab again folds the front; clicking another tab just switches', async () => {
+    const onChange = vi.fn()
+    const onActiveTabClick = vi.fn()
+    const { user } = renderUi(<Sheets onChange={onChange} onActiveTabClick={onActiveTabClick} />)
+    await user.click(screen.getByRole('tab', { name: 'Customers' }))
+    expect(onActiveTabClick).toHaveBeenCalledTimes(1)
+    expect(onChange).not.toHaveBeenCalled()
+
+    await user.click(screen.getByRole('tab', { name: 'Investors' }))
+    expect(onChange).toHaveBeenLastCalledWith('s-investors')
+    expect(onActiveTabClick).toHaveBeenCalledTimes(1)
+
+    await user.click(screen.getByRole('tab', { name: 'Investors' }))
+    expect(onActiveTabClick).toHaveBeenCalledTimes(2)
+  })
+
+  it('Enter or Space on the open tab folds the front', async () => {
+    const onActiveTabClick = vi.fn()
+    const { user } = renderUi(<Sheets onChange={vi.fn()} onActiveTabClick={onActiveTabClick} />)
+    await user.tab()
+    expect(screen.getByRole('tab', { name: 'Customers' })).toHaveFocus()
+    await user.keyboard('{Enter}')
+    expect(onActiveTabClick).toHaveBeenCalledTimes(1)
+    await user.keyboard(' ')
+    expect(onActiveTabClick).toHaveBeenCalledTimes(2)
+    // Arrows switch sheets without folding anything.
+    await user.keyboard('{ArrowRight}')
+    expect(screen.getByRole('tab', { name: 'Investors' })).toHaveAttribute('aria-selected', 'true')
+    expect(onActiveTabClick).toHaveBeenCalledTimes(2)
   })
 
   it('moves and activates with arrow keys, Home and End', async () => {

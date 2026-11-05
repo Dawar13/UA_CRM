@@ -168,6 +168,52 @@ Screenshots: `docs/screenshots/m0.5-perf-2000-light.png`, `-dark.png`.
 - After an intentional visual change, run the Visual baselines workflow, then CI (Actions → CI → Run workflow), then pull.
 - WebKit's IndexedDB is slow in its Windows build, so the `webkit-smoke` project runs with 2 workers and a 60 s timeout.
 
+## Phase 0 · M0.6 The founders' redesign
+
+**Date:** 6 Nov 2026
+
+After reviewing Phase 0, the founders asked for a calmer, more art-like look and approved it over four prototype rounds (D-027). This milestone builds that design into the app.
+
+### Done
+
+- **Tokens:** paper white surfaces; the navy-to-white blue palette for folders, stages and the pipeline capsule; the earthy field palette (olive, ochre, brick, sand) for warmth and activity; squarer corners (4 / 6 / 8 / 10px); 56px header and 52px two-line rows. Every text pair is contrast-tested in both themes (D-028).
+- **Sheets are folders:** blue gradient folder tabs (01 deepest to 05 lightest); the active tab joins a folder front that fades into the sheet. The front shows People, Open pipeline (or This week), Won (or Next actions) and Due, plus a frosted pipeline card: one tapered capsule whose thickness follows how many reached each stage, with the share that moved on, and warmth squares for who is there now, shaded by how recently they were touched. Clicking the active tab folds the front to one line; the choice is remembered, and short screens start folded.
+- **Grid:** two-line name cells with grey gradient monograms (title and company as the second line, so those columns are hidden by default), soft warmth chips, a joined stage bar beside the stage name, legend-style tags, Geist Mono dates and a blue "Today" chip.
+- **Expanded row:** joined stage blocks with names and dates, a warmth radio group, next action, notes, fields and a history with tinted icon tiles.
+- **Side panel:** a 7-day strip and a 30-day dot field (touches held stack up in deepening greens, a blue dot when a stage moved, missed follow-ups hang below a sand line from ochre to brick), then agenda cards.
+- **Header and primitives:** gradient brand mark and favicon, segmented member switch, soft search pill; the `/design` page documents the whole system.
+- **Data:** `summariseSheet` and `activityByDay` in the domain; `listMemberRows` and `listMemberHistory` in the Repository (D-029). The seed version is 2, so open browsers reseed with the new column widths.
+
+### Results (local, Windows 11)
+
+| Layer                       | Result                                                                                         |
+| --------------------------- | ---------------------------------------------------------------------------------------------- |
+| Lint and typecheck          | Clean                                                                                          |
+| Unit and component (Vitest) | 639 passed in 37 files                                                                         |
+| Coverage                    | 92.9% lines overall (threshold 70%); `src/domain` above its 90% threshold                      |
+| End to end                  | 106 passed (desktop, narrow and webkit-smoke)                                                  |
+| Accessibility               | 8 passed, zero serious or critical                                                             |
+| Performance                 | Passed (2,000 rows)                                                                            |
+| Visual                      | Skipped on Windows by design; every baseline changes and must be regenerated in CI (see below) |
+
+### Try this
+
+1. Open `/m/dawar/customers`. The Customers folder is the deepest blue; its front shows 12 people, ₹2.2 Cr open pipeline, ₹30 L won and 2 due. The capsule narrows from 12 identified to 1 paid, with 83%, 80%… between stages.
+2. Click the open **Customers** tab: the front folds to one line. Reload: it stays folded. Press Enter on the tab to unfold it.
+3. Switch to **Investors** and **Connectors**: each folder is a lighter blue; Connectors (no stages) groups people by relationship.
+4. Open Sunita Kulkarni's row: click **Pilot scoped**, see the block take the ramp colour, "5 Nov" stamped and a new history line; Undo restores it. Choose **Cold** in the warmth group; the chip in the row and the square in the pipeline card change.
+5. In the side panel, hover the 30-day dots: each column says what was held, moved and missed that day.
+6. Toggle dark mode from the header: folders run from #0078B7 down to navy, and the field shades run dim to bright.
+7. Visit `/design` for the full system.
+
+Screenshots: `docs/screenshots/m0.6-*-light.png` and `-dark.png` (main, expanded, investors, connectors folded, palette, 1024px, design, 2,000 rows).
+
+### Known issues
+
+- Visual baselines: after pushing, run GitHub → Actions → **Visual baselines** → **Run workflow**, then **CI** → **Run workflow**, then pull.
+- Until the calendar is connected (Phase 2), "missed" in the dot field means an exact-dated next action that passed with no touch since; the seed has one.
+- Locally, running every Playwright project with the default worker count can overload a busy machine and time out; CI uses 2 workers. Use `--workers=3` locally if that happens.
+
 ### Next
 
-Phase 0 is complete pending the founders' review. Phase 1 starts after the review, with its own brief.
+Phase 0, including the redesign, is complete pending the founders' review. Phase 1 starts after the review, with its own brief.

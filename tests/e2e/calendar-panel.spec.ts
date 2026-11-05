@@ -21,20 +21,26 @@ function events(page: Page) {
 }
 
 // The panel shows today (Thu 5 Nov 2026) and the six days after it, for the open member's tab.
+// Agenda days are regions named like their headings: "Today · Thu 5 Nov", "Tomorrow · Fri 6 Nov".
 
 test.describe('calendar panel', () => {
   test('Dawar’s tab shows Dawar’s week', async ({ page }) => {
     await openSheet(page, 'dawar', 'customers')
     await expect(panel(page).getByRole('heading', { name: 'This week' })).toBeVisible()
+    // The week strip and the last 30 days sit above the agenda.
+    const strip = panel(page).getByRole('list', { name: 'Next seven days' })
+    await expect(strip.getByRole('listitem')).toHaveCount(7)
+    await expect(strip.getByRole('listitem').first()).toHaveAttribute('aria-current', 'date')
+    await expect(panel(page).getByRole('img', { name: /^Last 30 days: / })).toBeVisible()
 
     await expect(events(page)).toHaveCount(5)
-    const today = panel(page).getByRole('region', { name: 'Today' })
+    const today = panel(page).getByRole('region', { name: 'Today · Thu 5 Nov' })
     await expect(today.getByTestId('calendar-event')).toHaveCount(2)
     const call = today.getByTestId('calendar-event').filter({ hasText: 'Call with Rohan Mehta' })
     await expect(call).toContainText('11:30 am')
     await expect(call.getByTestId('event-contact')).toHaveAccessibleName('Rohan Mehta')
     await expect(call.getByTestId('event-contact')).toHaveAccessibleDescription('Dawar · Customers')
-    await expect(panel(page).getByRole('region', { name: 'Tomorrow' })).toContainText(
+    await expect(panel(page).getByRole('region', { name: 'Tomorrow · Fri 6 Nov' })).toContainText(
       'Plant walk: Deccan Castings',
     )
     await expect(panel(page).getByRole('region', { name: 'Mon 9 Nov' })).toContainText(
@@ -53,7 +59,7 @@ test.describe('calendar panel', () => {
     await expect(events(page)).toHaveCount(4)
     const coffee = events(page).filter({ hasText: 'Coffee with Arvind Menon' })
     await expect(coffee).toContainText('12:00 pm')
-    await expect(panel(page).getByRole('region', { name: 'Today' })).toContainText(
+    await expect(panel(page).getByRole('region', { name: 'Today · Thu 5 Nov' })).toContainText(
       'Coffee with Arvind Menon',
     )
     await expect(panel(page)).not.toContainText('Call with Rohan Mehta')

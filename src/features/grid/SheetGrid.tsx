@@ -24,6 +24,7 @@ import { nextWarmth } from '@/domain/warmth'
 import { cn } from '@/lib/cn'
 import { isModKey } from '@/lib/platform'
 import { readJson, storageKeys, writeJson } from '@/lib/storage'
+import { layout } from '@/styles/tokens'
 import type { CellContext } from './cells'
 import {
   columnAlign,
@@ -35,9 +36,11 @@ import {
 } from './columnModel'
 import { GridRow, type GridRowHandlers } from './GridRow'
 
-export const ROW_HEIGHT = 40
-const HEADER_HEIGHT = 40
-const EXPANDED_ESTIMATE = 300
+/** Row height in px (the --row-height token). */
+export const ROW_HEIGHT = layout.rowHeight
+const HEADER_HEIGHT = 38
+/** First guess at the expanded details' height; the virtualizer measures the real one. */
+const EXPANDED_ESTIMATE = 480
 
 interface GridColumnMeta {
   def: ColumnDef
@@ -390,7 +393,7 @@ export function SheetGrid({
           <div
             role="row"
             aria-rowindex={1}
-            className="grid border-b border-border"
+            className="grid border-y border-border"
             style={{ gridTemplateColumns, height: HEADER_HEIGHT }}
           >
             {headerGroup?.headers.map((header, colIndex) => {
@@ -409,9 +412,11 @@ export function SheetGrid({
                   data-active={isActive || undefined}
                   onMouseDown={() => rowHandlers.onCellMouseDown(-1, colIndex)}
                   className={cn(
-                    'relative flex items-center bg-bg px-3 text-xs font-medium text-muted',
+                    'relative flex items-center bg-bg',
+                    // Labels start where the cells' content starts; start-aligned ones may use
+                    // the right padding so "Last touch" fits its narrow default column.
+                    def && columnAlign(def) === 'end' ? 'justify-end px-3' : 'pr-0 pl-3',
                     colIndex === 0 && 'sticky left-0 z-10',
-                    def && columnAlign(def) === 'end' && 'justify-end',
                     'group-focus/grid:data-[active]:focus-ring-inset',
                   )}
                 >
@@ -420,7 +425,8 @@ export function SheetGrid({
                     tabIndex={-1}
                     onClick={() => header.column.toggleSorting(undefined, false)}
                     className={cn(
-                      'inline-flex min-w-0 items-center gap-1 rounded-control py-1 hover:text-text',
+                      'inline-flex min-w-0 items-center gap-1 rounded-control py-1',
+                      'font-mono text-[10.5px] leading-[1.3] font-semibold tracking-[0.08em] text-muted uppercase hover:text-text',
                       sorted && 'text-text',
                     )}
                   >
@@ -473,7 +479,7 @@ export function SheetGrid({
                   <div
                     role="row"
                     aria-rowindex={rowIndexAria + 1}
-                    className="border-b border-border bg-row-selected"
+                    className="border-b border-border bg-surface-subtle"
                   >
                     <div
                       role="gridcell"

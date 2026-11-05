@@ -38,6 +38,7 @@ import { RepositoryProvider, useRepository } from '@/data/RepositoryContext'
 import type { MutationContext, MutationResult } from '@/data/repository'
 import { snapshotStage } from '@/domain/stages'
 import type { Id, Row, Sheet, Warmth } from '@/domain/types'
+import { freezeClock, restoreClock } from '../ui/renderUi'
 
 vi.mock('sonner', () => ({
   toast: Object.assign(
@@ -120,6 +121,9 @@ function wrapper({ children }: { children: ReactNode }) {
 
 beforeEach(async () => {
   vi.clearAllMocks()
+  // Mutations stamp today's IST date from the clock; freeze it at 5 Nov 2026, 10:00 IST so the
+  // expectations do not depend on when the suite runs (only Date is faked).
+  freezeClock()
   dbCounter += 1
   repo = new GatedRepository(new UaCrmDb(`ua-crm-hooks-${dbCounter}-${Date.now()}`))
   await repo.ensureSeeded()
@@ -136,6 +140,7 @@ afterEach(async () => {
   qc.clear()
   repo.db.close()
   await repo.db.delete()
+  restoreClock()
 })
 
 function lastToastAction(): { label: ReactNode; onClick: () => void } {

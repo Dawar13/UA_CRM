@@ -1,23 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
 import { useRepository } from '@/data/RepositoryContext'
 import type { RowLocation } from '@/data/repository'
 import { matchEventToRows } from '@/domain/calendar'
 import type { CalendarEvent } from '@/domain/types'
-
-/** True once the browser has been idle after mount, so secondary work never delays the grid. */
-function useAfterIdle(): boolean {
-  const [ready, setReady] = useState(false)
-  useEffect(() => {
-    if (typeof window.requestIdleCallback === 'function') {
-      const id = window.requestIdleCallback(() => setReady(true), { timeout: 1500 })
-      return () => window.cancelIdleCallback(id)
-    }
-    const timer = window.setTimeout(() => setReady(true), 300)
-    return () => window.clearTimeout(timer)
-  }, [])
-  return ready
-}
+import { useAfterIdle } from './useAfterIdle'
 
 /**
  * Contacts matched to each event by attendee email (Phase 0: exact email only), across every

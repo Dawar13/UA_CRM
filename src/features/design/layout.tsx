@@ -8,6 +8,9 @@ export interface SectionProps {
   children: ReactNode
 }
 
+/** Geist Mono caps for labels: section titles, captions, small annotations. */
+export const capsClassName = 'font-mono font-semibold uppercase tracking-[0.08em]'
+
 /** One showcase section with its own data-testid for the visual tests ("design-<id>"). */
 export function Section({ id, title, caption, children }: SectionProps) {
   const headingId = `${id}-heading`
@@ -16,14 +19,17 @@ export function Section({ id, title, caption, children }: SectionProps) {
       id={id}
       aria-labelledby={headingId}
       data-testid={`design-${id}`}
-      className="scroll-mt-6 border-t border-border py-10 first:border-t-0"
+      className="scroll-mt-6 pt-14 pb-2"
     >
-      <div className="mb-6 max-w-3xl">
-        <h2 id={headingId} className="text-md font-semibold text-text">
+      <div className="mb-6 flex flex-col gap-2 border-b border-border pb-2.5">
+        <h2
+          id={headingId}
+          className="font-mono text-[11px] font-semibold tracking-[0.1em] text-text uppercase"
+        >
           {title}
         </h2>
-        {caption ? <p className="mt-1 text-sm text-secondary">{caption}</p> : null}
       </div>
+      {caption ? <p className="-mt-2 mb-6 max-w-3xl text-sm text-secondary">{caption}</p> : null}
       <div className="flex flex-col gap-6">{children}</div>
     </section>
   )
@@ -64,4 +70,18 @@ export function StateLabel({ children, className }: { children: ReactNode; class
 /** Monospaced annotation (accessible names, token names, inputs). */
 export function Mono({ children, className }: { children: ReactNode; className?: string }) {
   return <code className={cn('font-mono text-xs text-secondary', className)}>{children}</code>
+}
+
+/** Mono caps caption, as under the figures in the type specimen. */
+export function Caps({ children, className }: { children: ReactNode; className?: string }) {
+  return (
+    <span
+      className={cn(
+        'font-mono text-[10.5px] leading-[1.6] tracking-[0.06em] text-secondary uppercase',
+        className,
+      )}
+    >
+      {children}
+    </span>
+  )
 }

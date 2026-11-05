@@ -1,7 +1,7 @@
 import { type LucideIcon, Monitor, Moon, Sun } from 'lucide-react'
 import { RadioGroup } from 'radix-ui'
 import { type ThemeMode, themeModeLabels, themeModes, useTheme } from '@/app/theme'
-import { IconButton } from '@/components/ui/IconButton'
+import { IconButton, type IconButtonProps } from '@/components/ui/IconButton'
 import { cn } from '@/lib/cn'
 
 const themeIcons: Record<ThemeMode, LucideIcon> = {
@@ -11,7 +11,15 @@ const themeIcons: Record<ThemeMode, LucideIcon> = {
 }
 
 /** Header button that cycles system → light → dark. Its icon and tooltip name the current mode. */
-export function ThemeToggle({ className }: { className?: string }) {
+export function ThemeToggle({
+  className,
+  variant,
+  size,
+}: {
+  className?: string
+  variant?: IconButtonProps['variant']
+  size?: IconButtonProps['size']
+}) {
   const { mode, cycleMode } = useTheme()
   const Icon = themeIcons[mode]
   const label = `Theme: ${themeModeLabels[mode]}`
@@ -21,6 +29,8 @@ export function ThemeToggle({ className }: { className?: string }) {
       tooltip={label}
       data-mode={mode}
       onClick={cycleMode}
+      variant={variant}
+      size={size}
       className={className}
     >
       <Icon aria-hidden="true" />
@@ -28,7 +38,10 @@ export function ThemeToggle({ className }: { className?: string }) {
   )
 }
 
-/** Segmented System / Light / Dark control (a radio group), for menus and settings. */
+/**
+ * Segmented System / Light / Dark control (a radio group), for menus and settings. Same shape as
+ * the member switch: a soft well with the checked option raised on paper.
+ */
 export function ThemeSegmented({ className }: { className?: string }) {
   const { mode, setMode } = useTheme()
   return (
@@ -41,7 +54,7 @@ export function ThemeSegmented({ className }: { className?: string }) {
         if (found) setMode(found)
       }}
       className={cn(
-        'inline-flex h-8 items-center gap-0.5 rounded-control border border-border bg-surface-subtle p-0.5',
+        'inline-flex h-[34px] items-center gap-0.5 rounded-[8px] bg-surface-hover p-[3px]',
         className,
       )}
     >
@@ -52,10 +65,10 @@ export function ThemeSegmented({ className }: { className?: string }) {
             key={m}
             value={m}
             className={cn(
-              'inline-flex h-full cursor-default items-center gap-1.5 rounded-[4px] px-2.5 text-sm font-medium text-secondary',
+              'inline-flex h-full cursor-default items-center gap-1.5 rounded-control px-2.5 text-sm font-medium text-secondary',
               'transition-[background-color,color,box-shadow] duration-(--duration-fast) ease-out',
               'hover:text-text',
-              'data-[state=checked]:bg-surface-raised data-[state=checked]:text-text data-[state=checked]:shadow-[0_0_0_1px_var(--border),0_1px_2px_var(--shadow)]',
+              'data-[state=checked]:bg-bg data-[state=checked]:text-text data-[state=checked]:shadow-[0_1px_2px_var(--shadow),0_0_0_1px_var(--border)]',
               '[&_svg]:size-3.5 [&_svg]:shrink-0',
             )}
           >

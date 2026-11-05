@@ -16,7 +16,7 @@ function HistoryPanel({ rowId }: { rowId: string }) {
   const memberMap = useMemo(() => new Map(members.map((m) => [m.id, m])), [members])
   return (
     <section aria-labelledby="history-panel-title" className="flex min-h-0 flex-1 flex-col">
-      <header className="flex h-10 shrink-0 items-center gap-1 px-2">
+      <header className="flex shrink-0 items-center gap-1.5 px-2.5 pt-3 pb-1">
         <IconButton
           aria-label="Back to this week"
           tooltip="Back to this week"
@@ -28,11 +28,14 @@ function HistoryPanel({ rowId }: { rowId: string }) {
         >
           <ArrowLeft className="size-4" />
         </IconButton>
-        <h2 id="history-panel-title" className="min-w-0 truncate text-sm font-semibold text-text">
+        <h2
+          id="history-panel-title"
+          className="min-w-0 truncate font-mono text-[11.5px] font-semibold tracking-[0.1em] text-text uppercase"
+        >
           History{row ? ` · ${row.name}` : ''}
         </h2>
       </header>
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-6" data-testid="history-panel">
+      <div className="min-h-0 flex-1 overflow-y-auto px-[18px] pb-8" data-testid="history-panel">
         {isPending ? (
           <div className="flex flex-col gap-3 pt-2">
             <Skeleton className="h-10 w-full" />
@@ -51,7 +54,7 @@ export function RightPanel({ member }: { member: Member }) {
   return (
     <aside
       aria-label="Side panel"
-      className="flex w-[var(--panel-width)] shrink-0 flex-col border-l border-border bg-bg"
+      className="flex w-(--panel-width) shrink-0 flex-col border-l border-border bg-surface-subtle"
       data-testid="right-panel"
     >
       {view.kind === 'history' ? (

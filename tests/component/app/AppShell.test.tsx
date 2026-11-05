@@ -13,7 +13,13 @@ import { getDefaultRepository } from '@/data/RepositoryContext'
  * user would. Browser-level behaviour (layout, focus rings, WebKit) is covered by Playwright.
  */
 
-configure({ asyncUtilTimeout: 8000 })
+configure({
+  asyncUtilTimeout: 8000,
+  // A failed query prints the whole page (about 1,000 elements on the folder layout) on every
+  // retry, which starves the fake database and makes waits time out. Keep only the message.
+  getElementError: (message) =>
+    Object.assign(new Error(message ?? ''), { name: 'TestingLibraryElementError' }),
+})
 // Each test boots the whole app on a freshly reset IndexedDB, which is slow in jsdom.
 vi.setConfig({ testTimeout: 30_000 })
 

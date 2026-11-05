@@ -9,7 +9,17 @@ import {
 } from '@/domain/templates'
 import { makeIds, makeSheet } from './_fixtures'
 
-const HIDDEN = ['LinkedIn', 'Links', 'Next date', 'Introduced by', 'Connects to', 'Notes', 'Files']
+const HIDDEN = [
+  'Company',
+  'Title',
+  'LinkedIn',
+  'Links',
+  'Next date',
+  'Introduced by',
+  'Connects to',
+  'Notes',
+  'Files',
+]
 
 describe('customerArchetypes', () => {
   it('lists the 15 archetypes in CLAUDE.md order', () => {
@@ -147,8 +157,15 @@ describe('coreColumns', () => {
     const columns = coreColumns(true)
     expect(columns.every((c) => c.system)).toBe(true)
     expect(columns.filter((c) => c.hidden).map((c) => c.label)).toEqual(HIDDEN)
-    expect(columns.find((c) => c.key === 'warmth')).toMatchObject({ type: 'warmth', width: 104 })
-    expect(columns.find((c) => c.key === 'name')).toMatchObject({ type: 'text', width: 220 })
+    expect(columns.find((c) => c.key === 'warmth')).toMatchObject({ type: 'warmth', width: 98 })
+    expect(columns.find((c) => c.key === 'name')).toMatchObject({ type: 'text', width: 236 })
+  })
+
+  it('sizes the at-a-glance columns for the 52px rows of the redesign', () => {
+    const width = (key: string) => coreColumns(true).find((c) => c.key === key)?.width
+    expect(
+      ['name', 'warmth', 'stage', 'tags', 'lastTouch', 'nextAction'].map((key) => width(key)),
+    ).toEqual([236, 98, 214, 150, 84, 300])
   })
 })
 
@@ -162,8 +179,6 @@ describe('buildSheetSchema', () => {
       'Tags',
       'Last touch',
       'Next action',
-      'Company',
-      'Title',
       'Phone',
       'Email',
       'Plant location',
@@ -183,14 +198,12 @@ describe('buildSheetSchema', () => {
   it('leaves out Stage for sheets without stages', () => {
     const { columns, stages } = buildSheetSchema('connectors', makeIds())
     expect(stages).toEqual([])
-    expect(columns.slice(0, 9).map((c) => c.label)).toEqual([
+    expect(columns.slice(0, 7).map((c) => c.label)).toEqual([
       'Name',
       'Warmth',
       'Tags',
       'Last touch',
       'Next action',
-      'Company',
-      'Title',
       'Phone',
       'Email',
     ])

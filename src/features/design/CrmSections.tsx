@@ -158,7 +158,7 @@ export function StageDotsSection() {
     <Section
       id="stage-dots"
       title="Stage dots"
-      caption="Compact progress for the grid. Done is filled, current carries a ring, future is hollow, won is green and lost is a red dot at the next position. Hover a dot for its date."
+      caption="Compact progress for the grid, with the stage named in words beside it. Hover a stage for its date."
     >
       <Specimen bodyClassName="p-0">
         <div className="divide-y divide-border">
@@ -412,7 +412,7 @@ export function AvatarsSection() {
     <Section
       id="avatars"
       title="Avatars"
-      caption="Initials in a soft tint of the tag palette, chosen from the name so a person keeps their colour everywhere."
+      caption="Initials beside every name, drawn the same way everywhere a person appears."
     >
       <Specimen>
         <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-x-6 gap-y-4">
@@ -458,18 +458,15 @@ export function TabsSection() {
     <Section
       id="tabs"
       title="Tabs"
-      caption="Member tabs in the 52px header and sheet tabs in the 40px bar. Arrow keys move and switch; the selected tab has a 2px underline."
+      caption="The member switch is a segmented control in the 56px header; sheets are folder tabs above their sheet. Arrow keys move and switch."
     >
       <Specimen className="overflow-hidden" bodyClassName="p-0">
         <div>
-          <div className="h-[3px]" style={{ background: 'var(--soft-gradient)' }} />
-          <div className="flex h-[52px] items-stretch gap-6 border-b border-border px-5">
-            <div className="flex items-center">
-              <BrandLockup />
-            </div>
+          <div className="flex h-14 items-center gap-6 border-b border-border px-5">
+            <BrandLockup />
             <MemberTabs members={members} value={member} onValueChange={setMember} />
             <div className="ml-auto flex items-center">
-              <ThemeToggle />
+              <ThemeToggle variant="secondary" size="lg" />
             </div>
           </div>
           <div className="flex h-10 items-stretch border-b border-border px-4">

@@ -22,6 +22,11 @@ export const menuItemClassName = cn(
   '[&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:text-secondary',
 )
 
+/** Group labels: Geist Mono caps, as everywhere labels name a section. */
+export const menuLabelClassName = cn(
+  'px-2 pt-2.5 pb-1 font-mono text-[10.5px] font-semibold uppercase tracking-[0.08em] text-muted',
+)
+
 /**
  * Menus are non-modal by default: the rest of the page stays in the accessibility tree and
  * scrollable while a menu is open. Focus still moves into the menu; Esc and outside clicks close it.
@@ -90,12 +95,7 @@ export function MenuLabel({
   className,
   ...props
 }: ComponentPropsWithRef<typeof DropdownMenu.Label>) {
-  return (
-    <DropdownMenu.Label
-      className={cn('px-2 pt-2 pb-1 text-xs font-medium text-muted', className)}
-      {...props}
-    />
-  )
+  return <DropdownMenu.Label className={cn(menuLabelClassName, className)} {...props} />
 }
 
 export function MenuSeparator({

@@ -14,7 +14,19 @@ import { queryKeys, useMembers, useSearch } from '@/data/hooks'
 import { useRepository } from '@/data/RepositoryContext'
 import type { SearchResult } from '@/data/repository'
 import type { Member, Sheet } from '@/domain/types'
+import { cn } from '@/lib/cn'
 import { highlight } from './highlight'
+
+/** Group labels in Geist Mono caps, like every section label in the app. */
+const groupClassName = cn(
+  '[&_[cmdk-group-heading]]:px-2.5 [&_[cmdk-group-heading]]:pt-2.5 [&_[cmdk-group-heading]]:pb-1.5',
+  '[&_[cmdk-group-heading]]:font-mono [&_[cmdk-group-heading]]:text-[10.5px] [&_[cmdk-group-heading]]:font-semibold',
+  '[&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-[0.08em] [&_[cmdk-group-heading]]:text-muted',
+)
+
+/** Rows: 6px corners inside the 10px card, the soft selected tint. */
+const itemClassName =
+  'flex cursor-default items-center gap-3 rounded-control px-2.5 py-2 text-base text-text data-[selected=true]:bg-row-selected'
 
 interface PaletteCommand {
   id: string
@@ -67,7 +79,7 @@ function ResultItem({
       value={`row:${row.id}`}
       onSelect={onSelect}
       data-testid="palette-result"
-      className="group flex cursor-default items-center gap-3 rounded-control px-2.5 py-2 text-base text-text data-[selected=true]:bg-row-selected"
+      className={cn('group', itemClassName)}
     >
       <AvatarInitials name={row.name} size="md" />
       <span className="flex min-w-0 flex-1 flex-col">
@@ -78,7 +90,7 @@ function ResultItem({
           </span>
         ) : null}
       </span>
-      <span className="shrink-0 text-xs text-muted">
+      <span className="shrink-0 font-mono text-[11px] text-muted">
         {result.member.name} · {result.sheet.name}
       </span>
     </Command.Item>
@@ -212,12 +224,12 @@ export function CommandPalette({ currentMember }: { currentMember: Member | unde
             onValueChange={(value) => setSelection({ value, first: firstValue })}
           >
             <div className="flex items-center gap-2.5 border-b border-border px-4">
-              <Search aria-hidden className="size-4 shrink-0 text-muted" />
+              <Search aria-hidden className="size-[18px] shrink-0 text-muted" />
               <Command.Input
                 value={query}
                 onValueChange={setQuery}
                 placeholder="Search people, companies, tags, or type a command"
-                className="h-12 min-w-0 flex-1 bg-transparent text-md text-text outline-none placeholder:text-muted"
+                className="h-[52px] min-w-0 flex-1 bg-transparent text-[15px] text-text outline-none placeholder:text-muted"
               />
               <Kbd keys={['Esc']} />
             </div>
@@ -229,7 +241,7 @@ export function CommandPalette({ currentMember }: { currentMember: Member | unde
                 <Command.Group
                   key={group.label}
                   heading={group.label}
-                  className="pb-1 [&_[cmdk-group-heading]]:px-2.5 [&_[cmdk-group-heading]]:pb-1 [&_[cmdk-group-heading]]:pt-2 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted"
+                  className={cn('pb-1', groupClassName)}
                 >
                   {group.results.map((result) => (
                     <ResultItem
@@ -245,10 +257,7 @@ export function CommandPalette({ currentMember }: { currentMember: Member | unde
                 </Command.Group>
               ))}
               {visibleCommands.length > 0 ? (
-                <Command.Group
-                  heading="Commands"
-                  className="[&_[cmdk-group-heading]]:px-2.5 [&_[cmdk-group-heading]]:pb-1 [&_[cmdk-group-heading]]:pt-2 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted"
-                >
+                <Command.Group heading="Commands" className={groupClassName}>
                   {visibleCommands.map((command) => (
                     <Command.Item
                       key={command.id}
@@ -257,7 +266,7 @@ export function CommandPalette({ currentMember }: { currentMember: Member | unde
                         close()
                         command.run()
                       }}
-                      className="flex cursor-default items-center gap-3 rounded-control px-2.5 py-2 text-base text-text data-[selected=true]:bg-row-selected"
+                      className={itemClassName}
                     >
                       <span className="text-secondary">{command.icon}</span>
                       <span className="min-w-0 flex-1 truncate">{command.label}</span>

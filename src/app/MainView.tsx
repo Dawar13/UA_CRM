@@ -6,18 +6,13 @@ import { useMembers, useRows, useSheets } from '@/data/hooks'
 import type { Member, Row, Sheet } from '@/domain/types'
 import { SheetGrid } from '@/features/grid/SheetGrid'
 import { ExpandedRow } from '@/features/row-detail/ExpandedRow'
+import { SheetSummary, SheetSummarySkeleton } from '@/features/sheet-summary/SheetSummary'
 import { Header } from './Header'
 import { NotFound } from './NotFound'
 import { pickSheet, rememberLocation, sheetPath } from './navigation'
 import { RightPanel } from './RightPanel'
 import { SheetBar } from './SheetBar'
 import { useUiStore } from './uiStore'
-
-function GradientStrip() {
-  return (
-    <div aria-hidden className="h-[var(--strip-height)] shrink-0 bg-[image:var(--soft-gradient)]" />
-  )
-}
 
 function GridSkeleton() {
   return (
@@ -43,32 +38,44 @@ function GridSkeleton() {
   )
 }
 
+/** The left column: folder tabs on top, then one folder holding the front and the grid. */
+const COLUMN = 'flex min-w-0 flex-1 flex-col px-5 pb-5 pt-[18px]'
+const FOLDER =
+  'flex min-h-0 flex-1 flex-col overflow-hidden rounded-[0_10px_10px_10px] border border-t-0 border-border bg-bg'
+
 /** Loading frame with the real chrome so nothing jumps when data arrives. */
 export function ShellSkeleton() {
+  const summaryOpen = useUiStore((s) => s.summaryOpen)
   return (
     <div className="flex h-dvh flex-col bg-bg">
-      <GradientStrip />
-      <div className="flex h-[var(--header-height)] shrink-0 items-center gap-6 border-b border-border px-4">
+      <div className="flex h-[var(--header-height)] shrink-0 items-center gap-6 border-b border-border px-5">
         <Skeleton className="size-7 rounded-brand" />
         <Skeleton className="h-4 w-40" />
         <Skeleton className="h-4 w-28" />
       </div>
-      <div className="flex h-[var(--sheet-bar-height)] shrink-0 items-center gap-6 border-b border-border px-4">
-        <Skeleton className="h-3 w-20" />
-        <Skeleton className="h-3 w-20" />
-        <Skeleton className="h-3 w-20" />
+      <div className={COLUMN}>
+        <div className="flex h-[var(--sheet-bar-height)] shrink-0 items-end gap-[3px]">
+          <Skeleton className="h-full w-32 rounded-none rounded-tl-tab" />
+          <Skeleton className="h-[31px] w-28 rounded-none rounded-tl-tab" />
+          <Skeleton className="h-[31px] w-40 rounded-none rounded-tl-tab" />
+        </div>
+        <div className={FOLDER}>
+          <SheetSummarySkeleton index={0} open={summaryOpen} />
+          <GridSkeleton />
+        </div>
       </div>
-      <GridSkeleton />
     </div>
   )
 }
 
-function SheetContent({ member, sheet }: { member: Member; sheet: Sheet }) {
+function SheetContent({ member, sheet, index }: { member: Member; sheet: Sheet; index: number }) {
   const { data: rows, isPending } = useRows(sheet.id)
   const [searchParams, setSearchParams] = useSearchParams()
   const expandedRowId = searchParams.get('row')
   const flashRowId = useUiStore((s) => s.flashRowId)
   const clearFlash = useUiStore((s) => s.clearFlash)
+  const summaryOpen = useUiStore((s) => s.summaryOpen)
+  const setSummaryOpen = useUiStore((s) => s.setSummaryOpen)
 
   useEffect(() => {
     if (!flashRowId) return
@@ -100,25 +107,51 @@ function SheetContent({ member, sheet }: { member: Member; sheet: Sheet }) {
     [sheet, member],
   )
 
-  if (isPending) return <GridSkeleton />
-  if (!rows || rows.length === 0) {
+  if (isPending) {
     return (
-      <div className="grid h-full place-items-center p-8">
-        <EmptyState title="No one here yet." description={`${sheet.name} has no rows yet.`} art />
-      </div>
+      <>
+        <SheetSummarySkeleton index={index} open={summaryOpen} />
+        <GridSkeleton />
+      </>
     )
   }
+  const list = rows ?? []
   return (
-    <SheetGrid
-      key={sheet.id}
-      sheet={sheet}
-      rows={rows}
-      member={member}
-      expandedRowId={expandedRowId}
-      onExpandedChange={onExpandedChange}
-      flashRowId={flashRowId}
-      renderExpanded={renderExpanded}
-    />
+    <>
+      <SheetSummary
+        member={member}
+        sheet={sheet}
+        rows={list}
+        index={index}
+        open={summaryOpen}
+        onOpenChange={setSummaryOpen}
+      />
+      {/* The grid scrolls inside whatever height the front leaves. */}
+      <div className="relative min-h-0 flex-1">
+        <div className="absolute inset-0">
+          {list.length === 0 ? (
+            <div className="grid h-full place-items-center p-8">
+              <EmptyState
+                title="No one here yet."
+                description={`${sheet.name} has no rows yet.`}
+                art
+              />
+            </div>
+          ) : (
+            <SheetGrid
+              key={sheet.id}
+              sheet={sheet}
+              rows={list}
+              member={member}
+              expandedRowId={expandedRowId}
+              onExpandedChange={onExpandedChange}
+              flashRowId={flashRowId}
+              renderExpanded={renderExpanded}
+            />
+          )}
+        </div>
+      </div>
+    </>
   )
 }
 
@@ -141,16 +174,19 @@ export function MainView() {
     const fallback = pickSheet(member.id, sheets ?? [])
     return fallback ? <Navigate to={sheetPath(member.slug, fallback.slug)} replace /> : <NotFound />
   }
+  const list = sheets ?? []
+  const index = Math.max(0, list.indexOf(sheet))
 
   return (
     <div className="flex h-dvh flex-col bg-bg">
-      <GradientStrip />
       <Header members={members} member={member} />
-      <SheetBar member={member} sheets={sheets ?? []} sheet={sheet} />
       <main className="flex min-h-0 flex-1">
-        <section aria-label={`${member.name} · ${sheet.name}`} className="min-w-0 flex-1">
-          <SheetContent member={member} sheet={sheet} />
-        </section>
+        <div className={COLUMN}>
+          <SheetBar member={member} sheets={list} sheet={sheet} />
+          <section aria-label={`${member.name} · ${sheet.name}`} className={FOLDER}>
+            <SheetContent member={member} sheet={sheet} index={index} />
+          </section>
+        </div>
         {panelOpen ? <RightPanel member={member} /> : null}
       </main>
     </div>

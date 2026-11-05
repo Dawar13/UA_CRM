@@ -320,3 +320,33 @@ Container jobs first make sure git is installed (otherwise checkout falls back t
 - Menus are non-modal: a modal menu hides the page from assistive technology, which axe flags as serious.
 - Focus is never dropped: dialogs opened by shortcuts return focus to what had it; after a jump from search or a link chip the grid takes focus on the expanded row; after a stage move, Mark lost or Reopen, focus stays in the tracker; "Back to this week" focuses the panel heading.
 - The Developer menu (Reset sample data, Load 2,000-row sheet) exists only in development builds; tests use `window.__uaTest`, which exists only when test hooks are on.
+
+## D-027 · 5 Nov 2026 · The founders' redesign (M0.6): blue palette, field palette, folders
+
+**Context.** After Phase 0 the founders found the shell generic. Over four prototype rounds they chose a calmer, more art-like look from their own references: a navy-to-white blue palette, an earthy dot-chart palette (olive, ochre, brick, sand), sheets as folders, squarer corners and joined shapes instead of pills and dots.
+
+**Decision.**
+
+- Sheets are folders. Each tab is a blue two-stop gradient from the palette (01 deepest, 05 lightest, then repeating). The active tab joins a folder front: a summary of the sheet (People, Open pipeline or This week, Won or Next actions, Due) and a pipeline card. Clicking the active tab folds the front to one line; the choice is remembered.
+- The pipeline is one long tapered capsule: thickness follows how many people reached each stage, bands step through the blue palette, and pills show the share that moved on. Squares under it show who is at each stage now, by warmth, shaded by recency.
+- Warmth uses the field palette: olive (warm), ochre (waiting), brick (cold), as soft gradient chips. CLAUDE.md §2.2 semantics are unchanged.
+- The stage column is a joined bar beside the stage name; the tracker uses the same blocks.
+- The side panel adds a 30-day dot field: touches held stack up in deepening greens, a blue dot marks a stage move, and missed next actions hang below a sand line from ochre to brick. Until the calendar arrives (Phase 2), "missed" means an exact-dated next action that passed with no touch since.
+- Rows are 52px and two lines (name, then title and company). Company and Title are therefore hidden by default (the Phase 1 column manager can show them). The header is 56px. Corners are 4 / 6 / 8 / 10px. The 3px top strip is removed.
+- In the expanded row, warmth is a radio group of three soft chips: arrow keys move focus without choosing (so browsing does not log warmth changes); Space or Enter chooses, choosing the selected chip clears it, and 1, 2, 3 and 0 still work. `[` and `]` also work inside the tracker. Skipped tracker blocks use stripes tinted to 40% so their text keeps 4.5:1.
+
+**Consequences.** CLAUDE.md §2.1 and §3.2–3.4 are rewritten to match. All visual baselines change and are regenerated in CI. The Phase 0 seed version is bumped so existing browsers reseed with the new column widths (sample data only).
+
+## D-028 · 5 Nov 2026 · Contrast: text everywhere, supplementary fills judged by eye
+
+**Context.** The new stage ramp starts very light (#CAF1F8) and the field palette has pale steps by design, so these fills cannot reach 3:1 on white.
+
+**Decision.** The contrast test checks every text pair, including text on each folder colour, stage block, chip gradient stop and the today chip, in both themes, plus focus rings and hollow outlines at 3:1. Stage cells, warmth squares and activity dots are not held to 3:1, because each sits beside text that says the same thing (stage names, warmth labels, counts, tooltips and accessible summaries). Adjusted to pass: text-muted #68747D → #646F78 (4.47:1 on row-selected); dark folder text from #F2F7FA to white (4.45:1 → 4.82:1 on #0078B7).
+
+**Consequences.** Colour is never the only signal; component tests check that the stage label is always rendered.
+
+## D-029 · 5 Nov 2026 · Member-wide reads for the activity field
+
+**Decision.** The Repository gains `listMemberRows(memberId)` and `listMemberHistory(memberId, range)`, behind hooks `useMemberRows` and `useMemberHistory`; row mutations invalidate both. The pure `activityByDay` (domain) turns them into 30 days of held, moved and missed, and `summariseSheet` (domain) computes the folder front from a sheet's rows.
+
+**Consequences.** Phase 1's SupabaseRepository must implement the two reads (one query each, filtered by the member's rows).

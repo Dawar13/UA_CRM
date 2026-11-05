@@ -16,13 +16,18 @@ afterEach(() => {
 })
 
 describe('TagChip', () => {
-  it('shows the name with a coloured dot in a neutral pill', () => {
+  it('shows the name beside a square in the tag hue, legend style with no pill', () => {
     const { container } = renderUi(<TagChip name="foundry" colour="teal" />)
     const chip = container.querySelector('[data-tag="foundry"]')
     expect(chip).toHaveAttribute('data-colour', 'teal')
-    expect(chip?.className).toContain('bg-pill-bg')
-    expect(chip?.className).toContain('rounded-full')
-    expect(chip?.querySelector('.bg-tag-teal')).toHaveAttribute('aria-hidden', 'true')
+    expect(chip?.className).not.toContain('bg-pill-bg')
+    expect(chip?.className).not.toContain('border')
+    expect(chip?.className).toContain('text-secondary')
+    expect(chip?.className).toContain('text-[12.5px]')
+    const square = chip?.querySelector('.bg-tag-teal')
+    expect(square).toHaveAttribute('aria-hidden', 'true')
+    expect(square?.className).toContain('size-2')
+    expect(square?.className).toContain('rounded-[2px]')
     expect(screen.getByText('foundry').className).toContain('truncate')
   })
 
@@ -50,11 +55,15 @@ describe('TagChip', () => {
 })
 
 describe('TagList', () => {
-  it('shows two chips then a +N pill naming the rest', async () => {
+  it('shows two tags 12px apart, then a +N count naming the rest', async () => {
     const { user, container } = renderUi(<TagList tags={tags} />)
     expect(container.querySelectorAll('[data-tag]')).toHaveLength(2)
+    expect((container.firstElementChild as HTMLElement).className).toContain('gap-3')
     const overflow = screen.getByTestId('tag-overflow')
     expect(overflow).toHaveTextContent('+3')
+    expect(overflow.className).toContain('font-mono')
+    expect(overflow.className).toContain('bg-tile')
+    expect(overflow.className).toContain('rounded-chip')
     expect(overflow).toHaveTextContent(
       '3 more tags: pilot candidate, decision maker, intro pending',
     )
@@ -71,6 +80,20 @@ describe('TagList', () => {
     expect(first?.className).toContain('max-w-[min(10rem,65%)]')
     expect(second?.className.split(' ')).toContain('shrink')
     expect(second?.className.split(' ')).not.toContain('shrink-0')
+  })
+
+  it('lets a tag on its own use the whole width', () => {
+    const { container } = renderUi(<TagList tags={tags.slice(0, 1)} max={1} />)
+    const only = container.querySelector<HTMLElement>('[data-tag]')
+    expect(only?.className).toContain('max-w-full')
+    expect(only?.className.split(' ')).not.toContain('shrink-0')
+  })
+
+  it('shows one tag and a count when max is 1 (sheets with stages)', () => {
+    const { container } = renderUi(<TagList tags={tags.slice(0, 3)} max={1} />)
+    expect(container.querySelectorAll('[data-tag]')).toHaveLength(1)
+    expect(container.querySelector('[data-tag]')?.className).toContain('max-w-[min(10rem,65%)]')
+    expect(screen.getByTestId('tag-overflow')).toHaveTextContent('+2')
   })
 
   it('respects max and says "1 more tag"', () => {

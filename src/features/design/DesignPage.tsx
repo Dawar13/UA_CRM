@@ -20,10 +20,15 @@ import {
   MenusSection,
   TypeSection,
 } from './PrimitivesSections'
+import { ActivitySection, FieldSection, ShapeSection, StagesSection } from './SystemSections'
 
 const index = [
-  ['colours', 'Colour'],
+  ['colours', 'Foundation'],
+  ['stages', 'Stage progress'],
+  ['field', 'Field palette'],
+  ['activity', 'This week'],
   ['type', 'Type'],
+  ['shape', 'Shape'],
   ['brand', 'Brand'],
   ['buttons', 'Buttons'],
   ['inputs', 'Inputs'],
@@ -54,19 +59,28 @@ export function DesignPage() {
 
   return (
     <div className="min-h-screen bg-bg text-text">
-      <div aria-hidden="true" className="h-[3px]" style={{ background: 'var(--soft-gradient)' }} />
       <header className="border-b border-border">
-        <div className="mx-auto flex max-w-[1120px] flex-wrap items-center justify-between gap-4 px-8 py-6">
-          <div className="flex items-center gap-3">
-            <BrandMark size={36} />
-            <div className="flex flex-col">
-              <h1 className="text-lg font-semibold text-text">Design system</h1>
-              <p className="text-sm text-secondary">
-                Tokens, primitives and CRM components for the UA Internal CRM
-              </p>
+        <div className="mx-auto flex max-w-[1120px] flex-wrap items-end justify-between gap-6 px-8 pt-14 pb-8">
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-2.5">
+              <BrandMark />
+              <span className="font-mono text-[11.5px] font-semibold tracking-[0.1em] text-text uppercase">
+                Utopian Autonomy · Internal CRM
+              </span>
             </div>
+            <h1 className="text-[52px] leading-none font-normal tracking-[-0.04em] text-text">
+              Design system
+            </h1>
+            <p className="text-sm text-secondary">
+              Tokens, primitives and CRM components for the UA Internal CRM
+            </p>
           </div>
-          <ThemeSegmented />
+          <div className="flex flex-col items-end gap-3">
+            <ThemeSegmented />
+            <span className="font-mono text-[11.5px] font-medium tracking-[0.08em] text-secondary uppercase">
+              Paper white · sky gradient · field palette
+            </span>
+          </div>
         </div>
         <nav aria-label="Sections" className="mx-auto max-w-[1120px] px-8 pb-3">
           <ul className="flex flex-wrap gap-x-1 gap-y-1">
@@ -85,7 +99,11 @@ export function DesignPage() {
       </header>
       <main className="mx-auto max-w-[1120px] px-8 pb-24">
         <ColoursSection />
+        <StagesSection />
+        <FieldSection />
+        <ActivitySection />
         <TypeSection />
+        <ShapeSection />
         <BrandSection />
         <ButtonsSection />
         <InputsSection />

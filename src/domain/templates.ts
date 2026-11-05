@@ -167,10 +167,12 @@ export const templates: Readonly<Record<TemplateKey, TemplateDef>> = {
 }
 
 /**
- * Core columns hidden in the grid by default. Next date is hidden because the Next action cell
- * already shows its date.
+ * Core columns hidden in the grid by default. Company and Title are hidden because the Name cell
+ * shows them as its second line (M0.6); Next date because the Next action cell shows its date.
  */
 const HIDDEN_BY_DEFAULT: ReadonlySet<CoreFieldKey> = new Set<CoreFieldKey>([
+  'company',
+  'title',
   'linkedin',
   'links',
   'nextDate',
@@ -192,8 +194,6 @@ const LEADING_CORE: readonly CoreFieldKey[] = [
   'tags',
   'lastTouch',
   'nextAction',
-  'company',
-  'title',
   'phone',
   'email',
 ]
@@ -204,18 +204,18 @@ const CORE: readonly {
   type: ColumnDef['type']
   width: number
 }[] = [
-  { key: 'name', label: 'Name', type: 'text', width: 220 },
+  { key: 'name', label: 'Name', type: 'text', width: 236 },
   { key: 'company', label: 'Company', type: 'text', width: 180 },
   { key: 'title', label: 'Title', type: 'text', width: 160 },
   { key: 'phone', label: 'Phone', type: 'phone', width: 150 },
   { key: 'email', label: 'Email', type: 'email', width: 200 },
   { key: 'linkedin', label: 'LinkedIn', type: 'url', width: 180 },
   { key: 'links', label: 'Links', type: 'url', width: 180 },
-  { key: 'warmth', label: 'Warmth', type: 'warmth', width: 104 },
-  { key: 'stage', label: 'Stage', type: 'stage', width: 124 },
-  { key: 'tags', label: 'Tags', type: 'tags', width: 240 },
-  { key: 'lastTouch', label: 'Last touch', type: 'lastTouch', width: 100 },
-  { key: 'nextAction', label: 'Next action', type: 'nextAction', width: 280 },
+  { key: 'warmth', label: 'Warmth', type: 'warmth', width: 98 },
+  { key: 'stage', label: 'Stage', type: 'stage', width: 214 },
+  { key: 'tags', label: 'Tags', type: 'tags', width: 150 },
+  { key: 'lastTouch', label: 'Last touch', type: 'lastTouch', width: 84 },
+  { key: 'nextAction', label: 'Next action', type: 'nextAction', width: 300 },
   { key: 'nextDate', label: 'Next date', type: 'date', width: 110 },
   { key: 'introducedBy', label: 'Introduced by', type: 'personLink', width: 160 },
   { key: 'connectsTo', label: 'Connects to', type: 'personLink', width: 200 },
@@ -227,7 +227,8 @@ const CORE: readonly {
  * Core columns every sheet has, in CLAUDE.md §2.3 definition order: Name, Company, Title, Phone,
  * Email, LinkedIn, Links, Warmth, Stage (only if the sheet has stages), Tags, Last touch,
  * Next action, Next date, Introduced by, Connects to, Notes, Files. All `system: true`.
- * LinkedIn, Links, Next date, Introduced by, Connects to, Notes and Files are hidden.
+ * Company, Title, LinkedIn, Links, Next date, Introduced by, Connects to, Notes and Files are
+ * hidden.
  */
 export function coreColumns(hasStages: boolean): Omit<ColumnDef, 'id' | 'position'>[] {
   return CORE.filter((c) => hasStages || c.key !== 'stage').map((c) => ({
@@ -241,10 +242,10 @@ export function coreColumns(hasStages: boolean): Omit<ColumnDef, 'id' | 'positio
  * Full column and stage definitions for a new sheet from a template. `newId` makes ids
  * (columns first, in position order, then stages).
  * Default order (positions 0..n, and the order of the returned array), following the
- * CLAUDE.md §2.1 layout: Name, Warmth, Stage (if any), Tags, Last touch, Next action, Company,
- * Title, Phone, Email, then the template's extra columns, then the hidden-by-default core
- * columns (LinkedIn, Links, Next date, Introduced by, Connects to, Notes, Files, in §2.3 order).
- * Everything except those seven is visible. Default widths suit 1280px screens.
+ * CLAUDE.md §2.1 layout: Name (with title and company as its second line), Warmth, Stage (if
+ * any), Tags, Last touch, Next action, Phone, Email, then the template's extra columns, then the
+ * hidden-by-default core columns (Company, Title, LinkedIn, Links, Next date, Introduced by,
+ * Connects to, Notes, Files, in §2.3 order). Everything except those nine is visible.
  */
 export function buildSheetSchema(
   template: TemplateKey,
