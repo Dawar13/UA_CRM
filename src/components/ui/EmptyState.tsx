@@ -1,62 +1,97 @@
 import type { ReactNode } from 'react'
 import { cn } from '@/lib/cn'
 
-const CELL = 14
+const CELL = 18
 const GAP = 4
-const COLUMNS = 4
-const ROWS = 3
-/** Filled cells rise like a stage bar: [row, column, stage colour]. */
-const FILLED: readonly (readonly [number, number, string])[] = [
-  [0, 0, 'var(--stage4)'],
-  [1, 0, 'var(--stage3)'],
-  [1, 1, 'var(--stage4)'],
-  [2, 0, 'var(--stage2)'],
-  [2, 1, 'var(--stage3)'],
-  [2, 2, 'var(--stage4)'],
-]
+const COLUMNS = 7
+const ROWS = 4
+const LABEL_GAP = 8
+const LABEL_WIDTH = 14
+
+export interface HeatmapArtProps {
+  /**
+   * The row of the first column drawn in deep blue ("now"); earlier rows are spent, later ones
+   * fade lighter. -1 for none. Defaults to the top row.
+   */
+  nowRow?: number
+  /** Labels down the right side, one per row (the side panel's hours). */
+  rowLabels?: readonly string[]
+  className?: string
+  'data-testid'?: string
+}
+
+function cellFill(column: number, row: number, nowRow: number): string {
+  if (column === 0) {
+    if (row === nowRow) return 'var(--stage6)'
+    if (row < nowRow) return 'var(--stage-track)'
+    return row - nowRow === 1 ? 'var(--stage2)' : 'var(--stage1)'
+  }
+  // A quiet, fixed diagonal texture of two greys.
+  return (column * 3 + row * 2) % 5 === 1 ? 'var(--grid-line)' : 'var(--stage-track)'
+}
 
 /**
- * The empty-state mark: a small grid of spreadsheet cells, hairline and light, with a staircase
- * of stage blues rising through it. Flat and geometric; purely decorative.
+ * The empty-state mark: a small heatmap of rounded cells, 7 across and 4 down, quiet greys with
+ * the first column in stage blues and one deep-blue cell. The cells pop in with a short ripple,
+ * skipped under reduced motion. Drawn from tokens, so it follows the theme. Purely decorative.
  */
-export function EmptyStateArt({ className }: { className?: string }) {
-  const width = COLUMNS * CELL + (COLUMNS - 1) * GAP
+export function HeatmapArt({
+  nowRow = 0,
+  rowLabels,
+  className,
+  'data-testid': testId = 'empty-state-art',
+}: HeatmapArtProps) {
+  const gridWidth = COLUMNS * CELL + (COLUMNS - 1) * GAP
   const height = ROWS * CELL + (ROWS - 1) * GAP
-  const fillAt = (row: number, column: number) =>
-    FILLED.find(([r, c]) => r === row && c === column)?.[2]
+  const width = rowLabels ? gridWidth + LABEL_GAP + LABEL_WIDTH : gridWidth
   return (
     <svg
-      viewBox={`-1 -1 ${width + 2} ${height + 2}`}
-      width={width + 2}
-      height={height + 2}
+      viewBox={`0 0 ${width} ${height}`}
+      width={width}
+      height={height}
       aria-hidden="true"
       focusable="false"
-      data-testid="empty-state-art"
-      className={cn('shrink-0', className)}
+      data-testid={testId}
+      className={cn('shrink-0 font-mono', className)}
     >
-      {Array.from({ length: ROWS }, (_, row) =>
-        Array.from({ length: COLUMNS }, (_, column) => {
-          const fill = fillAt(row, column)
-          return (
-            <rect
-              // biome-ignore lint/suspicious/noArrayIndexKey: a fixed grid.
-              key={`${row}-${column}`}
-              x={column * (CELL + GAP)}
-              y={row * (CELL + GAP)}
-              width={CELL}
-              height={CELL}
-              rx="3"
-              style={
-                fill
-                  ? { fill }
-                  : { fill: 'var(--stage-track)', stroke: 'var(--grid-line)', strokeWidth: 1 }
-              }
-            />
-          )
-        }),
+      {Array.from({ length: COLUMNS }, (_, column) =>
+        Array.from({ length: ROWS }, (_, row) => (
+          <rect
+            // biome-ignore lint/suspicious/noArrayIndexKey: a fixed grid.
+            key={`${column}-${row}`}
+            x={column * (CELL + GAP)}
+            y={row * (CELL + GAP)}
+            width={CELL}
+            height={CELL}
+            rx="4"
+            className="origin-center [transform-box:fill-box] motion-safe:animate-pop-in"
+            style={{
+              fill: cellFill(column, row, nowRow),
+              animationDelay: `${column * 28 + row * 14}ms`,
+              animationFillMode: 'both',
+            }}
+          />
+        )),
       )}
+      {rowLabels?.map((label, row) => (
+        <text
+          key={label}
+          x={gridWidth + LABEL_GAP}
+          y={row * (CELL + GAP) + CELL / 2 + 3}
+          fontSize="8.5"
+          fontWeight={500}
+          style={{ fill: 'var(--text-muted)' }}
+        >
+          {label}
+        </text>
+      ))}
     </svg>
   )
+}
+
+/** The default art of every empty state. */
+export function EmptyStateArt({ className }: { className?: string }) {
+  return <HeatmapArt className={className} />
 }
 
 export interface EmptyStateProps {
