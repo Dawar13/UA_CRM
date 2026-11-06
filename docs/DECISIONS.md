@@ -370,3 +370,26 @@ Container jobs first make sure git is installed (otherwise checkout falls back t
 - The pipeline is a horizontal funnel: a flat, full-height mouth at the first stage, sides that narrow through each stage boundary in proportion to how many reached it (monotone Fritsch–Carlson curves, so they never bulge) and a rounded spout at the last stage anyone reached. The blue stage bands and the conversion pills are unchanged.
 
 **Consequences.** All grid and summary visual baselines change once more.
+
+## D-032 · 6 Nov 2026 · Phase 1 setup: Vercel Hobby, a public repository, no local stack
+
+**Context.** At the end of M1.0 the founders answered the four plan questions (`docs/phases/PHASE_1_PLAN.md` §5).
+
+**Decision.**
+
+- **Hosting is Vercel Hobby**, chosen by the founders knowing that its terms are written for personal, non-commercial use. Phase 1 needs only the static build; previews build against staging, production releases are manual.
+- **The repository stays public** (`Dawar13/UA_CRM`), so GitHub Actions minutes stay free. Nothing secret or real is ever committed (CLAUDE.md §1); the nightly backups go to the private `ua-crm-backups` repository.
+- **No local Supabase stack.** Docker is not installed on the development machine. The `db` CI job starts local Supabase on GitHub's runners and runs the pgTAP policy tests there (contract and live tests join it in M1.1). Development and manual checks run against the staging project. Migrations are checked locally on PGlite (Apache-2.0, a scratch tool, not a project dependency) before they are pushed.
+- **Email and password sign-in exists only in the local config (CI) and on staging,** for the two test users. Production allows Google only.
+- **Dependencies:** the Supabase CLI (`supabase`, MIT) and `pg` (MIT) with `@types/pg` (MIT) as dev dependencies, for migrations, CI and the integration tests. The `buffers` package that ExcelJS pulls in is accepted.
+- **Turnover bands** for Customers are to change; the new bands are awaited from the founders.
+
+**Consequences.** Database changes are proven in CI rather than on the machine, so each migration is pushed with its pgTAP tests and checked on PGlite first.
+
+## D-033 · 6 Nov 2026 · Sign-ups are gated by the members list, not switched off
+
+**Context.** Supabase blocks every new user, Google sign-ins included, when sign-ups are disabled. A member added by an admin would then need a user created with the secret key, which the browser must never hold.
+
+**Decision.** Sign-ups stay on, and a `before_user_created` auth hook (`public.hook_before_user_created`) refuses every email that is not an active member. Row-level security is the second wall: `current_member_id()` matches the JWT email against active members, so a user without a membership reads and writes nothing. The hook is enabled in `supabase/config.toml` for CI and must be switched on in both hosted projects (Authentication → Hooks).
+
+**Consequences.** Adding a member is one insert by an admin; their first Google sign-in creates their user. Deactivating a member blocks both new sign-ups and every read and write at once. pgTAP covers the hook for an active member, a deactivated member and a stranger.

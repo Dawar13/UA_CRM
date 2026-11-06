@@ -12,5 +12,7 @@ allowBuilds:
   tesseract.js: false
   # Postinstall verifies the platform binary that tsx relies on.
   esbuild: true
+  # Postinstall downloads the Supabase CLI binary (migrations, local stack in CI).
+  supabase: true
   # Postinstall would install git hooks; the "prepare" script does that instead.
   lefthook: false
