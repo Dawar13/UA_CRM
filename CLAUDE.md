@@ -227,19 +227,26 @@ Everything runs in the browser, in a Web Worker.
 
 **Default shortcuts:**
 
-| Shortcut                      | Action                                      |
-| ----------------------------- | ------------------------------------------- |
-| Ctrl/Cmd+K                    | Search and commands                         |
-| `/`                           | Quick add                                   |
-| `N`                           | New row                                     |
-| Arrows, Home, End, PgUp, PgDn | Move in the grid                            |
-| Enter                         | Expand the row, or edit the cell in Phase 1 |
-| Esc                           | Collapse, or cancel                         |
-| `W`                           | Cycle warmth on the active row              |
-| `]` and `[`                   | Next and previous stage                     |
-| Ctrl/Cmd+Z                    | Undo                                        |
-| Ctrl/Cmd+.                    | Toggle the right panel                      |
-| `?`                           | Shortcut sheet                              |
+| Shortcut                      | Action                                                     |
+| ----------------------------- | ---------------------------------------------------------- |
+| Ctrl/Cmd+K                    | Search and commands                                        |
+| `/`                           | Quick add                                                  |
+| `N`                           | New row                                                    |
+| Arrows, Home, End, PgUp, PgDn | Move in the grid (Ctrl/Cmd+Home and End: first, last row)  |
+| Enter, F2                     | Edit the cell; on Name, Enter expands or collapses the row |
+| Any other character           | Starts editing the cell with that character                |
+| Tab                           | Save and move right while editing                          |
+| Esc                           | Cancel the edit, collapse, or clear the selection          |
+| Shift+Up and Down             | Select several rows                                        |
+| Delete; Ctrl/Cmd+Delete       | Clear the cell or trash the selected rows; trash the row   |
+| Ctrl/Cmd+C and V              | Copy, or paste from Excel or Google Sheets                 |
+| `W`                           | Cycle warmth on the active row                             |
+| `]` and `[`                   | Next and previous stage                                    |
+| Ctrl/Cmd+Z; Ctrl/Cmd+Shift+Z  | Undo; redo                                                 |
+| Ctrl/Cmd+.                    | Toggle the right panel                                     |
+| `?`                           | Shortcut sheet                                             |
+
+`W`, `N`, `[`, `]`, `/` and `?` are shortcuts, never typed into a cell; to start a cell with one of them, press Enter or F2 first.
 
 ### 3.2 Visual identity
 
@@ -266,7 +273,7 @@ The founders approved this look in M0.6 (5 Nov 2026). It is calm and art-like: p
 - **Stages.** Open stages step from light (early) to deep (far along): #CAF1F8, #91E0EF, #48CAE4, #00B4D7, #0096C8, #0078B7.
 - **The pipeline funnel:** #CAF1F8 → #033E8A across the stages (reversed in dark mode).
 - **Primary buttons:** #0078B7 with white text. The focus ring is #0078B7 (light) and #48CAE4 (dark).
-- **The brand mark and today markers:** a sky gradient (#6CC4F6 → #1C9BEA for the mark; #48CAE4 → #00B4D7 with ink text for today).
+- **Today markers:** a sky gradient (#48CAE4 → #00B4D7 with ink text). The brand mark is the founders' logo (§3.4); the #6CC4F6 → #1C9BEA token remains for the open member and accents.
 
 **The field palette** (from the founders' dot-chart reference): olive and sage greens, yellow ochre, orange and brick, with sand at zero and blue as the rare accent.
 
@@ -287,7 +294,7 @@ Warmth squares in the folder front have three shades each: deeper means the pers
 
 **Tag palette:** a small coloured square beside the tag name, no pill. The 8 softened hues are indigo #7C83F2, violet #A28CF4, pink #EE8FB5, orange #F2A06E, amber #E9BC5C, lime #8DC46E, teal #4FC2B4, slate #8B98A9. New tags take the least-used hue.
 
-**Gradients** are soft and purposeful: folder tabs and fronts, warmth and today chips, the brand mark and the funnel. Never behind body text that would lose contrast. The old 3px strip at the top of the app is gone; the soft sampled gradient (#6CAAFD → #B5DBFF → #70BEFF) remains only for the sign-in background and empty-state art.
+**Gradients** are soft and purposeful: folder tabs and fronts, warmth and today chips, and the funnel. Never behind body text that would lose contrast. The old 3px strip at the top of the app is gone; the soft sampled gradient (#6CAAFD → #B5DBFF → #70BEFF) remains only for the sign-in background and empty-state art.
 
 **Contrast is tested, not assumed.** Body and label text must be ≥ 4.5:1, including text on every folder colour, stage block and chip gradient stop. Focus rings and hollow outlines must be ≥ 3:1. Stage cells, warmth squares and activity dots are supplementary: each sits beside text that says the same thing, so they are not held to 3:1. This applies in both themes and is enforced by a unit test over the token file. If a hex above fails, adjust the hex, keep the intent, and log the change.
 
@@ -304,12 +311,12 @@ Warmth squares in the folder front have three shades each: deeper means the pers
 ### 3.4 Branding in the header
 
 From left to right:
-- **Brand mark:** a 28px rounded square (radius 7) with the sky gradient, and a white "UA" monogram in Geist 700.
+- **Brand mark:** the founders' UA logo (a white U and striped A on grainy UA blue), a 28px rounded square (radius 7), from `src/assets/brand/ua-mark.png` (D-044).
 - **Wordmark:** "Utopian Autonomy", 15px, weight 600, `--text`.
 - **Label:** "INTERNAL CRM" in Geist Mono caps, 10.5px, link blue, with a light blue hairline (radius 4).
 - **Members:** a segmented control; the open member is a raised white pill.
 
-The browser tab title is "UA · Internal CRM", and the favicon is the brand mark. If the founders later supply a logo, replace `src/assets/brand/` only.
+The browser tab title is "UA · Internal CRM", and the favicon is the same logo (`ua-favicon.png`, 64px). To change the logo, replace the files in `src/assets/brand/` only.
 
 ### 3.5 Copy rules
 
@@ -386,25 +393,29 @@ ua-crm/
       command-palette/
       design/                    /design showcase route
       quick-add/  today/  trash/  import-export/   Phase 1
+      sheets/  team/  tags/      Phase 1: sheet, column and stage dialogs; members; tag library
       file-import/               Phase 2 (pdf, ocr workers)
     domain/                      types, zod schemas, templates, stages, warmth, tags, fuzzy dates,
                                  identity normalisers, formatters, sheet summary, activity;
-                                 Phase 1: permissions (can), quickadd/, dedupe/ (pure, no React)
+                                 Phase 1: permissions (can), quickadd/, dedupe/, cellInput,
+                                 sheetEdits, today, importer/ (pure, no React)
     data/
       repository.ts              Repository interface (the only way UI touches data)
       local/                     Dexie db, LocalRepository, seed
-      supabase/                  Phase 1: SupabaseRepository, Realtime
+      supabase/                  Phase 1: client, SupabaseRepository, mappers, errors, Realtime
       hooks/                     TanStack Query hooks over the repository
-    lib/                         cn, keyboard helpers, storage, env
+    lib/                         cn, keyboard helpers, storage, env, undo stack
     styles/                      tokens.ts → tokens.css, globals.css
     assets/brand/
   tests/
     unit/  component/  support/  e2e/  a11y/  visual/  perf/  fixtures/
-    contract/  integration/  e2e-live/      Phase 1
+    contract/  e2e-live/         Phase 1 (the Supabase contract run is the integration layer)
   supabase/                      Phase 1: config, migrations/, tests/ (pgTAP)
-  scripts/                       token generation, visual baselines, one-off importers, backup helpers
+  scripts/                       token generation, visual baselines; Phase 1: backup/ (dump,
+                                 restore check, Storage mirror and restore), release/ (Vercel output)
   data/import/                   gitignored, real files for import
-  .github/workflows/             ci.yml, visual-baselines.yml; Phase 1: release, backup
+  .github/workflows/             ci.yml, visual-baselines.yml; Phase 1: release.yml, backup.yml
+  playwright.live.config.ts      Phase 1: the live browser tests against Supabase
 ```
 
 **Rules:**
@@ -429,8 +440,8 @@ ua-crm/
 | Performance smoke | Playwright                    | 2,000-row sheet: first rows visible quickly, scroll to bottom works, no long tasks over 200 ms while scrolling                                         |
 | Database policies | `supabase test db` (pgTAP)    | Phase 1: every policy and trigger, including member A refused on member B's data                                                                       |
 | Contract          | Vitest                        | Phase 1: one Repository suite run against LocalRepository and SupabaseRepository, including every permission refusal                                   |
-| Integration       | Vitest + supabase-js          | Phase 1: two signed-in test users against local Supabase: reads, writes, refusals and Realtime delivery                                                |
-| End to end (live) | Playwright                    | Phase 1: the main flows against local Supabase with two users, including view only and a rejected forced write                                         |
+| Integration       | Vitest + supabase-js          | Phase 1: the contract suite's Supabase run, with four signed-in test users against local Supabase: reads, writes and refusals                          |
+| End to end (live) | Playwright                    | Phase 1: the main flows against local Supabase with two users, including view only, a rejected forced write and Realtime delivery                      |
 
 **Coverage:** `domain/` ≥ 90% lines; overall ≥ 70%.
 

@@ -82,11 +82,7 @@ Simplified on 6 Nov 2026 (D-035): one Supabase project, email and password sign-
    - Authentication → Sign In / Providers: Email on, "Allow new users to sign up" off.
    - Authentication → Users → Add user → Create new user: each founder's email and a password, with "Auto Confirm User" ticked.
    - Put the project URL and the publishable key into `.env.local` at the repository root (gitignored), as `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`. The secret key and the database password stay in Supabase until the release and backup workflows ask for them as GitHub secrets.
-2. **Vercel:**
-   - Import the repository.
-   - Production environment variables: `VITE_DATA=supabase`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`. Previews get none, so they run on sample data.
-   - In Supabase, Authentication → URL Configuration: the production URL as the site URL, plus `http://localhost:5173`.
-3. **GitHub** (when the nightly backup is built): a private repository, `ua-crm-backups`.
+2. **Vercel, GitHub and the first members:** follow `docs/RUNBOOK.md` §2 (added at the end of M1.8). Releases are built in GitHub Actions and Vercel only hosts them (D-041), so the Vercel project has no Git connection and no environment variables; the Supabase values go into GitHub secrets. The backups go to a private repository, `ua-crm-backups`.
 
 ---
 

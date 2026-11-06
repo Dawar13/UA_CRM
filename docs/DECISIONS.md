@@ -197,6 +197,9 @@ Tokens added while building the design system: `--surface-hover` (#F1F4F8 light,
 | fake-indexeddb                  | 6.2.7   | Apache-2.0        | dev     |
 | jsdom                           | 30.1.3  | MIT               | dev     |
 | lefthook                        | 2.2.2   | MIT               | dev     |
+| pg (added in Phase 1, D-032)    | 8.23.1  | MIT               | dev     |
+| @types/pg (Phase 1, D-032)      | 8.23.1  | MIT               | dev     |
+| supabase (CLI, Phase 1, D-032)  | 3.0.0   | MIT               | dev     |
 | tailwindcss                     | 4.3.4   | MIT               | dev     |
 | tsx                             | 4.23.15 | MIT               | dev     |
 | typescript                      | 7.0.2   | Apache-2.0        | dev     |
@@ -415,3 +418,106 @@ Container jobs first make sure git is installed (otherwise checkout falls back t
 - **Turnover bands** follow India's MSME turnover limits as revised in 2025: Micro < ₹10 Cr, Small ₹10–100 Cr, Medium ₹100–500 Cr, Large > ₹500 Cr. The column widens to 180px to fit. Sample rows moved to the nearest band and the seed version is 5, so local data reseeds.
 
 **Consequences.** Founder setup drops to about 10 minutes and needs no Google Cloud project. Adding a member is two steps: the member row in the app, then their login in the dashboard. This supersedes the staging project in D-032 and the hosted hook setup in D-033.
+
+## D-036 · 6 Nov 2026 · Supabase reads and writes go through SQL functions shaped like the domain
+
+**Context.** The UI talks only to the Repository (CLAUDE.md §5). The Supabase implementation must return the same `Sheet`, `Row` and `HistoryEntry` shapes as the local one, enforce ownership in the database, and stay fast from India to the Tokyo region.
+
+**Decision.**
+
+- Reads and writes are `api_*` SQL functions that return domain-shaped JSON (`ua_sheet_json`, `ua_row_json` and friends). They are **security invoker**, so row-level security decides every row; the few security-definer helpers (`api_me`, `api_tag_usage`) return only what the caller may already see.
+- A row and its tags, links and history entry save in one call (`api_save_row`), so a stage or warmth change and its history are one transaction (CLAUDE.md §5).
+- `SupabaseRepository` runs the same pure domain functions as `LocalRepository` and checks `can()` before every write, so a refusal reads the same in both modes; the database refuses again if the check is bypassed (pgTAP, and the live forced-write test).
+- One Repository contract suite runs against both implementations (40 scenarios).
+
+**Consequences.** Most screens load in one round trip per query. The functions are part of the schema, so each change ships as a migration with pgTAP tests.
+
+## D-037 · 6 Nov 2026 · Live updates, and no lost saves
+
+**Context.** Other members' changes must appear without moving focus or scroll (CLAUDE.md §2.14), and an edit must never be lost (§3.1).
+
+**Decision.**
+
+- Realtime `postgres_changes` on the ten app tables refresh the open queries in one batch, 300 ms after the last change, and wait while the member's own saves are in flight, so a refresh never overwrites an optimistic edit.
+- Row-level security hides trashed rows from other members, so Realtime cannot tell them a row left. The member who trashes sends a bare "changed" broadcast with no data, and every open app refreshes.
+- Every edit is optimistic. While a save is in flight, closing or reloading the tab asks first (`beforeunload`). The live browser tests found that a new row took three round trips and a quick reload dropped it; adding a row now reads its sheet, the actor and the next position in parallel, then saves.
+
+**Consequences.** A change shows on another screen in about a second. The leave-page prompt appears only in the moment a save is still travelling.
+
+## D-038 · 6 Nov 2026 · One undo stack per session
+
+**Context.** "No save buttons; every edit can be undone" (CLAUDE.md §3.1), across cells, rows, columns, stages and imports.
+
+**Decision.** A Zustand stack of inverse operations (`src/lib/undoStack.ts`): each mutation pushes its own undo and redo, built from the saved result (an exact patch, a restore from Trash, or a stage snapshot as in D-013). Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z work anywhere outside a text field; destructive actions also show an 8-second toast with Undo.
+
+**Consequences.** Undo lasts for the session, not across reloads. Trash keeps deleted things for 30 days beyond that.
+
+## D-039 · 6 Nov 2026 · Quick-add, smart paste and the duplicate check are deterministic
+
+**Context.** CLAUDE.md §1 bans AI APIs; §2.6 and §2.7 define the language and the duplicate levels.
+
+**Decision.**
+
+- The parser (`src/domain/quickadd/`) is pure TypeScript over chrono-node (dates, IST, forward-dated) and libphonenumber-js (region IN, E.164). It reports a confidence per field for the preview. Unrecognised text goes to Notes.
+- Drafts persist in local storage per sheet until committed.
+- The duplicate check scores candidates with one scorer (`src/domain/dedupe/`): hard on equal phone, email or LinkedIn slug; soft on Jaro-Winkler ≥ 0.92 over normalised names (also compared without spaces) or on the same first name and company. In Supabase mode the database narrows the candidates first (`api_dedupe_candidates`: generated key columns and `pg_trgm`), across every member's rows; the browser scores them. "Different person" pairs are remembered per member.
+
+**Consequences.** The same input always gives the same preview, in tests and in the app. The 0.92 threshold is a constant and can be tuned from real data.
+
+## D-040 · 6 Nov 2026 · Files, Trash purge, import and export
+
+**Decision.**
+
+- **Files** go to a private Storage bucket, `row-files`, at `<owner>/<row>/<file id>`, 10 MB each, opened through short-lived signed URLs. Storage policies follow the row's owner. In local mode (sample data, previews, tests) a file is kept in IndexedDB as a data URL.
+- **Trash** keeps rows, columns and sheets for 30 days. A pg_cron job, `ua-purge-trash`, deletes older ones every night at 02:00 IST.
+- **Import and export run in the browser.** ExcelJS reads and writes `.xlsx`; CSV is parsed in-house. Column mappings are remembered per sheet in local storage. PDFs use jsPDF's standard fonts, which have no rupee sign, so a PDF writes "Rs 25 L" where the grid and Excel show "₹25 L"; embedding a font for one glyph was not worth the size.
+
+**Consequences.** No server code for files, import or export; the free tier's 1 GB Storage is the only limit that grows with use.
+
+## D-041 · 6 Nov 2026 · Releases are built in GitHub Actions; Vercel only hosts
+
+**Context.** The toolchain is Node 26 and pnpm 12 (§4). Vercel's build image documents older Node majors, and a pnpm override there falls back to an old pnpm. Production releases are manual (D-035).
+
+**Decision.** The Release workflow (`.github/workflows/release.yml`, run by hand on `main`) refuses a commit whose CI has not passed, builds with the CI toolchain, assembles a Build Output API folder (`scripts/release/vercel-config.json`: SPA fallback except under `/assets/`, immutable asset caching, basic security headers) and deploys it with `vercel deploy --prebuilt`. A preview runs on sample data; production applies migrations first. The Vercel project has no Git connection. The Vercel CLI (Apache-2.0) is pinned at 65.3.1 and fetched with `pnpm dlx` inside the workflow only.
+
+**Consequences.** Vercel never builds, so a Vercel image change cannot break a release. Setup and secrets are in `docs/RUNBOOK.md`.
+
+## D-042 · 6 Nov 2026 · Nightly backups with a nightly restore check
+
+**Context.** M1.8 asks for a nightly dump into the private `ua-crm-backups` repository (keeping 30), a restore tested once into a scratch project, and a note on backing up Storage files within free limits. This repository's Actions logs are public.
+
+**Decision.**
+
+- **Database:** at 02:00 IST the Supabase CLI dumps roles, schema and data (pg_cron's run log left out), gzipped, into `db/<date>/` with a `counts.txt` of rows per table. The run fails if the dump has no members, which catches a wrong connection string. The tree keeps the newest 30 dumps; older ones stay in git history.
+- **Files:** `scripts/backup/storage-mirror.ts` mirrors the bucket into `files/`, downloading only new files, with a manifest of content types; `storage-restore.ts` uploads it back. Git stores each file once however many nights it is backed up, and the 1 GB Storage cap with 10 MB files keeps the repository inside GitHub's limits. Both scripts were exercised against the hosted bucket with an invented file before launch.
+- **Restore, tested every night** rather than once: the dump is restored into a scratch local Supabase on the runner and every table's row count is compared with `counts.txt`.
+- **Safety:** the workflow refuses a backup repository that is not private; every step prints counts, never names or data; psql errors are shown with quoted values masked. Dumps are not encrypted beyond the private repository (an encryption passphrase is a backlog option).
+
+**Consequences.** A broken backup fails loudly the same night, and the restore in `docs/RUNBOOK.md` is the one the check runs. The daily dump also keeps the free project from pausing. The dump and restore steps need Docker, so they were first run on GitHub's runners, not on the development machine.
+
+## D-043 · 6 Nov 2026 · Live browser tests against Supabase
+
+**Decision.** `tests/e2e-live` (its own Playwright config, `pnpm test:e2e:live`) runs in the CI `db` job against the local stack: two invented members and a stranger sign in with email and password; view only; a write forced from the browser console is refused by the database; Realtime delivers the other member's new row. With test hooks on (never in production builds), the signed-in client is exposed as `window.__uaSupabase` for the forced write; anyone can build the same client from the publishable key, so it exposes nothing the policies do not already guard. The setup refuses a project with real members, and the run removes its users afterwards.
+
+**Consequences.** The suite also ran once against the hosted project before launch, when it had no members, and found the lost-save gap in D-037.
+
+## D-044 · 6 Nov 2026 · The founders' UA logo is the brand mark
+
+**Context.** The founders asked for their logo in place of the M0.6 placeholder mark (a sky-gradient square with a drawn "UA").
+
+**Decision.** The mark and the favicon use `Favcon_Utopian.png` (a white U and striped A on grainy UA blue, 2000px), cropped to a square around the monogram and scaled with Lanczos: `src/assets/brand/ua-mark.png` at 112px (the 28px mark at 4x, 15 KB) and `ua-favicon.png` at 64px, inlined into the page head. `BrandMark` is now an image with empty alt text; the wordmark beside it carries the name. The sky-gradient token stays for the open member and accents.
+
+**Consequences.** Changing the logo again means replacing the two PNGs. Tests that described the placeholder (a gradient and the text "UA") now check the image and the PNG favicon.
+
+## D-045 · 7 Nov 2026 · Fixes from the end-of-phase run
+
+**Context.** The full end-of-phase run (every Vitest project, every Playwright project, accessibility and the 2,000-row performance smoke) found problems that the per-milestone runs had not.
+
+**Decision.**
+
+- **Smart paste versus a spreadsheet column.** M1.6 sent any multi-line paste without tabs to quick add, which also caught a single column copied from a spreadsheet (one name per line) and broke M1.3's paste. `isContactText` (`src/domain/quickadd/smartPaste.ts`) now sends text to quick add only when it carries a way to reach someone (an email, a phone number, a web address) or a quick-add `key:`, and never when the clipboard holds an HTML table.
+- **IST dates by arithmetic.** `istDateOf` and `todayIst` ran a time-zone formatter on every call, about 176 ms while summarising a 2,000-row sheet. IST is a fixed UTC+5:30, so the date is now computed from the shifted instant; the results are identical (the boundary tests at 18:30 UTC still pass). The formatter remains only for displayed times.
+- **Class-name cache.** tailwind-merge's cache grows from 500 to 2,000 entries; scrolling the grid creates more distinct class strings than 500.
+- **Tests corrected, not loosened.** The performance smoke expected 2,001 grid rows; your own tab has had the "Add a contact" line since M1.3, so it is 2,002. The stage-editor test clicked the folder-front shortcut, which a folded front (short screens start folded) does not show; it now uses the sheet menu when the front is folded. The performance limits (first rows under 1.5 s, no long task over 200 ms) are unchanged.
+
+**Consequences.** On the development machine the performance smoke sits close to its limits (first rows 1.0 to 1.2 s in isolation, but up to 1.8 s while another process held two of its cores; scroll tasks 130 to 210 ms). CI's runner gives the reference result. If it fails there, the next steps are lighter grid cells (fewer class merges and elements per cell) and layout containment on rows.

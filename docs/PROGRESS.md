@@ -239,3 +239,162 @@ Four questions for the founders (plan §5): hosting provider, the private reposi
 - **Names without initials** (D-034): the initials tile beside every name is gone. Names stand alone in the grid, search, link chips, calendar chips and the member switch. Try it: open the app in light and dark; each row starts with the name.
 - **Turnover bands** (D-035): Customers now offer Micro < ₹10 Cr, Small ₹10–100 Cr, Medium ₹100–500 Cr and Large > ₹500 Cr, after India's MSME limits. Try it: scroll the Customers grid right to the Turnover band column; the sample data reseeds on the next load.
 - **Light sign-in** (D-035): email and password, logins created in the Supabase dashboard, one Supabase project and no staging. The founder setup in `docs/phases/PHASE_1.md` is now about 10 minutes and needs no Google Cloud project.
+
+## Phase 1 · M1.1 Backend, sign-in and permissions in the database
+
+**Date:** 6 Nov 2026
+
+### Done
+
+- **Supabase schema** in `supabase/migrations/`: members, sheets, columns, stages, rows, tags, history, links, files and not-duplicate pairs, with owners set by triggers, audit columns, generated identity keys for the duplicate check, and `pg_trgm` for fuzzy names.
+- **Row-level security** on every table: everyone on the team reads everything; only the owner writes. Guard triggers protect member rights and tags in use. A login without an active membership reads and writes nothing.
+- **Domain-shaped SQL functions** (`api_*`, D-036) for every read and write the Repository needs, and `SupabaseRepository` built on them with the same domain functions and `can()` checks as `LocalRepository`.
+- **Email and password sign-in** (D-035): the sign-in screen, "not on the team" and "deactivated" refusals, change password, sign out, and a quiet offline notice.
+- **Realtime:** other members' changes refresh open screens in one batch (D-037).
+- **Tests:** 59 pgTAP ownership checks and 37 API checks; the Repository contract runs against both repositories.
+
+### Try this
+
+1. `pnpm dev`, then open `http://localhost:5173`. Without `VITE_DATA=supabase` the app runs on sample data as Dawar.
+2. To try the real database: add `VITE_DATA=supabase` to `.env` and restart. The sign-in screen appears; sign in with a login from the Supabase dashboard whose email is on the team list (`docs/RUNBOOK.md` §2.1).
+
+## Phase 1 · M1.2 View only, end to end
+
+### Done
+
+- `useEditGate` and `can()` decide every control. In another member's tab there is no quick-add, no add line, no edit items in menus and no responsive stage or warmth controls; the folder front says "Dhruv's tab, view only".
+- Edit keys do nothing there; the first try in a session shows one toast ("Dhruv's sheets are view only").
+- Reading actions all work: expand, search, copy, contact buttons, export, links. "Copy to my sheet" asks which of your sheets, runs the duplicate check and links the two rows.
+
+### Try this
+
+1. Open Dhruv's tab from the member switch. Type a letter in the grid: one toast, nothing changes.
+2. Expand a row and choose **Copy to my sheet**: the copy lands in your tab, and both rows show a **Same person** chip that jumps to the other.
+
+## Phase 1 · M1.3 Editing the grid
+
+### Done
+
+- Every column type edits in place: text, long text, number, currency, fuzzy dates, dropdowns and multi-selects with type-ahead, tags (pick or create), person links, checkboxes. Typing replaces a cell; Enter or F2 edits it; Tab saves and moves right; Esc cancels.
+- **N** or the add line adds a contact with its name typed straight in. Shift+arrows or Ctrl+click select rows; Delete clears a cell or trashes the selection; Ctrl+Delete trashes the row.
+- Copy and paste as tab-separated text, to and from Excel or Google Sheets; pasting several lines of plain text goes to quick add instead.
+- Columns resize and drag to reorder; clicking a header sorts, and its menu hides the column or opens the column manager.
+- **Trash** (More → Trash) lists your deleted rows, columns and sheets for 30 days, with Restore. Every change has Undo and Redo (Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z, D-038).
+
+### Try this
+
+1. In your Customers, click a Company cell and type a new name, then Enter. Ctrl+Z puts it back.
+2. Press **N**, type "Asha Rao", Enter. Then Ctrl+Delete on her row, and restore her from More → Trash.
+3. Copy two rows from a spreadsheet and paste them into the grid.
+
+## Phase 1 · M1.4 Sheets, columns, stages and members
+
+### Done
+
+- **New sheet** from a template (Customers, Investors, Advisors and experts, Connectors, Service providers) or blank; an empty tab offers "Start with the UA templates". Rename, reorder by dragging the folder tabs, delete to Trash.
+- **Columns** (sheet menu → Columns): add, rename, hide, reorder and delete custom columns; change a column's type with a preview of what converts and what does not.
+- **Stage editor** (click the stage count on the folder front): add, rename, reorder and remove stages; rows at a removed stage move with a preview.
+- **Team** (More → Team, admins only): add a member, deactivate and reactivate. Admins get no extra rights over anyone's data.
+
+### Try this
+
+1. Choose **New sheet** → Blank, name it "Events". Add a column "City" (text), then change its type to dropdown.
+2. In Customers, open the stage editor from the folder front and rename "Plant visit" to "Site visit".
+
+## Phase 1 · M1.5 Contact essentials
+
+### Done
+
+- **History** in the expanded row: log a call, meeting, WhatsApp, email or note with a date; edit or delete your own logged touches. Stage and warmth changes are recorded automatically.
+- **Next action** with fuzzy dates ("mid Nov", "fri 4pm").
+- **Contact buttons:** call, WhatsApp and email, each offering to log the touch.
+- **Files:** attach up to 10 MB per file, open and remove (D-040).
+- **Tags library** (More → Tags): rename, recolour and delete, only by the tag's creator and only while no other member's rows use it. A tag filter on the sheet bar.
+- **Same person** links between rows, shown as chips that jump to the other row.
+
+### Try this
+
+1. Expand Sunita Kulkarni. In History, choose Call, write "asked for the quote" and press **Log**. Set the next action to "mid Nov send quote".
+2. More → Tags: recolour "foundry". Filter the sheet by it from the tag chip on the sheet bar.
+
+## Phase 1 · M1.6 Quick-add and the duplicate check
+
+### Done
+
+- The quick-add language of CLAUDE.md §2.6 (`/` or the quick-add line): names, titles, companies, locations, phones, emails, LinkedIn, keys, fuzzy-matched stages and dropdowns, `#tags`, warmth, next actions, several contacts separated by blank lines, and `>` to log a touch on the selected row. Nothing is dropped; leftovers go to Notes. Drafts survive a reload.
+- Enter shows a preview card with each field coloured by confidence; Enter again saves.
+- **Smart paste:** an email signature or LinkedIn text pasted into the grid goes through the same parser; a block or a single column copied from a spreadsheet fills cells (D-045).
+- **The duplicate check** (D-039) on every new row, paste and import, across every member: hard matches block saving until you choose Merge, Keep both, linked or Different person; soft matches show a note.
+
+### Try this
+
+1. Press `/` and paste the example from CLAUDE.md §2.6. Enter shows the preview; Rohan Mehta is flagged as a hard duplicate (same phone). Choose **Keep both, linked**, then Enter.
+2. Select a row, press `/`, type `> called, wants pilot on line 3, quote by 15 nov`, Enter: a dated history line and a new next action.
+
+## Phase 1 · M1.7 Search and Today
+
+### Done
+
+- **Search** (Ctrl/Cmd+K) across every member and sheet: names, companies, titles, emails, phones, tags, notes and connects-to, ranked, with fuzzy names on Supabase. Enter jumps to the row and opens it.
+- **Today** (first in the member switch): overdue next actions, due today and added this week for the signed-in member, each section collapsible, each item one click from its row.
+
+### Try this
+
+1. Ctrl+K, type "menon": results from both members, each with "Member · Sheet".
+2. Choose **Today** in the member switch: Meera Desai is overdue, Sunita Kulkarni is due today.
+
+## Phase 1 · M1.8 Import, export, backup and launch
+
+### Done
+
+- **The founders' spreadsheet importer** (More → Import the old spreadsheet): reads the Dawar, Dhruv and Common blocks, maps Type to sheets, Spl mentions to Connects to and Date to an imported history entry (fuzzy dates kept), lets you pick Common rows, marks rows the other founder already imported, and runs the duplicate check.
+- **General import** of .xlsx and .csv into your own sheet (sheet menu → Import from a file), with a mapping preview remembered per sheet and conversion warnings.
+- **Export** of the current view to Excel (warmth and tag colours) and PDF (A4 landscape), from any sheet including other members'; **Export everything** to one workbook with a tab per sheet.
+- **Nightly backup** (D-042): the database dump and the files into the private `ua-crm-backups` repository at 02:00 IST, keeping 30, with a restore check every night. `docs/RUNBOOK.md` covers setup, releases and restoring.
+- **Releases** (D-041): a manual workflow that builds in GitHub Actions and deploys to Vercel, preview on sample data or production after migrations.
+- **Live browser tests** (D-043) against Supabase: sign-in, view only, a forced write refused by the database, and Realtime. Running them against the hosted project found that a quick reload could drop a new row's save; adding a row is now faster and the browser asks before leaving mid-save (D-037).
+- **The founders' logo** is the brand mark and favicon (D-044).
+
+### Try this
+
+1. Open Customers → **Export** → Excel: the file opens with warmth and tag colours. Try PDF too.
+2. Sheet menu → **Import from a file**, pick any small .csv: map the columns and import.
+
+## Phase 1 · Results and launch
+
+**Results (local, Windows 11, 6 Nov 2026)**
+
+| Layer                                 | Result                                                                                                                                                                                                       |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Lint and typecheck                    | Clean                                                                                                                                                                                                        |
+| Unit, contract and component (Vitest) | 960 passed in 54 files (the Supabase contract file is skipped locally; it runs in CI)                                                                                                                        |
+| Coverage                              | 72.75% lines overall (threshold 70%); `src/domain` above its 90% threshold                                                                                                                                   |
+| End to end and accessibility          | 213 passed, 1 flaky (passed on retry) on desktop, narrow (1024px) and WebKit, with CI's 2 workers and 1 retry                                                                                                |
+| Accessibility                         | 16 passed, zero serious or critical, light and dark, including Today, view only, quick add and Trash                                                                                                         |
+| Performance                           | Not passing on this machine while a stray process held two cores: first rows 1.6 to 1.8 s (limit 1.5 s; 1.0 to 1.2 s measured in isolation), one scroll task 208 ms (limit 200). CI is the reference (D-045) |
+| Visual                                | Skipped on Windows by design; new and changed baselines need the Visual baselines workflow (Known issues)                                                                                                    |
+| Against the hosted project            | 59 pgTAP ownership and 37 API checks, the Repository contract (40), the live browser suite (5), the Storage backup round trip: all passed, all test data removed                                             |
+
+Screenshots: `docs/screenshots/m1-*-light.png` and `-dark.png` (main, view only, editing, quick add, expanded, Today, Trash, export, sign-in, the Phase 1 sections of `/design`).
+
+### Launch checklist (founders; steps in `docs/RUNBOOK.md`)
+
+1. Add both founders to the team list (§2.1). Both logins exist once Dhruv's is created.
+2. Create `ua-crm-backups`, the Vercel project and the GitHub settings (§2.2 to §2.4).
+3. Push, wait for CI, run **Visual baselines**, then **Release → production**.
+4. Each founder signs in on production, imports their rows from the old spreadsheet, and checks view only in the other's tab.
+5. Run **Nightly backup** by hand once and check it passes, restore check included.
+6. Use it daily for a week, then retire the old spreadsheet (the Phase 1 exit).
+
+### Known issues
+
+- **Visual baselines:** the new screens (Today, view only, three `/design` sections) and the changed ones (names without initials, the logo) need Linux baselines. After pushing: Actions → **Visual baselines** → Run workflow, then **CI** → Run workflow, then pull.
+- **Backup and release workflows** have not run yet: they need the settings above, and their dump and restore steps need Docker, which GitHub's runners have and this machine does not. Their scripts were checked locally where possible (the Storage mirror and restore against the real bucket, the row counter on a sample dump).
+- **Region:** the Supabase project is in Tokyo, not Mumbai. Each round trip from India takes about 150 to 250 ms; edits are optimistic, so typing feels instant, but first loads are slower. Moving is a new Mumbai project plus the restore in `docs/RUNBOOK.md` §5, best done before real data goes in.
+- The build warns that the main chunk is over 1.5 MB (the import and export libraries among it); splitting it is in the backlog.
+- Locally, running every Playwright project with many workers can overload the machine; CI uses 2 workers and 1 retry. The warmth test that reloads right after W was flaky under that load and passes on retry.
+- The performance smoke is close to its limits on this machine (D-045). If CI fails it too, lighter grid rows are the next step (`docs/BACKLOG.md`).
+
+### Next
+
+Phase 1 is built. It ends when both founders have used it for a week and retired the old spreadsheet; then their feedback goes into `docs/BACKLOG.md` and the Phase 2 brief is written.

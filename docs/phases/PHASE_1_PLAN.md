@@ -1,5 +1,7 @@
 # Phase 1 plan
 
+> **Status, 6 Nov 2026:** built through M1.8. Where the build differs from this plan (one Supabase project, email sign-in, releases built in GitHub Actions, the nightly restore check), the decision log has the reason: D-035 to D-043. `docs/PROGRESS.md` has the per-milestone log.
+
 How the Phase 1 brief (`docs/phases/PHASE_1.md`) maps onto the app as it is after M0.6. The code is the design source of truth: every new surface below is placed where the current design puts that kind of thing, and is built from what is listed in §1.
 
 ## 1. Audit of the current app (M1.0)
