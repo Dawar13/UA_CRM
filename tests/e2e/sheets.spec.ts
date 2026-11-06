@@ -99,6 +99,12 @@ test.describe('sheets, columns, stages and the team', () => {
     await page.getByRole('button', { name: 'Budget column options' }).click()
     await page.getByRole('menuitem', { name: 'Hide column' }).click()
     await expect(grid(page).getByRole('columnheader', { name: /Budget/ })).toHaveCount(0)
+
+    // Any header's menu shows the hidden columns again, in one click.
+    await grid(page).getByRole('columnheader', { name: /^Name/ }).hover()
+    await page.getByRole('button', { name: 'Name column options' }).click()
+    await page.getByRole('menuitem', { name: /^Show \d+ hidden columns?$/ }).click()
+    await expect(grid(page).getByRole('columnheader', { name: /Budget/ })).toBeVisible()
   })
 
   test('an admin adds a member, whose tab starts with the UA templates', async ({ page }) => {

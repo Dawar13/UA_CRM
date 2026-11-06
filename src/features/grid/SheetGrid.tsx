@@ -6,7 +6,7 @@ import {
   useTable,
 } from '@tanstack/react-table'
 import { defaultRangeExtractor, type Range, useVirtualizer } from '@tanstack/react-virtual'
-import { ArrowDown, ArrowUp, ChevronDown, EyeOff, Plus, Settings2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, ChevronDown, Eye, EyeOff, Plus, Settings2 } from 'lucide-react'
 import {
   type ClipboardEvent,
   type KeyboardEvent,
@@ -23,7 +23,7 @@ import { toast } from 'sonner'
 import { useUiStore } from '@/app/uiStore'
 import { useActor } from '@/auth/AuthContext'
 import { Kbd } from '@/components/ui/Kbd'
-import { Menu, MenuContent, MenuItem, MenuTrigger } from '@/components/ui/Menu'
+import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from '@/components/ui/Menu'
 import {
   type PastedRow,
   useCreateRow,
@@ -227,6 +227,10 @@ export function SheetGrid({
   const [editing, setEditing] = useState<Editing | null>(null)
 
   const defs = useMemo(() => visibleColumns(sheet), [sheet])
+  const hiddenColumns = useMemo(
+    () => sheet.columns.filter((c) => c.hidden && !c.deletedAt),
+    [sheet],
+  )
   const stageNames = useMemo(() => sheet.stages.map((s) => s.name), [sheet])
   const rowById = useMemo(() => new Map(rows.map((r) => [r.id, r])), [rows])
 
@@ -1006,7 +1010,20 @@ export function SheetGrid({
                             <ChevronDown aria-hidden className="size-3" />
                           </button>
                         </MenuTrigger>
-                        <MenuContent align="start" className="w-48">
+                        <MenuContent align="start" className="w-56">
+                          <MenuItem
+                            onSelect={() => header.column.toggleSorting(false, false)}
+                            icon={<ArrowUp aria-hidden />}
+                          >
+                            Sort ascending
+                          </MenuItem>
+                          <MenuItem
+                            onSelect={() => header.column.toggleSorting(true, false)}
+                            icon={<ArrowDown aria-hidden />}
+                          >
+                            Sort descending
+                          </MenuItem>
+                          <MenuSeparator />
                           <MenuItem
                             disabled={def.system && def.key === 'name'}
                             onSelect={() =>
@@ -1021,10 +1038,30 @@ export function SheetGrid({
                           >
                             Hide column
                           </MenuItem>
-                          {onManageColumns ? (
-                            <MenuItem onSelect={onManageColumns} icon={<Settings2 aria-hidden />}>
-                              Columns
+                          {hiddenColumns.length > 0 ? (
+                            <MenuItem
+                              onSelect={() => {
+                                for (const column of hiddenColumns) {
+                                  updateColumn.mutate({
+                                    sheet,
+                                    column,
+                                    patch: { hidden: false },
+                                    actorId,
+                                  })
+                                }
+                              }}
+                              icon={<Eye aria-hidden />}
+                            >
+                              Show {pluralise(hiddenColumns.length, 'hidden column')}
                             </MenuItem>
+                          ) : null}
+                          {onManageColumns ? (
+                            <>
+                              <MenuSeparator />
+                              <MenuItem onSelect={onManageColumns} icon={<Settings2 aria-hidden />}>
+                                Manage columns
+                              </MenuItem>
+                            </>
                           ) : null}
                         </MenuContent>
                       </Menu>

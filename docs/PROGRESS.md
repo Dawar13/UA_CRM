@@ -402,6 +402,6 @@ Phase 1 is built. It ends when both founders have used it for a week and retired
 ### Founder feedback, 7 Nov 2026 (first use)
 
 - **Defaults:** the app opens in light, with the side panel closed; both choices are remembered once changed. Try it: open the app in a fresh browser.
-- **Menus:** icons and labels sit on one line in the ⋯ menu, the sheet menu, the column header menu and the export menu.
+- **Menus:** icons and labels sit on one line in the ⋯ menu, the sheet menu, the column header menu and the export menu. The column header menu also sorts, and shows every hidden column again in one click ("Show 7 hidden columns"); the export menu says it exports this view.
 - **Empty states:** a flat grid of cells with a staircase of stage blues replaces the glowing card. Try it: open a new blank sheet.
 - **Sign-in fixes:** a malformed email in the team list no longer blanks the app; the runbook's snippet warns to replace its placeholders.

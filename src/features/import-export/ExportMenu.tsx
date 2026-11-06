@@ -6,7 +6,7 @@ import { Download, FileSpreadsheet, FileText } from 'lucide-react'
 import { toast } from 'sonner'
 import { useUiStore } from '@/app/uiStore'
 import { IconButton } from '@/components/ui/IconButton'
-import { Menu, MenuContent, MenuItem, MenuTrigger } from '@/components/ui/Menu'
+import { Menu, MenuContent, MenuItem, MenuLabel, MenuTrigger } from '@/components/ui/Menu'
 import { useRows, useTagMap } from '@/data/hooks'
 import { useRepository } from '@/data/RepositoryContext'
 import type { Repository } from '@/data/repository'
@@ -105,6 +105,7 @@ export function ExportMenu({ member, sheet }: { member: Member; sheet: Sheet }) 
         </IconButton>
       </MenuTrigger>
       <MenuContent align="end" className="w-56">
+        <MenuLabel>Export this view</MenuLabel>
         <MenuItem onSelect={() => void run('xlsx')} icon={<FileSpreadsheet aria-hidden />}>
           Excel (.xlsx)
         </MenuItem>
