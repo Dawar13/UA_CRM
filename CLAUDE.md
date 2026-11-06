@@ -290,7 +290,7 @@ The founders approved this look in M0.6 (5 Nov 2026). It is calm and art-like: p
 
 Warmth squares in the folder front have three shades each: deeper means the person was touched more recently (within 7 days, within 14, older).
 
-**Stage bar:** in the grid, one joined bar (a cell per stage, 1px gaps, ends rounded) next to the stage name; reached cells take the ramp, the win is olive, unreached cells a pale track, skipped cells are hatched, and a lost row greys its reached cells and marks the next one brick. In the expanded row the same blocks are larger, with the name and date inside and a ring on the current stage.
+**Stage bar:** in the grid, one joined bar (a cell per stage, 1px gaps, ends rounded) next to the stage name; reached cells take the ramp, the win is olive, unreached cells a pale track, skipped cells are hatched, and a lost row greys its reached cells and marks the next one brick. In the expanded row the same blocks are larger, with the name and date inside: stages passed are pencil hatching in their own ramp colour (so the shade deepens along the bar), the current stage is solid with a ring, and skipped stages are faint grey hatching (D-048).
 
 **Tag palette:** a small coloured square beside the tag name, no pill. The 8 softened hues are indigo #7C83F2, violet #A28CF4, pink #EE8FB5, orange #F2A06E, amber #E9BC5C, lime #8DC46E, teal #4FC2B4, slate #8B98A9. New tags take the least-used hue.
 

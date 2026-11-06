@@ -103,21 +103,34 @@ export function stageBlockKind(stage: StageViewItem, lost: boolean): StageBlockK
   }
 }
 
+/** The tracker's pencil hatching for a stage passed: stripes of its ramp colour over a tint of it. */
+export function stageHatch(step: number): string {
+  const stripe = `color-mix(in srgb, var(--stage${step}) ${HATCH_STRIPE}%, var(--bg))`
+  const ground = `color-mix(in srgb, var(--stage${step}) ${HATCH_GROUND}%, var(--bg))`
+  return `repeating-linear-gradient(135deg, ${stripe} 0 1.5px, ${ground} 1.5px 5px)`
+}
+
+/** Mix percentages of the hatching (tests/unit/tokens.contrast.test.ts checks --text on both). */
+export const HATCH_STRIPE = 45
+export const HATCH_GROUND = 18
+
 /**
- * CSS background for a stage block. `step` is the ramp step from `stageRampStep`. In the grid
- * bar skipped stages stripe the full ramp colour; the tracker (`soft`) tints the stripes so its
- * label keeps 4.5:1 against --text in both themes.
+ * CSS background for a stage block. `step` is the ramp step from `stageRampStep`. The grid bar
+ * fills stages passed with the ramp colour and stripes skipped ones. The tracker (`soft`, D-048)
+ * draws stages passed as pencil hatching in their ramp colour, the current stage solid, and
+ * skipped stages as faint grey hatching, so each reads at a glance.
  */
 export function stageFill(kind: StageBlockKind, step: number, soft = false): string {
   switch (kind) {
     case 'done':
+      return soft ? stageHatch(step) : `var(--stage${step})`
     case 'current':
       return `var(--stage${step})`
     case 'skipped': {
-      const stripe = soft
-        ? `color-mix(in srgb, var(--stage${step}) 40%, var(--stage-track))`
-        : `var(--stage${step})`
-      return `repeating-linear-gradient(135deg, ${stripe} 0 2px, var(--stage-track) 2px 4px)`
+      if (soft) {
+        return 'repeating-linear-gradient(135deg, var(--grid-line) 0 1px, var(--stage-track) 1px 6px)'
+      }
+      return `repeating-linear-gradient(135deg, var(--stage${step}) 0 2px, var(--stage-track) 2px 4px)`
     }
     case 'won':
       return 'var(--stage-won)'
@@ -134,6 +147,8 @@ export function stageFill(kind: StageBlockKind, step: number, soft = false): str
 export function stageInk(kind: StageBlockKind, step: number): string {
   switch (kind) {
     case 'done':
+      // On the hatching, ink reads on both the stripe and the ground.
+      return 'var(--text)'
     case 'current':
       return `var(--stage-fg${step})`
     case 'won':
@@ -141,7 +156,7 @@ export function stageInk(kind: StageBlockKind, step: number): string {
     case 'lost':
       return 'var(--stage-lost-fg)'
     case 'skipped':
-      return 'var(--text)'
+      return 'var(--text-secondary)'
     case 'lost-done':
       return 'var(--text-secondary)'
     case 'future':

@@ -9,6 +9,7 @@
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
+import { HATCH_GROUND, HATCH_STRIPE } from '@/components/crm/StageDots'
 import { contrastRatio, formatRatio, parseHex, relativeLuminance } from '@/styles/contrast'
 import { renderTokensCss } from '@/styles/renderTokensCss'
 import {
@@ -20,6 +21,17 @@ import {
 } from '@/styles/tokens'
 
 type Role = keyof ThemeColours
+
+/** color-mix(in srgb, a p, b): per-channel interpolation of the encoded sRGB values. */
+function mixHex(a: string, b: string, p: number): string {
+  const [ar, ag, ab] = parseHex(a)
+  const [br, bg, bb] = parseHex(b)
+  const channel = (x: number, y: number) =>
+    Math.round(x * p + y * (1 - p))
+      .toString(16)
+      .padStart(2, '0')
+  return `#${channel(ar, br)}${channel(ag, bg)}${channel(ab, bb)}`.toUpperCase()
+}
 
 const TEXT = 4.5
 const GRAPHIC = 3
@@ -117,6 +129,27 @@ describe.each(themeNames)('%s theme', (themeName) => {
       ).toBeGreaterThanOrEqual(GRAPHIC)
     },
   )
+
+  // The tracker's pencil hatching (D-048): stripes and ground are color-mix(in srgb) of each stage
+  // colour with the page; the stage name and date sit on both in --text.
+  it.each(range(STAGE_STEPS))('ink reads on the hatching of stage %i', (n) => {
+    const stage = t[`stage${n}` as Role]
+    for (const percent of [HATCH_STRIPE, HATCH_GROUND]) {
+      const fill = mixHex(stage, t.bg, percent / 100)
+      const ratio = contrastRatio(t.text, fill)
+      expect(
+        ratio,
+        `text on ${percent}% stage${n} ${fill}: ${formatRatio(ratio)}`,
+      ).toBeGreaterThanOrEqual(TEXT)
+    }
+  })
+
+  it('the "Skipped" label reads on its grey hatching', () => {
+    for (const fill of [t.gridLine, t.stageTrack]) {
+      const ratio = contrastRatio(t.textSecondary, fill)
+      expect(ratio, `textSecondary on ${fill}: ${formatRatio(ratio)}`).toBeGreaterThanOrEqual(TEXT)
+    }
+  })
 
   it('steps the stage ramp and the folders from one end of the palette to the other', () => {
     const stages = range(STAGE_STEPS).map((n) => relativeLuminance(t[`stage${n}` as Role]))

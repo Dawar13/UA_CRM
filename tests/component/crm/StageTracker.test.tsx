@@ -96,7 +96,7 @@ describe('StageTracker', () => {
     expect(items[4]).not.toHaveTextContent(/Skipped|Nov|Oct/)
   })
 
-  it('colours the blocks like the grid bar, with a ring on the current stage', () => {
+  it('hatches the stages passed, keeps the current one solid with a ring', () => {
     setup({ stages: view([D, D, D, C, F, F, F], ['2026-10-01', null, null, '2026-11-02']) })
     const items = screen.getAllByRole('listitem')
     const block = (i: number) => items[i]?.firstElementChild as HTMLElement
@@ -109,10 +109,15 @@ describe('StageTracker', () => {
       'future',
       'future',
     ])
-    expect(block(0).style.background).toBe('var(--stage1)')
-    expect(block(0).style.color).toBe('var(--stage-fg1)')
-    expect(block(1).style.background).toContain('repeating-linear-gradient')
+    // Passed: pencil hatching in the stage's own colour, ink text (D-048).
+    expect(block(0).style.background).toContain('repeating-linear-gradient')
+    expect(block(0).style.background).toContain('var(--stage1)')
+    expect(block(0).style.color).toBe('var(--text)')
+    // Skipped: faint grey hatching.
+    expect(block(1).style.background).toContain('var(--grid-line)')
+    // Current: solid.
     expect(block(3).style.background).toBe('var(--stage4)')
+    expect(block(3).style.color).toBe('var(--stage-fg4)')
     expect(block(3).className).toContain('shadow-[0_0_0_2px_var(--bg),0_0_0_3.5px_var(--text)]')
     expect(block(4).style.background).toBe('var(--stage-track)')
     expect(block(4).className).not.toContain('shadow-')

@@ -106,14 +106,22 @@ describe('stage block kinds and colours', () => {
     expect(stageFill('skipped', 2)).toBe(
       'repeating-linear-gradient(135deg, var(--stage2) 0 2px, var(--stage-track) 2px 4px)',
     )
-    // The tracker tints its stripes so the label stays readable.
-    expect(stageFill('skipped', 2, true)).toContain(
-      'color-mix(in srgb, var(--stage2) 40%, var(--stage-track))',
+    // The tracker (D-048): stages passed are pencil hatching in their own ramp colour, the
+    // current one is solid, skipped ones are faint grey hatching.
+    expect(stageFill('done', 3, true)).toBe(
+      'repeating-linear-gradient(135deg, color-mix(in srgb, var(--stage3) 45%, var(--bg)) 0 1.5px, color-mix(in srgb, var(--stage3) 18%, var(--bg)) 1.5px 5px)',
+    )
+    expect(stageFill('current', 3, true)).toBe('var(--stage3)')
+    expect(stageFill('skipped', 2, true)).toBe(
+      'repeating-linear-gradient(135deg, var(--grid-line) 0 1px, var(--stage-track) 1px 6px)',
     )
   })
 
   it('pairs each fill with its contrast-tested text colour', () => {
-    expect(stageInk('done', 6)).toBe('var(--stage-fg6)')
+    expect(stageInk('current', 6)).toBe('var(--stage-fg6)')
+    // Ink on the hatching (checked on both stripe and ground in tokens.contrast.test.ts).
+    expect(stageInk('done', 6)).toBe('var(--text)')
+    expect(stageInk('skipped', 6)).toBe('var(--text-secondary)')
     expect(stageInk('won', 6)).toBe('var(--stage-won-fg)')
     expect(stageInk('lost', 3)).toBe('var(--stage-lost-fg)')
     expect(stageInk('future', 3)).toBe('var(--text-muted)')

@@ -549,3 +549,11 @@ Container jobs first make sure git is installed (otherwise checkout falls back t
 - **Menus.** 21 menu items had their icon inside the label, where Tailwind's base styles render an SVG as a block, so the text sat on a line below the icon. Each now uses the item's `icon` slot, and `tests/unit/menuIcons.test.ts` fails if an icon goes back inside a label.
 
 **Consequences.** The visual baselines change (theme default does not affect them, since visual tests set the theme; the empty-state mark and menus do).
+
+## D-048 · 7 Nov 2026 · The stage tracker: stages passed are hatched, the current one solid
+
+**Context.** The founders liked the hatched "pencil" texture of skipped stages and asked for it on every stage passed, with the current stage solid.
+
+**Decision.** In the expanded row's tracker, a stage passed is drawn as 135° hatching: 1.5px stripes of its ramp colour mixed 45% with the page, over a ground mixed 18%, so the shade deepens from the first stage to the last. Its name and date are in --text. The current stage stays solid in its ramp colour with its contrast-tested text and the ring. Skipped stages, which were the only hatched ones, become faint grey hatching (--grid-line over --stage-track) with "Skipped" in --text-secondary, so they no longer read as passed. The grid's small stage bar is unchanged.
+
+**Consequences.** The contrast test now checks --text on both the stripe and the ground of every stage's hatching, and the skipped label on its hatching, in both themes. It caught the first mix (55%) at 4.33:1 in dark mode on stage 6; 45% passes everywhere.
