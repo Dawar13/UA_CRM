@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { useEffect } from 'react'
+import { useContext, useEffect } from 'react'
 import { Navigate, Outlet, useNavigate, useParams } from 'react-router'
+import { AuthContext, useActor } from '@/auth/AuthContext'
 import { useMembers } from '@/data/hooks'
 import { useRepository } from '@/data/RepositoryContext'
 import { CommandPalette } from '@/features/command-palette/CommandPalette'
@@ -18,11 +19,14 @@ declare global {
       resetSampleData: () => Promise<void>
       /** Loads the 2,000-row sheet and returns its path. */
       loadPerfSheet: () => Promise<string>
+      /** Local mode: act as another member (by id or slug). */
+      signInAs: (member: string) => Promise<void>
     }
   }
 }
 
 function TestHooks() {
+  const auth = useContext(AuthContext)
   const repository = useRepository()
   const queryClient = useQueryClient()
   const navigate = useNavigate()
@@ -41,11 +45,17 @@ function TestHooks() {
         navigate(path)
         return path
       },
+      signInAs: async (key: string) => {
+        const members = await repository.listMembers()
+        const target = members.find((m) => m.id === key || m.slug === key)
+        if (!target) throw new Error(`No member ${key}`)
+        auth?.signInAs?.(target.id)
+      },
     }
     return () => {
       window.__uaTest = undefined
     }
-  }, [repository, queryClient, navigate])
+  }, [repository, queryClient, navigate, auth])
   return null
 }
 
@@ -65,10 +75,12 @@ export function AppFrame() {
   )
 }
 
-/** / → the last used member and sheet, or the first. */
+/** / → the signed-in member's tab (their last used sheet, or the first). */
 export function RootRedirect() {
   const { data: members, isPending } = useMembers()
+  const actor = useActor()
   if (isPending) return <ShellSkeleton />
-  const member = members ? pickMember(members) : undefined
+  const member =
+    members?.find((m) => m.id === actor?.id) ?? (members ? pickMember(members) : undefined)
   return member ? <Navigate to={memberPath(member.slug)} replace /> : <NotFound />
 }

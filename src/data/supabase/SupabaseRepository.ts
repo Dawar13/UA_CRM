@@ -10,6 +10,7 @@ import { formatPhone, searchTokens } from '@/domain/identity'
 import { cleanMemberEmail, cleanMemberName, MemberRuleError } from '@/domain/members'
 import { type Action, type Actor, assertCan } from '@/domain/permissions'
 import {
+  copiedRowValues,
   type NewRowValues,
   newRow,
   patchRow,
@@ -367,6 +368,31 @@ export class SupabaseRepository implements Repository {
     assertCan(actor, 'editRow', location.row)
     const next = patchRow(location.row, location.sheet, patch, this.domainContext(ctx, actor))
     return (await this.saveRow(next, null, 'editRow')).row
+  }
+
+  async copyRow(
+    sourceRowId: Id,
+    destinationSheetId: Id,
+    ctx: MutationContext,
+  ): Promise<MutationResult> {
+    const [actor, source, destination] = await Promise.all([
+      this.actor(),
+      this.getRowLocation(sourceRowId),
+      this.liveSheet(destinationSheetId),
+    ])
+    if (!source) throw new NotFoundError('Row', sourceRowId)
+    assertCan(actor, 'copyToMySheet', { source: source.row, destination })
+    return this.createRow(
+      {
+        sheetId: destination.id,
+        values: copiedRowValues(source.row, source.sheet, destination),
+      },
+      ctx,
+    )
+  }
+
+  async listSamePersonOf(rowId: Id): Promise<Id[]> {
+    return this.rpc<Id[]>('api_same_person_of', { p_row: rowId })
   }
 
   async deleteRows(rowIds: Id[], ctx: MutationContext): Promise<void> {

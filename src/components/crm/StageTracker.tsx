@@ -23,6 +23,8 @@ export interface StageTrackerProps {
   onMarkLost: () => void
   onReopen: () => void
   disabled?: boolean
+  /** Another member's row: the stages show as they are, with no controls at all. */
+  readOnly?: boolean
   className?: string
 }
 
@@ -65,6 +67,7 @@ export function StageTracker({
   onMarkLost,
   onReopen,
   disabled = false,
+  readOnly = false,
   className,
 }: StageTrackerProps) {
   const now = useNow()
@@ -109,7 +112,7 @@ export function StageTracker({
   // on the grid's active row. Nothing moves while the row is lost (Reopen first).
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key !== ']' && event.key !== '[') return
-    if (event.metaKey || event.ctrlKey || event.altKey || disabled || isLost) return
+    if (event.metaKey || event.ctrlKey || event.altKey || disabled || readOnly || isLost) return
     const target =
       event.key === ']'
         ? currentIndex < 0
@@ -143,13 +146,13 @@ export function StageTracker({
           ) : null}
         </div>
         <div className="flex items-center gap-3">
-          {isLost ? null : (
+          {isLost || readOnly ? null : (
             // The shortcut sheet and command palette name these keys for assistive tech.
             <span aria-hidden="true" className="flex items-center gap-1.5 text-xs text-muted">
               Previous <Kbd keys={['[']} /> Next <Kbd keys={[']']} />
             </span>
           )}
-          {lost ? (
+          {readOnly ? null : lost ? (
             <button
               type="button"
               disabled={disabled}
@@ -192,7 +195,8 @@ export function StageTracker({
           const step = stageRampStep(i, count)
           const blockClassName = cn(
             'relative flex h-[54px] w-full min-w-0 flex-col items-start justify-between px-[11px] py-[9px] text-left',
-            'transition-transform duration-(--duration-fast) ease-out hover:-translate-y-px motion-reduce:hover:translate-y-0',
+            !readOnly &&
+              'transition-transform duration-(--duration-fast) ease-out hover:-translate-y-px motion-reduce:hover:translate-y-0',
             i === 0 && 'rounded-l-control',
             i === count - 1 && 'rounded-r-control',
             isCurrent && !isLost && 'z-[1] shadow-[0_0_0_2px_var(--bg),0_0_0_3.5px_var(--text)]',
@@ -218,11 +222,11 @@ export function StageTracker({
               data-kind={kind}
               className="group relative flex min-w-0"
             >
-              {isCurrent ? (
+              {isCurrent || readOnly ? (
                 <div
                   // Focus lands here after a move so keyboard users keep their place.
-                  tabIndex={-1}
-                  data-current-stage=""
+                  tabIndex={isCurrent && !readOnly ? -1 : undefined}
+                  data-current-stage={isCurrent && !readOnly ? '' : undefined}
                   className={blockClassName}
                   style={blockStyle}
                 >
@@ -267,7 +271,7 @@ export function StageTracker({
                   ) : null}
                 </button>
               )}
-              {isCurrent || disabled ? null : (
+              {isCurrent || disabled || readOnly ? null : (
                 <span
                   id={dateId}
                   className={cn(

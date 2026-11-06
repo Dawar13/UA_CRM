@@ -4,7 +4,7 @@
  * through `patchRow`. Pure: no React, no I/O.
  */
 import { todayIst } from './dates'
-import { validateRowFields } from './fields'
+import { fieldSchemaFor, validateRowFields } from './fields'
 import { normalisePhone } from './identity'
 import type { DomainContext, Id, LinkRef, Row, RowChange, Sheet } from './types'
 
@@ -23,6 +23,7 @@ export const editableRowKeys = [
   'connectsTo',
   'notes',
   'fields',
+  'samePerson',
 ] as const satisfies readonly (keyof Row)[]
 
 export type EditableRowKey = (typeof editableRowKeys)[number]
@@ -67,6 +68,7 @@ export function cleanRowPatch(patch: RowPatch): RowPatch {
   if (out.phone !== undefined) out.phone = normalisePhone(out.phone) ?? out.phone.trim()
   if (out.links !== undefined) out.links = unique(out.links.map((l) => l.trim()).filter(Boolean))
   if (out.tagIds !== undefined) out.tagIds = unique(out.tagIds)
+  if (out.samePerson !== undefined) out.samePerson = unique(out.samePerson)
   if (out.connectsTo !== undefined) {
     const kept: LinkRef[] = []
     for (const link of out.connectsTo) {
@@ -108,6 +110,9 @@ export function rowIssues(row: Row, sheet: Sheet): RowIssue[] {
   }
   if (row.connectsTo.some((l) => l.kind === 'row' && l.rowId === row.id)) {
     issues.push({ key: 'connectsTo', message: 'A person cannot connect to themselves' })
+  }
+  if (row.samePerson?.includes(row.id)) {
+    issues.push({ key: 'samePerson', message: 'A row cannot link to itself' })
   }
   issues.push(...validateRowFields(row, sheet).errors)
   return issues
@@ -205,4 +210,39 @@ export function patchRow(row: Row, sheet: Sheet, patch: RowPatch, ctx: DomainCon
   }
   assertValid(next, sheet)
   return next
+}
+
+/**
+ * What a copy of `row` takes into `destination` ("Copy to my sheet"): the contact details, tags,
+ * links and notes, and each custom field the destination has under the same key and type with a
+ * value that fits there. Stage, warmth, next action and history stay with the original. The copy
+ * names the original as the same person.
+ */
+export function copiedRowValues(row: Row, source: Sheet, destination: Sheet): NewRowValues {
+  const from = new Map(source.columns.map((c) => [c.key, c]))
+  const to = new Map(
+    destination.columns.filter((c) => !c.system && !c.deletedAt).map((c) => [c.key, c]),
+  )
+  const fields: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(row.fields)) {
+    const target = to.get(key)
+    if (!target || from.get(key)?.type !== target.type) continue
+    if (value === null || value === undefined) continue
+    if (fieldSchemaFor(target).safeParse(value).success) fields[key] = value
+  }
+  return {
+    name: row.name,
+    company: row.company,
+    title: row.title,
+    phone: row.phone,
+    email: row.email,
+    linkedin: row.linkedin,
+    links: row.links,
+    tagIds: row.tagIds,
+    introducedBy: row.introducedBy,
+    connectsTo: row.connectsTo,
+    notes: row.notes,
+    fields,
+    samePerson: [row.id],
+  }
 }

@@ -1,5 +1,6 @@
 export { queryKeys, rowMutationKey } from './keys'
 export {
+  type CopyRowVariables,
   type MoveStageVariables,
   SAVE_FAILED_MESSAGE,
   type SetWarmthVariables,
@@ -8,6 +9,7 @@ export {
   UNDO_TOAST_DURATION,
   type UndoKind,
   undoToastId,
+  useCopyRow,
   useLoadPerfSheet,
   useMarkLost,
   useMoveStage,
@@ -25,6 +27,7 @@ export {
   useRowCounts,
   useRowLocation,
   useRows,
+  useSamePersonOf,
   useSearch,
   useSheets,
   useTagMap,

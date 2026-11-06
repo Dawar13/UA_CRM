@@ -183,6 +183,14 @@ export interface Repository {
   createRow(input: NewRowInput, ctx: MutationContext): Promise<MutationResult>
   /** A cell edit. Stage and warmth have their own operations. */
   updateRow(rowId: Id, patch: RowPatch, ctx: MutationContext): Promise<Row>
+  /**
+   * "Copy to my sheet": a new row in the actor's sheet with the contact's details, linked to the
+   * original as the same person. Nothing changes on the original. Copying your own row is
+   * refused ('already-yours').
+   */
+  copyRow(sourceRowId: Id, destinationSheetId: Id, ctx: MutationContext): Promise<MutationResult>
+  /** Live rows elsewhere that name this row as the same person (the other side of the link). */
+  listSamePersonOf(rowId: Id): Promise<Id[]>
   /** Moves rows to their owner's Trash. */
   deleteRows(rowIds: Id[], ctx: MutationContext): Promise<void>
   restoreRows(rowIds: Id[], ctx: MutationContext): Promise<void>

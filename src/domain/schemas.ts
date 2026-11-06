@@ -192,6 +192,11 @@ export const rowSchema = z.object({
   connectsTo: z.array(linkRefSchema),
   notes: z.string(),
   files: z.array(fileRefSchema),
+  /**
+   * Rows of the same person elsewhere ("Copy to my sheet", "Keep both, linked"), stored on this
+   * row's side. Optional: rows saved before Phase 1 have none.
+   */
+  samePerson: z.array(idSchema).optional(),
 
   /** Custom per-sheet fields, keyed by `ColumnDef.key`. Validated against the column type. */
   fields: z.record(z.string(), z.unknown()),

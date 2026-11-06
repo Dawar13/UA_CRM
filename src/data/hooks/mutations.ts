@@ -247,6 +247,30 @@ export function useSetWarmth(): UseMutationResult<
   })
 }
 
+export interface CopyRowVariables {
+  row: Row
+  destination: Sheet
+  actorId: Id
+}
+
+/** "Copy to my sheet": a linked copy of another member's contact in one of the actor's sheets. */
+export function useCopyRow(): UseMutationResult<MutationResult, Error, CopyRowVariables> {
+  const repo = useRepository()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (v: CopyRowVariables) =>
+      repo.copyRow(v.row.id, v.destination.id, { actorId: v.actorId, now: new Date() }),
+    onSuccess: (_result, v) =>
+      Promise.all([
+        qc.invalidateQueries({ queryKey: queryKeys.rows(v.destination.id) }),
+        qc.invalidateQueries({ queryKey: queryKeys.rowCounts(v.destination.memberId) }),
+        qc.invalidateQueries({ queryKey: queryKeys.memberRows(v.destination.memberId) }),
+        qc.invalidateQueries({ queryKey: queryKeys.samePersonOf(v.row.id) }),
+        qc.invalidateQueries({ queryKey: ['search'] }),
+      ]),
+  })
+}
+
 /** Developer menu: wipe and reseed, then refetch everything. */
 export function useResetSampleData(): UseMutationResult<void, Error, void> {
   const repo = useRepository()

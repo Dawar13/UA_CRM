@@ -1,9 +1,10 @@
 import { motion, useReducedMotion } from 'motion/react'
 import { type ReactNode, useMemo } from 'react'
 import { useUiStore } from '@/app/uiStore'
+import { useActor } from '@/auth/AuthContext'
 import { DateText } from '@/components/crm/DateText'
 import { StageTracker, trackerTitleClassName } from '@/components/crm/StageTracker'
-import { WarmthRadioGroup } from '@/components/crm/WarmthChip'
+import { WarmthChip, WarmthRadioGroup } from '@/components/crm/WarmthChip'
 import { Button } from '@/components/ui/Button'
 import {
   useHistory,
@@ -11,6 +12,7 @@ import {
   useMembers,
   useMoveStage,
   useReopen,
+  useSamePersonOf,
   useSetWarmth,
 } from '@/data/hooks'
 import { formatFuzzyDate } from '@/domain/dates'
@@ -21,6 +23,7 @@ import type { ColumnDef, Member, Row, Sheet } from '@/domain/types'
 import { isFuzzyDate, isLinkRef } from '@/features/grid/columnModel'
 import { cn } from '@/lib/cn'
 import { useNow } from '@/lib/useNow'
+import { CopyToMySheet } from './CopyToMySheet'
 import { HistoryList } from './HistoryList'
 import { LinkChip } from './LinkChip'
 
@@ -70,9 +73,21 @@ function fieldValue(def: ColumnDef, value: unknown, now: Date): ReactNode {
 
 /**
  * The details under an expanded row: the stage tracker across the top, then two columns. Left:
- * warmth, next action, notes and the sheet's own fields; right: history.
+ * warmth, next action, notes and the sheet's own fields; right: history. In another member's tab
+ * everything reads the same but nothing responds, and "Copy to my sheet" is offered.
  */
-export function ExpandedRow({ row, sheet, member }: { row: Row; sheet: Sheet; member: Member }) {
+export function ExpandedRow({
+  row,
+  sheet,
+  member,
+  editable = true,
+}: {
+  row: Row
+  sheet: Sheet
+  member: Member
+  /** The signed-in member may change this row. */
+  editable?: boolean
+}) {
   const reduceMotion = useReducedMotion()
   const now = useNow()
   const moveStage = useMoveStage()
@@ -82,11 +97,15 @@ export function ExpandedRow({ row, sheet, member }: { row: Row; sheet: Sheet; me
   const { data: history = [] } = useHistory(row.id)
   const { data: members = [] } = useMembers()
   const showHistory = useUiStore((s) => s.showHistory)
+  const { data: linkedFrom = [] } = useSamePersonOf(row.id)
+  const actor = useActor()
 
   const memberMap = useMemo(() => new Map(members.map((m) => [m.id, m])), [members])
   const stages = useMemo(() => stageView(row, sheet), [row, sheet])
   const lostStage = row.lost ? sheet.stages[row.lost.stageIndex] : undefined
-  const actorId = member.id
+  const actorId = actor?.id ?? member.id
+  const samePerson = [...new Set([...(row.samePerson ?? []), ...linkedFrom])]
+  const isMine = actor?.id === row.memberId
   const recent = history.slice(0, RECENT_HISTORY)
   const next =
     row.nextAction && (row.nextAction.text || row.nextAction.date) ? row.nextAction : null
@@ -102,6 +121,19 @@ export function ExpandedRow({ row, sheet, member }: { row: Row; sheet: Sheet; me
       id: 'introducedBy',
       label: 'Introduced by',
       value: <LinkChip link={row.introducedBy} />,
+    })
+  }
+  if (samePerson.length > 0) {
+    fields.push({
+      id: 'samePerson',
+      label: 'Same person',
+      value: (
+        <span className="flex flex-wrap gap-1.5">
+          {samePerson.map((id) => (
+            <LinkChip key={id} link={{ kind: 'row', rowId: id }} />
+          ))}
+        </span>
+      ),
     })
   }
   if (row.connectsTo.length > 0) {
@@ -127,8 +159,14 @@ export function ExpandedRow({ row, sheet, member }: { row: Row; sheet: Sheet; me
       data-testid="expanded-row"
     >
       <div className="flex flex-col gap-6 px-6 pt-[22px] pb-[26px]">
+        {isMine ? null : (
+          <div className="-mb-2 flex justify-end">
+            <CopyToMySheet row={row} />
+          </div>
+        )}
         {sheet.stages.length > 0 ? (
           <StageTracker
+            readOnly={!editable}
             stages={stages}
             lost={
               row.lost && lostStage ? { afterStageName: lostStage.name, date: row.lost.date } : null
@@ -142,10 +180,18 @@ export function ExpandedRow({ row, sheet, member }: { row: Row; sheet: Sheet; me
         <div className="flex flex-wrap gap-x-11 gap-y-7">
           <div className="flex min-w-0 flex-[1_1_360px] flex-col gap-[18px]">
             <Section title="Warmth">
-              <WarmthRadioGroup
-                value={row.warmth}
-                onChange={(warmth) => setWarmth.mutate({ row, warmth, actorId })}
-              />
+              {editable ? (
+                <WarmthRadioGroup
+                  value={row.warmth}
+                  onChange={(warmth) => setWarmth.mutate({ row, warmth, actorId })}
+                />
+              ) : row.warmth ? (
+                <span>
+                  <WarmthChip value={row.warmth} />
+                </span>
+              ) : (
+                <p className="text-[13.5px] text-muted">Not set</p>
+              )}
             </Section>
 
             <Section title="Next action">

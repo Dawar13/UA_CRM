@@ -19,6 +19,8 @@ export interface SheetSummaryProps {
   index: number
   open: boolean
   onOpenChange: (open: boolean) => void
+  /** Another member's tab: says so, quietly and always. */
+  viewOnly?: boolean
 }
 
 const RULE = 'border-[var(--folder-rule)]'
@@ -95,6 +97,7 @@ export function SheetSummary({
   index,
   open,
   onOpenChange,
+  viewOnly = false,
 }: SheetSummaryProps) {
   const now = useNow()
   const summary = useMemo(() => summariseSheet(sheet, rows, now), [sheet, rows, now])
@@ -124,6 +127,14 @@ export function SheetSummary({
             </span>
           ))}
           <span className="flex-1" />
+          {viewOnly ? (
+            <span
+              className="font-mono text-2xs font-medium uppercase tracking-[0.08em] whitespace-nowrap"
+              data-testid="view-only-note"
+            >
+              {member.name}'s tab, view only
+            </span>
+          ) : null}
           <FoldButton open={false} onToggle={toggle} />
         </div>
       </section>
@@ -141,7 +152,12 @@ export function SheetSummary({
         <Title number={number} name={sheet.name} />
         <div className="flex min-w-0 items-center gap-3.5">
           <p className="truncate font-mono text-2xs font-medium uppercase tracking-[0.08em]">
-            Owned by {member.name} · {stagesText}
+            {viewOnly ? (
+              <span data-testid="view-only-note">{member.name}'s tab, view only</span>
+            ) : (
+              <>Owned by {member.name}</>
+            )}{' '}
+            · {stagesText}
           </p>
           <FoldButton open onToggle={toggle} />
         </div>

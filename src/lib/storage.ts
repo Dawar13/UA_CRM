@@ -10,6 +10,10 @@ export const storageKeys = {
   lastSheet: (memberId: string) => `${STORAGE_PREFIX}last-sheet:${memberId}`,
   panelOpen: `${STORAGE_PREFIX}panel-open`,
   sort: (sheetId: string) => `${STORAGE_PREFIX}sort:${sheetId}`,
+  /** Local mode: the member the browser acts as. */
+  localActor: `${STORAGE_PREFIX}local-actor`,
+  /** Whether this session has already been told another member's tab is view only. */
+  viewOnlyNoticed: `${STORAGE_PREFIX}view-only-noticed`,
 } as const
 
 export function readStorage(key: string): string | null {

@@ -1,5 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { Database, Keyboard, MoreHorizontal, RotateCcw, Search } from 'lucide-react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { toast } from 'sonner'
 import { BrandLockup } from '@/components/crm/BrandLockup'
@@ -20,6 +21,7 @@ import { Tooltip } from '@/components/ui/Tooltip'
 import { useRepository } from '@/data/RepositoryContext'
 import type { Member } from '@/domain/types'
 import { isDevBuild } from '@/lib/env'
+import { AccountMenuItems, ChangePasswordDialog, OfflineNotice } from './AccountMenu'
 import { memberPath, sheetPath } from './navigation'
 import { useUiStore } from './uiStore'
 
@@ -65,6 +67,7 @@ export function Header({ members, member }: { members: readonly Member[]; member
   const navigate = useNavigate()
   const setPaletteOpen = useUiStore((s) => s.setPaletteOpen)
   const setShortcutsOpen = useUiStore((s) => s.setShortcutsOpen)
+  const [passwordOpen, setPasswordOpen] = useState(false)
 
   return (
     <header className="flex h-(--header-height) shrink-0 items-center gap-6 border-b border-border bg-bg px-5">
@@ -81,6 +84,7 @@ export function Header({ members, member }: { members: readonly Member[]; member
       </nav>
 
       <div className="ml-auto flex min-w-0 items-center gap-2">
+        <OfflineNotice />
         <Tooltip content="Search and commands" shortcut={['Mod', 'K']}>
           {/* A soft pill: no border, the input fill, the shortcut on a paper keycap. */}
           <button
@@ -104,6 +108,7 @@ export function Header({ members, member }: { members: readonly Member[]; member
             </IconButton>
           </MenuTrigger>
           <MenuContent align="end" className="w-64">
+            <AccountMenuItems members={members} onChangePassword={() => setPasswordOpen(true)} />
             <MenuItem onSelect={() => setShortcutsOpen(true)} shortcut={['?']}>
               <Keyboard aria-hidden className="size-4" />
               Keyboard shortcuts
@@ -118,6 +123,7 @@ export function Header({ members, member }: { members: readonly Member[]; member
             {isDevBuild ? <DeveloperItems /> : null}
           </MenuContent>
         </Menu>
+        <ChangePasswordDialog open={passwordOpen} onOpenChange={setPasswordOpen} />
       </div>
     </header>
   )

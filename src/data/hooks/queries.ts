@@ -68,6 +68,15 @@ export function useTagMap(): Map<Id, Tag> {
   return useMemo(() => new Map((data ?? []).map((tag) => [tag.id, tag])), [data])
 }
 
+/** Rows elsewhere that name this row as the same person. */
+export function useSamePersonOf(rowId: Id | undefined): UseQueryResult<Id[]> {
+  const repo = useRepository()
+  return useQuery({
+    queryKey: queryKeys.samePersonOf(rowId ?? ''),
+    queryFn: rowId ? () => repo.listSamePersonOf(rowId) : skipToken,
+  })
+}
+
 /** Newest first. */
 export function useHistory(rowId: Id | undefined): UseQueryResult<HistoryEntry[]> {
   const repo = useRepository()

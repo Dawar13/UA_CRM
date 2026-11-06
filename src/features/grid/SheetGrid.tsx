@@ -17,6 +17,7 @@ import {
   useRef,
   useState,
 } from 'react'
+import { useActor } from '@/auth/AuthContext'
 import { useMoveStage, useSetWarmth, useTagMap } from '@/data/hooks'
 import { nextStageIndex, previousStageIndex } from '@/domain/stages'
 import type { ColumnDef, Member, Row, Sheet, Warmth } from '@/domain/types'
@@ -91,8 +92,12 @@ function usePersistedSorting(sheetId: string) {
 export interface SheetGridProps {
   sheet: Sheet
   rows: readonly Row[]
-  /** The member whose tab is open; acts as the editor in Phase 0. */
+  /** The member whose tab is open. */
   member: Member
+  /** The signed-in member may change this tab (their own, and online). */
+  editable: boolean
+  /** An edit was attempted where it is not allowed: says why. */
+  onRefuse: () => void
   expandedRowId: string | null
   onExpandedChange: (rowId: string | null) => void
   flashRowId: string | null
@@ -115,6 +120,8 @@ export function SheetGrid({
   onExpandedChange,
   flashRowId,
   renderExpanded,
+  editable,
+  onRefuse,
 }: SheetGridProps) {
   const gridId = useId().replace(/:/g, '')
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -122,6 +129,7 @@ export function SheetGrid({
   // `mutate` is stable, so passing it down does not re-render every row.
   const { mutate: setWarmth } = useSetWarmth()
   const { mutate: moveStage } = useMoveStage()
+  const actorId = useActor()?.id ?? member.id
   const [sorting, setSorting] = usePersistedSorting(sheet.id)
   const [active, setActive] = useState<ActiveCell>({ row: 0, col: 0 })
 
@@ -270,10 +278,11 @@ export function SheetGrid({
     () => ({
       sheet,
       tagMap,
-      onWarmthChange: (row: Row, warmth: Warmth | null) =>
-        setWarmth({ row, warmth, actorId: member.id }),
+      onWarmthChange: editable
+        ? (row: Row, warmth: Warmth | null) => setWarmth({ row, warmth, actorId })
+        : undefined,
     }),
-    [sheet, tagMap, setWarmth, member.id],
+    [sheet, tagMap, setWarmth, actorId, editable],
   )
 
   const toggleExpand = useCallback(
@@ -359,17 +368,25 @@ export function SheetGrid({
       case 'w':
       case 'W':
         if (mod || event.altKey || !activeRow) return
-        setWarmth({ row: activeRow, warmth: nextWarmth(activeRow.warmth), actorId: member.id })
+        if (!editable) {
+          onRefuse()
+          break
+        }
+        setWarmth({ row: activeRow, warmth: nextWarmth(activeRow.warmth), actorId })
         break
       case ']':
       case '[': {
         if (!activeRow || sheet.stages.length === 0) return
+        if (!editable) {
+          onRefuse()
+          break
+        }
         const target =
           event.key === ']'
             ? nextStageIndex(activeRow, sheet)
             : previousStageIndex(activeRow, sheet)
         if (target !== null) {
-          moveStage({ row: activeRow, sheet, stageIndex: target, actorId: member.id })
+          moveStage({ row: activeRow, sheet, stageIndex: target, actorId })
         }
         break
       }

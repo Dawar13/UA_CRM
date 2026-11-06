@@ -1,5 +1,6 @@
 import { useCallback, useEffect } from 'react'
 import { Navigate, useParams, useSearchParams } from 'react-router'
+import { useEditGate } from '@/auth/useCan'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { useMembers, useRows, useSheets } from '@/data/hooks'
@@ -68,6 +69,18 @@ export function ShellSkeleton() {
   )
 }
 
+/** "customer" for Customers, "contact" for anything else. */
+function singular(sheet: Sheet): string {
+  const words: Partial<Record<Sheet['template'], string>> = {
+    customers: 'customer',
+    investors: 'investor',
+    advisors: 'advisor',
+    connectors: 'connector',
+    serviceProviders: 'service provider',
+  }
+  return words[sheet.template] ?? 'contact'
+}
+
 function SheetContent({ member, sheet, index }: { member: Member; sheet: Sheet; index: number }) {
   const { data: rows, isPending } = useRows(sheet.id)
   const [searchParams, setSearchParams] = useSearchParams()
@@ -76,6 +89,7 @@ function SheetContent({ member, sheet, index }: { member: Member; sheet: Sheet; 
   const clearFlash = useUiStore((s) => s.clearFlash)
   const summaryOpen = useUiStore((s) => s.summaryOpen)
   const setSummaryOpen = useUiStore((s) => s.setSummaryOpen)
+  const gate = useEditGate(member)
 
   useEffect(() => {
     if (!flashRowId) return
@@ -103,8 +117,8 @@ function SheetContent({ member, sheet, index }: { member: Member; sheet: Sheet; 
   )
 
   const renderExpanded = useCallback(
-    (row: Row) => <ExpandedRow row={row} sheet={sheet} member={member} />,
-    [sheet, member],
+    (row: Row) => <ExpandedRow row={row} sheet={sheet} member={member} editable={gate.editable} />,
+    [sheet, member, gate.editable],
   )
 
   if (isPending) {
@@ -125,6 +139,7 @@ function SheetContent({ member, sheet, index }: { member: Member; sheet: Sheet; 
         index={index}
         open={summaryOpen}
         onOpenChange={setSummaryOpen}
+        viewOnly={gate.viewOnly}
       />
       {/* The grid scrolls inside whatever height the front leaves. */}
       <div className="relative min-h-0 flex-1">
@@ -132,8 +147,12 @@ function SheetContent({ member, sheet, index }: { member: Member; sheet: Sheet; 
           {list.length === 0 ? (
             <div className="grid h-full place-items-center p-8">
               <EmptyState
-                title="No one here yet."
-                description={`${sheet.name} has no rows yet.`}
+                title={gate.viewOnly ? 'No one here yet.' : `Add your first ${singular(sheet)}.`}
+                description={
+                  gate.viewOnly
+                    ? `${member.name} has not added anyone to ${sheet.name} yet.`
+                    : `${sheet.name} has no rows yet.`
+                }
                 art
               />
             </div>
@@ -147,6 +166,8 @@ function SheetContent({ member, sheet, index }: { member: Member; sheet: Sheet; 
               onExpandedChange={onExpandedChange}
               flashRowId={flashRowId}
               renderExpanded={renderExpanded}
+              editable={gate.editable}
+              onRefuse={gate.refuse}
             />
           )}
         </div>

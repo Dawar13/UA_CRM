@@ -6,7 +6,7 @@ create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
 set local timezone = 'UTC';
 
-select plan(35);
+select plan(37);
 
 insert into public.members (id, email, name, slug, position, is_admin) values
   ('00000000-0000-0000-0000-00000000000a', 'dawar@example.test', 'Dawar', 'dawar', 0, true),
@@ -137,6 +137,19 @@ select is(
   jsonb_array_length(public.api_list_rows('10000000-0000-0000-0000-000000000001')),
   2,
   'A sheet lists its live rows'
+);
+select is(
+  public.api_save_row(
+    public.api_get_row('30000000-0000-0000-0000-000000000002')
+      || '{"samePerson": ["30000000-0000-0000-0000-000000000001"]}'::jsonb
+  ) -> 'row' -> 'samePerson',
+  '["30000000-0000-0000-0000-000000000001"]'::jsonb,
+  'A row saves its same-person links'
+);
+select is(
+  public.api_same_person_of('30000000-0000-0000-0000-000000000001'),
+  '["30000000-0000-0000-0000-000000000002"]'::jsonb,
+  'The other row can find who links to it'
 );
 
 -- ---------- Dhruv reads everything and changes nothing ----------

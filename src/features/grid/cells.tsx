@@ -29,7 +29,8 @@ function displayPhone(stored: string): string {
 export interface CellContext {
   sheet: Sheet
   tagMap: ReadonlyMap<string, Tag>
-  onWarmthChange: (row: Row, warmth: Warmth | null) => void
+  /** Absent in another member's tab: the warmth chip is display only there. */
+  onWarmthChange?: (row: Row, warmth: Warmth | null) => void
 }
 
 function Truncate({ children, className }: { children: ReactNode; className?: string }) {
@@ -92,7 +93,7 @@ function SystemCell({ def, row, ctx }: { def: ColumnDef; row: Row; ctx: CellCont
       return (
         <WarmthChip
           value={row.warmth}
-          onChange={(next) => ctx.onWarmthChange(row, next)}
+          onChange={ctx.onWarmthChange ? (next) => ctx.onWarmthChange?.(row, next) : undefined}
           tabbable={false}
           size="sm"
         />

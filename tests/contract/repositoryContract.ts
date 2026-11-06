@@ -272,6 +272,33 @@ export function runRepositoryContract(
       })
     })
 
+    describe('copy to my sheet', () => {
+      it("copies another member's contact into your sheet, linked as the same person", async () => {
+        const copy = await dhruv.copyRow(rohan.id, dhruvConnectors.id, ctx('dhruv', 1))
+        expect(copy.row).toMatchObject({
+          name: 'Rohan Mehta',
+          company: 'Hosur Precision Forge',
+          phone: '+919845012345',
+          memberId: h.memberIds.dhruv,
+          sheetId: dhruvConnectors.id,
+          warmth: null,
+          stageIndex: null,
+          samePerson: [rohan.id],
+        })
+        expect(await dawar.listSamePersonOf(rohan.id)).toEqual([copy.row.id])
+        // Nothing changes on their row.
+        expect((await dawar.getRow(rohan.id))?.samePerson ?? []).toEqual([])
+      })
+
+      it('refuses copying your own row, or into a sheet that is not yours', async () => {
+        await expectDenied(
+          dawar.copyRow(rohan.id, dawarCustomers.id, ctx('dawar')),
+          'already-yours',
+        )
+        await expectDenied(asha.copyRow(rohan.id, dhruvConnectors.id, ctx('asha')), 'not-owner')
+      })
+    })
+
     describe('history', () => {
       it('the owner logs a touch and last touch follows it', async () => {
         const entry = await dawar.addHistory(

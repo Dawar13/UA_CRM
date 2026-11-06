@@ -85,7 +85,7 @@ export type Permission =
       names?: readonly string[]
     }
 
-type TargetArgs<A extends Action> = PermissionTargets[A] extends undefined
+export type TargetArgs<A extends Action> = PermissionTargets[A] extends undefined
   ? []
   : [target: PermissionTargets[A]]
 

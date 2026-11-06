@@ -82,13 +82,15 @@ test.describe('navigation', () => {
     await sheetTab(page, 'Investors').click()
     await expect(page).toHaveURL(/\/m\/dhruv\/investors$/)
 
-    // The root goes to the last member and that member's last sheet.
-    await gotoApp(page, '/', { waitForReady: true })
-    await expect(page).toHaveURL(/\/m\/dhruv\/investors$/)
-
+    // A reload keeps the tab and sheet on screen.
     await reloadApp(page)
     await expect(page).toHaveURL(/\/m\/dhruv\/investors$/)
     await expect(grid(page)).toHaveAttribute('aria-label', 'Investors')
+
+    // The root always lands on the signed-in member's own tab, at their last sheet (Phase 1:
+    // the signed-in member's tab is the landing tab).
+    await gotoApp(page, '/', { waitForReady: true })
+    await expect(page).toHaveURL(/\/m\/dawar\/connectors$/)
 
     // Each member keeps their own last sheet.
     await memberTab(page, 'Dawar').click()

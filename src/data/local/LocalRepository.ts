@@ -8,6 +8,7 @@ import { formatPhone, normaliseName, searchTokens } from '@/domain/identity'
 import { cleanMemberEmail, cleanMemberName, MemberRuleError } from '@/domain/members'
 import { type Actor, assertCan } from '@/domain/permissions'
 import {
+  copiedRowValues,
   type NewRowValues,
   newRow,
   patchRow,
@@ -640,6 +641,33 @@ export class LocalRepository implements Repository {
     })
     this.searchIndex.delete(rowId)
     return row
+  }
+
+  async copyRow(
+    sourceRowId: Id,
+    destinationSheetId: Id,
+    ctx: MutationContext,
+  ): Promise<MutationResult> {
+    const actor = await this.actor(ctx)
+    const source = await this.getRowLocation(sourceRowId)
+    if (!source) throw new RowNotFoundError(sourceRowId)
+    const destination = await this.liveSheet(destinationSheetId)
+    assertCan(actor, 'copyToMySheet', { source: source.row, destination })
+    return this.createRow(
+      {
+        sheetId: destination.id,
+        values: copiedRowValues(source.row, source.sheet, destination),
+      },
+      ctx,
+    )
+  }
+
+  async listSamePersonOf(rowId: Id): Promise<Id[]> {
+    const [rows, sheets] = await Promise.all([this.db.rows.toArray(), this.db.sheets.toArray()])
+    const live = new Set(sheets.filter((s) => s.deletedAt === null).map((s) => s.id))
+    return rows
+      .filter((r) => r.deletedAt === null && live.has(r.sheetId) && r.samePerson?.includes(rowId))
+      .map((r) => r.id)
   }
 
   async deleteRows(rowIds: Id[], ctx: MutationContext): Promise<void> {
