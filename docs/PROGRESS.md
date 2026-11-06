@@ -186,15 +186,17 @@ After reviewing Phase 0, the founders asked for a calmer, more art-like look and
 
 ### Results (local, Windows 11)
 
-| Layer                       | Result                                                                                         |
-| --------------------------- | ---------------------------------------------------------------------------------------------- |
-| Lint and typecheck          | Clean                                                                                          |
-| Unit and component (Vitest) | 639 passed in 37 files                                                                         |
-| Coverage                    | 92.9% lines overall (threshold 70%); `src/domain` above its 90% threshold                      |
-| End to end                  | 106 passed (desktop, narrow and webkit-smoke)                                                  |
-| Accessibility               | 8 passed, zero serious or critical                                                             |
-| Performance                 | Passed (2,000 rows)                                                                            |
-| Visual                      | Skipped on Windows by design; every baseline changes and must be regenerated in CI (see below) |
+CI is green on `main` with the redesign, the spreadsheet-style grid, the funnel and their Linux baselines: [run 42177911646](https://github.com/Dawar13/UA_CRM/actions/runs/42177911646). Lint, typecheck, unit and component tests with coverage, build, e2e, a11y, visual and perf all pass.
+
+| Layer                       | Result                                                                            |
+| --------------------------- | --------------------------------------------------------------------------------- |
+| Lint and typecheck          | Clean                                                                             |
+| Unit and component (Vitest) | 639 passed in 37 files                                                            |
+| Coverage                    | 92.9% lines overall (threshold 70%); `src/domain` above its 90% threshold         |
+| End to end                  | 106 passed (desktop, narrow and webkit-smoke)                                     |
+| Accessibility               | 8 passed, zero serious or critical                                                |
+| Performance                 | Passed (2,000 rows)                                                               |
+| Visual                      | Skipped on Windows by design; the Linux baselines were regenerated and pass in CI |
 
 ### Try this
 
