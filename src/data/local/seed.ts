@@ -27,7 +27,7 @@ import type {
 } from '@/domain/types'
 
 /** Bump when the seed changes; existing local databases are then reseeded. */
-export const SEED_VERSION = 3
+export const SEED_VERSION = 4
 
 export interface SeedData {
   members: Member[]
@@ -362,6 +362,8 @@ const members: Member[] = [
     name: 'Dawar',
     email: 'dawar@utopianautonomy.example',
     position: 0,
+    isAdmin: true,
+    active: true,
     createdAt: SEED_CREATED_AT,
   },
   {
@@ -370,6 +372,8 @@ const members: Member[] = [
     name: 'Dhruv',
     email: 'dhruv@utopianautonomy.example',
     position: 1,
+    isAdmin: true,
+    active: true,
     createdAt: SEED_CREATED_AT,
   },
 ]
@@ -392,6 +396,7 @@ function buildTags(): Tag[] {
       id: seedIds.tags[key],
       name: TAG_NAMES[key],
       colour: pickTagColour(tags),
+      createdBy: seedIds.members.dawar,
       createdAt: SEED_CREATED_AT,
     })
   }

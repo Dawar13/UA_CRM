@@ -109,6 +109,10 @@ export const memberSchema = z.object({
   name: z.string().min(1),
   email: z.email(),
   position: z.number().int().nonnegative(),
+  /** Admins add, deactivate and reactivate members. They get no extra rights over data. */
+  isAdmin: z.boolean(),
+  /** A deactivated member cannot sign in; their tab stays visible to everyone, view only. */
+  active: z.boolean(),
   createdAt: isoDateTimeSchema,
 })
 
@@ -204,6 +208,8 @@ export const tagSchema = z.object({
   id: idSchema,
   name: z.string().min(1),
   colour: z.enum(tagColourNames as [TagColour, ...TagColour[]]),
+  /** The member who created it: the only one who may rename, recolour or delete it. */
+  createdBy: idSchema.nullable(),
   createdAt: isoDateTimeSchema,
 })
 

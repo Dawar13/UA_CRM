@@ -68,6 +68,7 @@ const tag = (id: string, name: string): Tag => ({
   id,
   name,
   colour: 'indigo',
+  createdBy: null,
   createdAt: '2026-11-01T00:00:00.000Z',
 })
 
