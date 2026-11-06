@@ -64,8 +64,8 @@ export interface EmptyStateProps {
   description?: ReactNode
   /** Usually one Button that does the obvious next thing. */
   action?: ReactNode
-  /** Hide the art in tight spaces. */
-  art?: boolean
+  /** The default mark, none (false, for tight spaces), or art of the surface's own. */
+  art?: boolean | ReactNode
   className?: string
 }
 
@@ -75,7 +75,11 @@ export function EmptyState({ title, description, action, art = true, className }
     <div
       className={cn('flex flex-col items-center justify-center px-6 py-10 text-center', className)}
     >
-      {art ? <EmptyStateArt className="mb-4" /> : null}
+      {art === true ? (
+        <EmptyStateArt className="mb-4" />
+      ) : art ? (
+        <div className="mb-4">{art}</div>
+      ) : null}
       <p className="text-md font-semibold tracking-[-0.01em] text-text">{title}</p>
       {description !== undefined ? (
         <p className="mt-1 max-w-xs text-sm text-secondary">{description}</p>

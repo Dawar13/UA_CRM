@@ -19,6 +19,7 @@ import type { CalendarEvent, IsoDate, Member } from '@/domain/types'
 import { cn } from '@/lib/cn'
 import { useNow } from '@/lib/useNow'
 import { ActivityField } from './ActivityField'
+import { ClearWeekArt } from './ClearWeekArt'
 import { useEventContacts } from './useEventContacts'
 
 /** The panel shows today and the six days after it. */
@@ -228,6 +229,7 @@ export function CalendarPanel({ member }: { member: Member }) {
             <PanelSkeleton />
           ) : days.length === 0 ? (
             <EmptyState
+              art={<ClearWeekArt today={today} now={now} />}
               title="A clear week"
               description="No meetings in the next seven days."
               className="py-6"

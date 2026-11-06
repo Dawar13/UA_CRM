@@ -13,6 +13,7 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/Tabs'
 import { toast } from '@/components/ui/Toast'
 import type { FuzzyDate, Warmth } from '@/domain/types'
+import { ClearWeekArt } from '@/features/calendar-panel/ClearWeekArt'
 import type { TagColour } from '@/styles/tokens'
 import { Mono, Section, Specimen, StateLabel } from './layout'
 import { buildStages, customerStages, stageExamples } from './sampleStages'
@@ -491,8 +492,9 @@ export function EmptySection() {
         </Specimen>
         <Specimen bodyClassName="p-0">
           <EmptyState
-            title="No meetings this week"
-            description="Events from the next seven days appear here, matched to contacts."
+            art={<ClearWeekArt today="2026-11-05" now={new Date('2026-11-05T10:00:00+05:30')} />}
+            title="A clear week"
+            description="No meetings in the next seven days."
           />
         </Specimen>
         <Specimen bodyClassName="p-0">
