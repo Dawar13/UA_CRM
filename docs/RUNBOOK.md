@@ -23,7 +23,7 @@ A failed scheduled backup emails whoever last changed the schedule line in `.git
 ### 2.1 Supabase (project `ua-crm`, already created)
 
 1. **Logins:** Authentication → Users → Add user → Create new user, with "Auto Confirm User" ticked, for each founder.
-2. **Team list:** SQL editor, with each person's login email in place of the placeholders. This runs once; after it, admins add members from the app (More → Team).
+2. **Team list:** SQL editor. **Replace both placeholders, angle brackets included, with each person's login email exactly as in Authentication → Users** before running; an address that differs by a letter cannot sign in. This runs once; after it, admins add members from the app (More → Team).
 
    ```sql
    insert into public.members (name, email, slug, position, is_admin, active) values

@@ -32,8 +32,15 @@ export interface MemberRecord {
   created_at: string
 }
 
+/**
+ * A member as stored. The email format is checked where members are added (the Team dialog);
+ * reading accepts whatever the database holds, so one mistyped address (say, a placeholder pasted
+ * into the SQL editor) means only that person cannot sign in, not that the team list fails to load.
+ */
+const storedMemberSchema = memberSchema.extend({ email: z.string() })
+
 export function toMember(r: MemberRecord): Member {
-  return memberSchema.parse({
+  return storedMemberSchema.parse({
     id: r.id,
     slug: r.slug,
     name: r.name,
@@ -97,9 +104,9 @@ export const parseRows = (value: unknown): Row[] => z.array(rowSchema).parse(val
 export const parseHistory = (value: unknown): HistoryEntry => historyEntrySchema.parse(value)
 export const parseHistoryList = (value: unknown): HistoryEntry[] =>
   z.array(historyEntrySchema).parse(value)
-export const parseMember = (value: unknown): Member => memberSchema.parse(value)
+export const parseMember = (value: unknown): Member => storedMemberSchema.parse(value)
 
-const locationSchema = z.object({ row: rowSchema, sheet: sheetSchema, member: memberSchema })
+const locationSchema = z.object({ row: rowSchema, sheet: sheetSchema, member: storedMemberSchema })
 export const parseLocation = (value: unknown): RowLocation => locationSchema.parse(value)
 export const parseLocations = (value: unknown): RowLocation[] =>
   z.array(locationSchema).parse(value)
