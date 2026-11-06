@@ -7,11 +7,13 @@ import {
   RotateCcw,
   Search,
   Trash2,
+  Upload,
   Users,
 } from 'lucide-react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { toast } from 'sonner'
+import { useActor } from '@/auth/AuthContext'
 import { BrandLockup } from '@/components/crm/BrandLockup'
 import { MemberTabs, TODAY_TAB } from '@/components/crm/MemberTabs'
 import { ThemeSegmented, ThemeToggle } from '@/components/crm/ThemeToggle'
@@ -29,6 +31,8 @@ import {
 import { Tooltip } from '@/components/ui/Tooltip'
 import { useRepository } from '@/data/RepositoryContext'
 import type { Member } from '@/domain/types'
+import { useExportEverything } from '@/features/import-export/ExportMenu'
+import { FoundersImportDialog } from '@/features/import-export/ImportDialogs'
 import { TagsDialog } from '@/features/tags/TagsDialog'
 import { TeamDialog } from '@/features/team/TeamDialog'
 import { isDevBuild } from '@/lib/env'
@@ -91,6 +95,10 @@ export function Header({
   const [passwordOpen, setPasswordOpen] = useState(false)
   const [teamOpen, setTeamOpen] = useState(false)
   const [tagsOpen, setTagsOpen] = useState(false)
+  const [importOpen, setImportOpen] = useState(false)
+  const exportEverything = useExportEverything()
+  const actor = useActor()
+  const me = members.find((m) => m.id === actor?.id)
 
   return (
     <header className="flex h-(--header-height) shrink-0 items-center gap-6 border-b border-border bg-bg px-5">
@@ -145,6 +153,16 @@ export function Header({
               <Hash aria-hidden className="size-4" />
               Tags
             </MenuItem>
+            {me ? (
+              <MenuItem onSelect={() => setImportOpen(true)}>
+                <Upload aria-hidden className="size-4" />
+                Import the old spreadsheet
+              </MenuItem>
+            ) : null}
+            <MenuItem onSelect={() => void exportEverything()}>
+              <Database aria-hidden className="size-4" />
+              Export everything
+            </MenuItem>
             <MenuItem onSelect={showTrash}>
               <Trash2 aria-hidden className="size-4" />
               Trash
@@ -166,6 +184,9 @@ export function Header({
         <ChangePasswordDialog open={passwordOpen} onOpenChange={setPasswordOpen} />
         <TeamDialog open={teamOpen} onOpenChange={setTeamOpen} />
         <TagsDialog open={tagsOpen} onOpenChange={setTagsOpen} />
+        {me ? (
+          <FoundersImportDialog member={me} open={importOpen} onOpenChange={setImportOpen} />
+        ) : null}
       </div>
     </header>
   )

@@ -70,7 +70,6 @@ import {
   type NewFile,
   type NewHistoryInput,
   type NewRowInput,
-  NotAvailableYet,
   NotFoundError,
   type Repository,
   type RowLocation,
@@ -1291,8 +1290,45 @@ export class LocalRepository implements Repository {
     assertCan(actor, 'markNotDuplicate', { rows: [a, b] })
     await this.db.notDuplicate.put({ key: pairKey(rowIdA, rowIdB), ownerId: ctx.actorId })
   }
-  importRows(_batch: ImportBatch, _ctx: MutationContext): Promise<Row[]> {
-    return notYet('importRows', 'M1.8')
+  async importRows(batch: ImportBatch, ctx: MutationContext): Promise<Row[]> {
+    const actor = await this.actor(ctx)
+    const { db } = this
+    const rows = await db.transaction('rw', db.rows, db.sheets, db.history, async () => {
+      const sheet = await this.liveSheet(batch.sheetId)
+      assertCan(actor, 'addRow', sheet)
+      const last = await db.rows
+        .where('[sheetId+position]')
+        .between([sheet.id, Dexie.minKey], [sheet.id, Dexie.maxKey])
+        .last()
+      let position = last ? last.position + 1 : 0
+      const added: Row[] = []
+      for (const [i, values] of batch.rows.entries()) {
+        const change = newRow(
+          sheet,
+          values,
+          { id: newId('r')(), position: position++ },
+          this.domainContext(ctx),
+        )
+        const extra: HistoryEntry[] = (batch.history?.[i] ?? []).map((entry) => ({
+          id: newId('h')(),
+          rowId: change.row.id,
+          kind: entry.kind,
+          source: entry.source ?? 'manual',
+          at: new Date(entry.at).toISOString(),
+          fuzzyDate: entry.fuzzyDate ?? null,
+          text: entry.text.trim(),
+          memberId: ctx.actorId,
+        }))
+        const newest = [change.history.at, ...extra.map((h) => h.at)].sort().at(-1) ?? null
+        const row: Row = { ...change.row, lastTouchAt: newest }
+        await db.rows.add(row)
+        await db.history.bulkAdd([change.history, ...extra])
+        added.push(row)
+      }
+      return added
+    })
+    this.searchIndex.clear()
+    return rows
   }
 }
 
@@ -1304,11 +1340,6 @@ const AUTOMATIC_KINDS = new Set<HistoryEntry['kind']>(['stage', 'warmth', 'creat
 /** Tag names are unique ignoring case, as in the database (lower(name)). */
 function sameTagName(a: string, b: string): boolean {
   return a.toLowerCase() === b.toLowerCase()
-}
-
-/** Rejects (rather than throws synchronously) so callers see a failed promise either way. */
-function notYet(method: string, milestone: string): Promise<never> {
-  return Promise.reject(new NotAvailableYet(method, milestone))
 }
 
 async function blobToDataUrl(blob: Blob): Promise<string> {

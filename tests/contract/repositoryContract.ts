@@ -327,6 +327,48 @@ export function runRepositoryContract(
       })
     })
 
+    describe('import', () => {
+      it('imports rows with their imported touches; not into a sheet that is not yours', async () => {
+        const rows = await dhruv.importRows(
+          {
+            sheetId: dhruvConnectors.id,
+            rows: [{ name: 'Meera Iyer', company: 'Lakshmi Textiles' }, { name: 'Kabir Shah' }],
+            history: [
+              [
+                {
+                  kind: 'imported',
+                  at: '2026-10-15T06:30:00.000Z',
+                  fuzzyDate: { date: '2026-10-15', precision: 'mid-month' },
+                  text: 'Imported from the old spreadsheet',
+                },
+              ],
+              [],
+            ],
+          },
+          ctx('dhruv', 1),
+        )
+        expect(rows.map((r) => [r.name, r.memberId])).toEqual([
+          ['Meera Iyer', h.memberIds.dhruv],
+          ['Kabir Shah', h.memberIds.dhruv],
+        ])
+        const history = await dawar.listHistory(rows[0]?.id ?? '')
+        expect(history.map((e) => e.kind).sort()).toEqual(['created', 'imported'])
+        expect(history.find((e) => e.kind === 'imported')?.fuzzyDate).toEqual({
+          date: '2026-10-15',
+          precision: 'mid-month',
+        })
+        expect((await dawar.listRows(dhruvConnectors.id)).map((r) => r.name)).toEqual([
+          'Krithik Rao',
+          'Meera Iyer',
+          'Kabir Shah',
+        ])
+        await expectDenied(
+          dawar.importRows({ sheetId: dhruvConnectors.id, rows: [{ name: 'X' }] }, ctx('dawar')),
+          'not-owner',
+        )
+      })
+    })
+
     describe('files', () => {
       it('the owner attaches and removes files; others can open them', async () => {
         const data = new Blob(['UA pilot proposal'], { type: 'text/plain' })

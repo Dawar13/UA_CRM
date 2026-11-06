@@ -72,7 +72,6 @@ import {
   type NewFile,
   type NewHistoryInput,
   type NewRowInput,
-  NotAvailableYet,
   NotFoundError,
   type Repository,
   type RowLocation,
@@ -934,8 +933,33 @@ export class SupabaseRepository implements Repository {
       throw toDomainError(inserted.error, 'markNotDuplicate')
     }
   }
-  importRows(_batch: ImportBatch, _ctx: MutationContext): Promise<Row[]> {
-    return Promise.reject(new NotAvailableYet('importRows', 'M1.8'))
+  async importRows(batch: ImportBatch, ctx: MutationContext): Promise<Row[]> {
+    const [actor, sheet] = await Promise.all([this.actor(), this.liveSheet(batch.sheetId)])
+    assertCan(actor, 'addRow', sheet)
+    let position = await this.nextRowPosition(sheet.id)
+    const dctx = this.domainContext(ctx, actor)
+    const items = batch.rows.map((values, i) => {
+      const change = newRow(sheet, values, { id: uuid(), position: position++ }, dctx)
+      const extra = (batch.history?.[i] ?? []).map((entry) => ({
+        id: uuid(),
+        kind: entry.kind,
+        source: entry.source ?? 'manual',
+        at: new Date(entry.at).toISOString(),
+        fuzzyDate: entry.fuzzyDate ?? null,
+        text: entry.text.trim(),
+      }))
+      return { row: change.row, history: change.history, extra }
+    })
+    const saved: Row[] = []
+    // Batches keep each request small.
+    for (let i = 0; i < items.length; i += 100) {
+      saved.push(
+        ...parseRows(
+          await this.rpc('api_import_rows', { p_items: items.slice(i, i + 100) }, 'addRow'),
+        ),
+      )
+    }
+    return saved
   }
 }
 

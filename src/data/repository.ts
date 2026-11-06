@@ -307,7 +307,10 @@ export interface Repository {
   findDuplicates(query: DuplicateQuery, options?: { selfId?: Id }): Promise<DuplicateCandidate[]>
   /** "Different person": the pair is never flagged again. Needs one of the two rows. */
   markNotDuplicate(rowIdA: Id, rowIdB: Id, ctx: MutationContext): Promise<void>
-  /** M1.8, with the importer. */
+  /**
+   * Adds many rows to one of your sheets, each with its "Added to" entry and any imported
+   * touches (`batch.history[i]` for `batch.rows[i]`). All or none.
+   */
   importRows(batch: ImportBatch, ctx: MutationContext): Promise<Row[]>
 }
 

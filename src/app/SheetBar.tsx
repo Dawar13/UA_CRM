@@ -8,6 +8,7 @@ import { IconButton } from '@/components/ui/IconButton'
 import { Menu, MenuContent, MenuItem, MenuLabel, MenuTrigger } from '@/components/ui/Menu'
 import { useReorderSheets, useRowCounts, useRows, useSheetTagCounts, useTagMap } from '@/data/hooks'
 import type { Member, Sheet } from '@/domain/types'
+import { ExportMenu } from '@/features/import-export/ExportMenu'
 import { SheetMenu } from '@/features/sheets/SheetMenu'
 import { rememberLocation, sheetPath } from './navigation'
 import { useUiStore } from './uiStore'
@@ -108,6 +109,7 @@ export function SheetBar({
             </MenuContent>
           </Menu>
         ) : null}
+        <ExportMenu member={member} sheet={sheet} />
         {gate.editable ? <SheetMenu member={member} sheets={sheets} sheet={sheet} /> : null}
         <IconButton
           aria-label={panelOpen ? 'Hide side panel' : 'Show side panel'}

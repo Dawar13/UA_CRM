@@ -11,6 +11,7 @@ import {
   Plus,
   SlidersHorizontal,
   Trash2,
+  Upload,
 } from 'lucide-react'
 import { type FormEvent, useId, useState } from 'react'
 import { useNavigate } from 'react-router'
@@ -23,6 +24,7 @@ import { Input } from '@/components/ui/Input'
 import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from '@/components/ui/Menu'
 import { useDeleteSheet, useRenameSheet, useReorderSheets } from '@/data/hooks'
 import type { Member, Sheet } from '@/domain/types'
+import { ImportDialog } from '@/features/import-export/ImportDialogs'
 import { ColumnsDialog } from './ColumnsDialog'
 import { NewSheetDialog } from './NewSheetDialog'
 import { StageEditorDialog } from './StageEditorDialog'
@@ -73,7 +75,7 @@ function RenameSheetDialog({
   )
 }
 
-type OpenDialog = 'new' | 'rename' | 'stages' | 'columns' | null
+type OpenDialog = 'new' | 'rename' | 'stages' | 'columns' | 'import' | null
 
 export function SheetMenu({
   member,
@@ -134,6 +136,10 @@ export function SheetMenu({
             <Columns3 aria-hidden />
             Columns
           </MenuItem>
+          <MenuItem onSelect={() => setOpen('import')}>
+            <Upload aria-hidden />
+            Import from a file
+          </MenuItem>
           <MenuSeparator />
           <MenuItem disabled={index <= 0} onSelect={() => move(-1)}>
             <ArrowLeft aria-hidden />
@@ -164,6 +170,7 @@ export function SheetMenu({
         {...dialog('stages')}
       />
       <ColumnsDialog sheet={sheet} {...dialog('columns')} />
+      <ImportDialog sheet={sheet} {...dialog('import')} />
     </>
   )
 }

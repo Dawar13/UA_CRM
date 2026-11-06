@@ -3,7 +3,6 @@ import { UaCrmDb } from '@/data/local/db'
 import { LocalRepository, RowNotFoundError } from '@/data/local/LocalRepository'
 import { PERF_ROW_COUNT, PERF_SHEET_SLUG } from '@/data/local/perfSheet'
 import { buildSeed, istInstant, SEED_VERSION, seedIds } from '@/data/local/seed'
-import { NotAvailableYet, type Repository } from '@/data/repository'
 import { validateRowFields } from '@/domain/fields'
 import { rowSchema } from '@/domain/schemas'
 import { snapshotStage } from '@/domain/stages'
@@ -521,24 +520,5 @@ describe('perf sheet', () => {
     expect(elapsed).toBeLessThan(1500)
     const menon = await repo.search('menon')
     expect(menon.slice(0, 2).every((r) => r.row.name.includes('Arvind Menon'))).toBe(true)
-  })
-})
-
-describe('methods of later milestones', () => {
-  // The Phase 1 writes are covered by the contract suite (tests/contract); the importer arrives
-  // in M1.8.
-  it('throw NotAvailableYet, naming the milestone', async () => {
-    const r: Repository = repo
-    const calls: [string, string, () => Promise<unknown>][] = [
-      ['importRows', 'M1.8', () => r.importRows({ sheetId: 's', rows: [] }, ctx)],
-    ]
-    for (const [name, milestone, call] of calls) {
-      const error = await call().then(
-        () => null,
-        (e: unknown) => e,
-      )
-      expect(error, name).toBeInstanceOf(NotAvailableYet)
-      expect((error as Error).message, name).toBe(`${name} arrives in ${milestone}.`)
-    }
   })
 })
