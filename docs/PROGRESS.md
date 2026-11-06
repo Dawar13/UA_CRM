@@ -219,3 +219,17 @@ Screenshots: `docs/screenshots/m0.6-*-light.png` and `-dark.png` (main, expanded
 ### Next
 
 Phase 0, including the redesign, is complete pending the founders' review. Phase 1 starts after the review, with its own brief.
+
+## Phase 1 · M1.0 Reconcile
+
+**Date:** 6 Nov 2026
+
+### Done
+
+- Saved the brief as `docs/phases/PHASE_1.md`.
+- Audited the app as built after M0.6 and wrote `docs/phases/PHASE_1_PLAN.md`: the layout, every component, token and pattern available, and for each Phase 1 feature where it lives, which existing components it uses, which new components it needs and which Repository methods it adds or changes.
+- Updated `CLAUDE.md`: the ownership model (§2.14), the rule that the code is the design source of truth (§3.2, §7), the Today item and view-only note in the layout (§2.1), members as admins or regular and active or deactivated (§2.2), owner-only Trash (§2.13), in-house tooltips and the hosting choice (§4), the architecture tree as built plus the Phase 1 folders (§5), the Phase 1 test layers and Definition of Done (§6), and Phase 1's summary and exit (§8).
+
+### Next
+
+Four questions for the founders (plan §5): hosting provider, the private repository, Docker for the local Supabase stack, and two Phase 0 leftovers. Then M1.1.

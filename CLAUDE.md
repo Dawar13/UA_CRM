@@ -32,7 +32,7 @@ None of the three is optional. A screen that works but looks rough is not done, 
 
 ```
 +--------------------------------------------------------------------------+
-| [UA] Utopian Autonomy  INTERNAL CRM | (Dawar) Dhruv |   Search  Ctrl K  ... |
+| [UA] Utopian Autonomy  INTERNAL CRM | Today (Dawar) Dhruv | Search Ctrl K  ... |
 +---------------------------------------------------------+----------------+
 | /01 Customers 12\ /02 Investors 6\ /03 …\   (folder tabs)| THIS WEEK      |
 | +-------------------------------------------------------+| 7-day strip    |
@@ -40,15 +40,16 @@ None of the three is optional. A screen that works but looks rough is not done, 
 | | People · Open pipeline    | Pipeline: funnel + squares || (dot field)    |
 | | Won    · Due              |                            ||                |
 | +-------------------------------------------------------+| agenda cards   |
-| | > quick add (Phase 1)                                  ||                |
-| | Person | Warmth | Stage (bar) | Tags | Last touch | Next||                |
+| | > quick add (own tab only)                             ||                |
+| | Name | Warmth | Stage (bar) | Tags | Last touch | Next  ||                |
 | | ...grid rows...  [expanded row: tracker, history]      ||                |
 +---------------------------------------------------------+----------------+
 ```
 
 Each sheet is a **folder**: its tab rises from a row of folder tabs and joins the folder front, a summary of the sheet (figures and the pipeline) that fades from the folder's blue into the white sheet below. Clicking the active tab folds the front away to one line.
 
-- **Member tabs** are at the top level, and one member tab is on screen at a time, full width. The **Today** tab shows the day of whoever is signed in.
+- **Member tabs** are at the top level, and one member tab is on screen at a time, full width. The **Today** item, first in the member control, shows the day of whoever is signed in.
+- **Your tab and theirs.** You edit only your own tab. Another member's tab is view only: no editing controls, a quiet "Dhruv's tab, view only" note on the folder front, and every reading action still works (§2.14).
 - **Sheets** sit inside a member tab. Each member creates and owns their own sheets. When a sheet is created, it starts from a template or from blank.
 - **One database underneath.** All members' sheets live in one database, so search and the duplicate check work across every tab. On screen, tabs stay separate.
 
@@ -56,7 +57,7 @@ Each sheet is a **folder**: its tab rises from a row of folder tabs and joins th
 
 | Concept       | Meaning                                   | Rules                                                                                                                                 |
 | ------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| Member        | A UA team member                          | Has a name, an email, and their own sheets and calendar                                                                               |
+| Member        | A UA team member                          | Has a name, a Google email, and their own tab of sheets and calendar. An admin or a regular member; active or deactivated (§2.14)     |
 | Sheet         | A category of contacts, such as Customers | Owned by one member; has its own columns and its own stages, or none                                                                  |
 | Row           | One person                                | Belongs to one sheet. Core fields are fixed; custom fields are per sheet                                                              |
 | Column        | A field on a sheet                        | Typed. Can be added, renamed, reordered, hidden and resized. System columns can be hidden but not deleted                             |
@@ -182,8 +183,33 @@ Everything runs in the browser, in a Web Worker.
 
 ### 2.13 Trash and backup
 
-- **Trash:** deleting rows or sheets is soft. They go to Trash for 30 days. Every destructive action shows an undo toast for 8 seconds.
+- **Trash:** deleting rows, columns or sheets is soft. They go to their owner's Trash for 30 days; nobody else sees another member's Trash. Every destructive action shows an undo toast for 8 seconds.
 - **Nightly backup (Phase 1):** a GitHub Actions job dumps the Supabase database every night into a private GitHub repository.
+
+### 2.14 Ownership (Phase 1)
+
+**Principle:** a member's tab and everything in it (sheets, columns, stages, rows, history, files, trash) belongs to that member. Every other member can see it, but cannot change it.
+
+| Action                                                                                | In your own tab                      | In another member's tab                                    |
+| ------------------------------------------------------------------------------------- | ------------------------------------ | ---------------------------------------------------------- |
+| View sheets, rows, history, links, files                                              | Yes                                  | Yes                                                        |
+| Search, and jump to a row                                                             | Yes                                  | Yes                                                        |
+| Call, WhatsApp or email a contact; open links; copy a cell                            | Yes                                  | Yes                                                        |
+| Export a sheet                                                                        | Yes                                  | Yes (reading only; the founders can switch this off later) |
+| Edit cells, warmth, stage, next action                                                | Yes                                  | No                                                         |
+| Add, delete or paste rows; quick-add; import                                          | Yes                                  | No                                                         |
+| Add history entries                                                                   | Yes                                  | No                                                         |
+| Create, rename, reorder or delete sheets, columns or stages                           | Yes                                  | No                                                         |
+| See and restore Trash                                                                 | Yes                                  | No (not visible at all)                                    |
+| Link one of your rows to one of theirs (Introduced by, Connects to, Keep both linked) | Yes; the link is stored on your side | Their row shows the link, but nothing on their row changes |
+| Copy a contact into your own sheet                                                    | Not applicable                       | Yes; creates a new row in your tab, linked to theirs       |
+| Merge duplicates                                                                      | Only when both rows are yours        | No                                                         |
+
+- **Tags** are one shared vocabulary. Any member can create a tag and apply it to their own rows. Only the creator can rename, recolour or delete a tag, and only while no other member's rows use it; otherwise the action is refused with a message naming whose rows use it.
+- **Members.** A member is an admin or a regular member; both founders start as admins. Admins can add a member (name and Google email), deactivate and reactivate. Admins get no extra rights over anyone's data. A deactivated member cannot sign in; their tab stays visible to everyone, marked inactive and view only. Transferring sheet ownership is in the backlog.
+- **Calendar (Phase 2):** a calendar writes history only into its owner's rows. An event that matches a row in someone else's tab is shown as a read-only hint, and nothing is written.
+- **View only, in behaviour.** In another member's tab no editing controls exist (no quick-add, no add row, no edit items in column or sheet menus, no responsive stage or warmth controls). The tab says so quietly and always ("Dhruv's tab, view only"). Edit keystrokes (typing into a cell, Enter to edit, Delete, paste, `W`, `]`, `[`) do nothing; the first attempt in a session shows one short toast ("Dhruv's sheets are view only"), later ones are silent. Every reading action keeps working: expand, search, copy, contact buttons, export, follow links. "Copy to my sheet" is available on any row: it asks which of your sheets, runs the duplicate check and creates a linked row in your tab. Other members' changes appear live without moving your focus or scroll.
+- **Enforced three times.** Every write path has a UI check through `can(member, action, target)` in `domain/`, a database policy, and a test proving another member is refused.
 
 ---
 
@@ -216,6 +242,8 @@ Everything runs in the browser, in a Web Worker.
 | `?`                           | Shortcut sheet                              |
 
 ### 3.2 Visual identity
+
+**The code is the design source of truth.** The current app (`src/`, tokens and the `/design` page) defines how things look. New surfaces are built from the components and tokens that exist, placed where the current design puts that kind of thing, and added to `/design` with visual tests. If a document describes visuals that differ from the code, the code wins and the document is updated.
 
 The founders approved this look in M0.6 (5 Nov 2026). It is calm and art-like: paper white, one blue palette for structure and progress, and an earthy "field" palette for warmth and activity. Colours carry meaning; soft gradients and joined shapes replace pills and dots. The full system is in `src/styles/tokens.ts` and on the `/design` page.
 
@@ -301,22 +329,22 @@ The browser tab title is "UA · Internal CRM", and the favicon is the brand mark
 
 Versions are the latest stable on npm as of 5 Nov 2026. Several are new majors, so **read the current docs and migration guides for each one before using it, and do not rely on memory of older APIs**. This matters most for TanStack Table v9, TypeScript 7, Vite 8, Vitest 5, React Router 8 and Zod 4. If a tool is incompatible with a major (for example, TypeScript 7 with a plugin), pin the newest version that works and log it in `docs/DECISIONS.md`.
 
-| Layer                   | Choice                                                                                                                                                                       |
-| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Runtime                 | Current Node LTS, pinned in `.nvmrc` and `engines`; pnpm                                                                                                                     |
-| App                     | React 19.3, Vite 8, TypeScript 7 (strict)                                                                                                                                    |
-| Routing                 | React Router 8                                                                                                                                                               |
-| Styling                 | Tailwind CSS 4.3 (CSS-first `@theme`, tokens as CSS variables), class-variance-authority, clsx, tailwind-merge                                                               |
-| Primitives              | Radix UI (`radix-ui` unified package) for tabs, menus, popovers, tooltips and dialogs; cmdk for the palette; sonner for toasts; lucide-react for icons; motion for animation |
-| Grid                    | TanStack Table 9 + TanStack Virtual 3, rendered as DOM (not canvas) so custom cells look right and tests can see them; own keyboard layer                                    |
-| State                   | TanStack Query 5 (data), Zustand 5 (UI state)                                                                                                                                |
-| Validation              | Zod 4                                                                                                                                                                        |
-| Local data              | Dexie 4 (IndexedDB), used in Phase 0, in tests, and as an offline cache later                                                                                                |
-| Backend (Phase 1)       | Supabase free tier: Postgres, Google sign-in restricted to an email allowlist, row-level security, Realtime, Storage; supabase-js 2                                          |
-| Hosting (Phase 1)       | Vercel: static build plus `api/` serverless functions                                                                                                                        |
-| Parsing (Phase 1 and 2) | chrono-node 2, libphonenumber-js, date-fns 4, pdfjs-dist 6, `@paddleocr/paddleocr-js` 0.4 (pre-1.0, so expect API changes), tesseract.js 7                                   |
-| Export (Phase 1)        | ExcelJS 4, jsPDF 4 + jspdf-autotable 5                                                                                                                                       |
-| Quality                 | Biome 2.6 (lint and format), Vitest 5 + Testing Library 16 + fake-indexeddb, Playwright 1.64 + @axe-core/playwright, GitHub Actions                                          |
+| Layer                   | Choice                                                                                                                                                                                                      |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Runtime                 | Current Node LTS, pinned in `.nvmrc` and `engines`; pnpm                                                                                                                                                    |
+| App                     | React 19.3, Vite 8, TypeScript 7 (strict)                                                                                                                                                                   |
+| Routing                 | React Router 8                                                                                                                                                                                              |
+| Styling                 | Tailwind CSS 4.3 (CSS-first `@theme`, tokens as CSS variables), class-variance-authority, clsx, tailwind-merge                                                                                              |
+| Primitives              | Radix UI (`radix-ui` unified package) for tabs, menus, popovers and dialogs; an in-house lightweight tooltip (D-024); cmdk for the palette; sonner for toasts; lucide-react for icons; motion for animation |
+| Grid                    | TanStack Table 9 + TanStack Virtual 3, rendered as DOM (not canvas) so custom cells look right and tests can see them; own keyboard layer                                                                   |
+| State                   | TanStack Query 5 (data), Zustand 5 (UI state)                                                                                                                                                               |
+| Validation              | Zod 4                                                                                                                                                                                                       |
+| Local data              | Dexie 4 (IndexedDB), used in Phase 0, in tests, and as an offline cache later                                                                                                                               |
+| Backend (Phase 1)       | Supabase free tier: Postgres, Google sign-in restricted to the members table, row-level security, Realtime, Storage, `pg_trgm`; supabase-js 2; Supabase CLI for the local stack, migrations and pgTAP tests |
+| Hosting (Phase 1)       | Static build with preview deploys against staging and a manual production release. Provider pending the founders' answer (Vercel Hobby or Cloudflare Pages, see `docs/phases/PHASE_1_PLAN.md`)              |
+| Parsing (Phase 1 and 2) | chrono-node 2, libphonenumber-js, date-fns 4, pdfjs-dist 6, `@paddleocr/paddleocr-js` 0.4 (pre-1.0, so expect API changes), tesseract.js 7                                                                  |
+| Export (Phase 1)        | ExcelJS 4, jsPDF 4 + jspdf-autotable 5                                                                                                                                                                      |
+| Quality                 | Biome 2.6 (lint and format), Vitest 5 + Testing Library 16 + fake-indexeddb, Playwright 1.64 + @axe-core/playwright, GitHub Actions                                                                         |
 
 **Banned:**
 - Handsontable (its free licence is non-commercial).
@@ -334,49 +362,53 @@ ua-crm/
   CLAUDE.md
   README.md
   docs/
-    phases/PHASE_0.md            active phase brief (PHASE_1 and PHASE_2 written after each review)
+    phases/                      PHASE_0.md, PHASE_1.md (active) and PHASE_1_PLAN.md
     PROGRESS.md                  log per milestone: done, how to try it, known issues, next
     DECISIONS.md                 dated technical decisions and licences
     BACKLOG.md                   ideas and feedback not yet scheduled
+    RUNBOOK.md                   Phase 1: backup and restore
     screenshots/                 light and dark captures per milestone
   src/
-    app/                         App.tsx, router, providers, layout shell, error boundary
+    app/                         App, routes, providers, shell (Header, SheetBar, MainView, RightPanel),
+                                 UI store, global shortcuts, theme, error boundary
+    auth/                        Phase 1: AuthProvider (Supabase Google sign-in; local member picker)
     components/ui/               primitives: Button, IconButton, Input, Textarea, Kbd, Tabs, Menu,
-                                 Popover, Tooltip, Dialog, Toast, Skeleton, EmptyState, Pill, Separator
-    components/crm/              BrandLockup, MemberTabs, SheetTabs, WarmthChip, TagChip, StageDots,
-                                 StageTracker, DateText, AvatarInitials, ThemeToggle
+                                 Popover, Tooltip (in-house), Dialog, Toast, Skeleton, EmptyState, Pill, Separator
+    components/crm/              BrandLockup, MemberTabs, SheetTabs (folder tabs), WarmthChip,
+                                 TagChip, StageDots (stage bar), StageTracker, DateText,
+                                 AvatarInitials, ThemeToggle
     features/
-      grid/                      SheetGrid, cells/, keyboard/, column defs from sheet schema
-      row-detail/                expanded row: tracker, next action, history
-      calendar-panel/            right panel
+      grid/                      SheetGrid (virtualised ARIA grid and keyboard layer), GridRow,
+                                 cells, column model
+      sheet-summary/             folder front: figures, pipeline card and funnel
+      row-detail/                expanded row: tracker, warmth, next action, fields, history
+      calendar-panel/            right panel: week strip, 30-day activity field, agenda
       command-palette/
-      quick-add/                 Phase 1
-      dedupe/                    Phase 1
-      today/                     Phase 1
-      import-export/             Phase 1
-      file-import/               Phase 2 (pdf, ocr workers)
       design/                    /design showcase route
+      quick-add/  today/  trash/  import-export/   Phase 1
+      file-import/               Phase 2 (pdf, ocr workers)
     domain/                      types, zod schemas, templates, stages, warmth, tags, fuzzy dates,
-                                 identity normalisers, formatters (pure functions, no React)
+                                 identity normalisers, formatters, sheet summary, activity;
+                                 Phase 1: permissions (can), quickadd/, dedupe/ (pure, no React)
     data/
       repository.ts              Repository interface (the only way UI touches data)
       local/                     Dexie db, LocalRepository, seed
-      supabase/                  Phase 1: SupabaseRepository
+      supabase/                  Phase 1: SupabaseRepository, Realtime
       hooks/                     TanStack Query hooks over the repository
-    lib/                         cn, keyboard helpers, env
-    styles/                      tokens.css, globals.css
+    lib/                         cn, keyboard helpers, storage, env
+    styles/                      tokens.ts → tokens.css, globals.css
     assets/brand/
   tests/
-    e2e/  a11y/  visual/  perf/  fixtures/
-  api/                           Phase 1 and 2 Vercel functions
-  supabase/migrations/           Phase 1
-  scripts/                       one-off importers, backup helpers
+    unit/  component/  support/  e2e/  a11y/  visual/  perf/  fixtures/
+    contract/  integration/  e2e-live/      Phase 1
+  supabase/                      Phase 1: config, migrations/, tests/ (pgTAP)
+  scripts/                       token generation, visual baselines, one-off importers, backup helpers
   data/import/                   gitignored, real files for import
-  .github/workflows/ci.yml
+  .github/workflows/             ci.yml, visual-baselines.yml; Phase 1: release, backup
 ```
 
 **Rules:**
-- **The Repository is the only door to data.** Components never import Dexie or Supabase directly; they call hooks, and the hooks call the Repository.
+- **The Repository is the only door to data.** Components never import Dexie or Supabase directly; they call hooks, and the hooks call the Repository. Both implementations enforce ownership: the local one in code with the same `can()` the UI uses, the Supabase one through row-level security.
 - **`domain/` is pure TypeScript** with no React and no I/O, and has the highest test coverage.
 - **Stage, warmth and history changes are one operation.** Changing a stage stamps the stage date and appends a history entry together, and the same applies to warmth.
 - **Store UTC, display IST.** Fuzzy dates keep their precision end to end.
@@ -395,6 +427,10 @@ ua-crm/
 | Accessibility     | @axe-core/playwright          | Main screens and `/design`, light and dark: zero serious or critical violations                                                                        |
 | Visual            | Playwright `toHaveScreenshot` | Main screens and `/design`, light and dark. Baselines are generated in the official Playwright Docker image so fonts render the same locally and in CI |
 | Performance smoke | Playwright                    | 2,000-row sheet: first rows visible quickly, scroll to bottom works, no long tasks over 200 ms while scrolling                                         |
+| Database policies | `supabase test db` (pgTAP)    | Phase 1: every policy and trigger, including member A refused on member B's data                                                                       |
+| Contract          | Vitest                        | Phase 1: one Repository suite run against LocalRepository and SupabaseRepository, including every permission refusal                                   |
+| Integration       | Vitest + supabase-js          | Phase 1: two signed-in test users against local Supabase: reads, writes, refusals and Realtime delivery                                                |
+| End to end (live) | Playwright                    | Phase 1: the main flows against local Supabase with two users, including view only and a rejected forced write                                         |
 
 **Coverage:** `domain/` ≥ 90% lines; overall ≥ 70%.
 
@@ -404,7 +440,8 @@ ua-crm/
 3. No console errors or warnings in the browser.
 4. The copy follows section 3.5, and the visuals follow sections 3.2 to 3.4.
 5. `docs/PROGRESS.md` is updated; `docs/DECISIONS.md` too if a choice was made.
-6. It is committed with a conventional commit message.
+6. From Phase 1: every write has a UI check through `can`, a database policy, and a test showing another member is refused; no secret appears in the repository, logs, screenshots or docs.
+7. It is committed with a conventional commit message.
 
 ---
 
@@ -414,7 +451,7 @@ ua-crm/
 - **Build vertical slices,** smallest useful thing first. Do not build a layer nobody can see yet.
 - **At the end of each milestone:** run all tests, capture light and dark screenshots into `docs/screenshots/`, update `PROGRESS.md` with a "try this" script, and commit. Then continue.
 - **At the end of each phase:** stop and report. The founders review a demo, and feedback goes into `BACKLOG.md`. The next phase brief is then written in light of that feedback.
-- **Who decides what:** make technical decisions yourself and log them. Product decisions (what a user sees or must do) belong to the founders, so ask instead of guessing.
+- **Who decides what:** make technical decisions yourself and log them. Product decisions (what a user sees or must do) belong to the founders, so ask instead of guessing. The current code is the design source of truth (§3.2): place new things where the design already puts that kind of thing.
 - **Tests and existing behaviour:** never weaken a test to make it pass. If a test is wrong, fix it and say why in the commit. Never delete working features to finish a story.
 
 ---
@@ -427,11 +464,11 @@ Repository, toolchain, every dependency installed and smoke-tested, the design s
 
 **Exit:** the founders can click through the real look and feel, on sample data, in light and dark, and every test layer is green in CI.
 
-### Phase 1: Core CRM, live for both founders
+### Phase 1: Core CRM, live for the team
 
-Supabase (schema, RLS, Google sign-in with allowlist, Realtime) and the Supabase repository; Vercel deploy. Grid editing for every column type, add and delete rows (Trash and undo), the column manager, the sheet manager with templates and a stage editor, and adding members. History timeline, next action, tags library, WhatsApp, call and email buttons. Quick-add language with preview, smart paste and the duplicate check. Search across everything and the Today view. Import of the founders' existing sheet plus xlsx and csv; export to xlsx and PDF, plus export everything. Nightly backup.
+Brief: `docs/phases/PHASE_1.md`; plan: `docs/phases/PHASE_1_PLAN.md`. The ownership model (§2.14): everyone sees every tab, only the owner changes it, enforced in the UI, the repositories and the database. Supabase (schema, RLS, Google sign-in for listed members, Realtime, Storage) and the Supabase repository; static hosting with staging previews and manual production releases. Grid editing for every column type, add and delete rows (Trash and undo), the column manager, the sheet manager with templates and a stage editor, and adding members. History timeline, next action, tags library, WhatsApp, call and email buttons. Quick-add language with preview, smart paste and the duplicate check. Search across everything and the Today view. Import of the founders' existing sheet plus xlsx and csv; export to xlsx and PDF, plus export everything. Nightly backup.
 
-**Exit:** both founders use it daily for a week and the old spreadsheet is retired.
+**Exit:** every member signs in, works only in their own tab, can view the others' tabs, and has used it daily for a week. The old spreadsheet is retired.
 
 ### Phase 2: Connected and smart
 
