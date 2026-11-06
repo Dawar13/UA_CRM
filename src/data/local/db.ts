@@ -11,6 +11,12 @@ import type { CalendarEvent, HistoryEntry, Member, Row, Sheet, Tag } from '@/dom
 
 export const DB_NAME = 'ua-crm'
 
+/** A pair of rows marked "different person" ("a|b", ids sorted). */
+export interface NotDuplicateRecord {
+  key: string
+  ownerId: string
+}
+
 /** Small key/value records, such as `seedVersion`. */
 export interface MetaRecord {
   key: string
@@ -36,9 +42,12 @@ export class UaCrmDb extends Dexie {
   declare history: EntityTable<HistoryEntry, 'id'>
   declare calendarEvents: EntityTable<CalendarEvent, 'id'>
   declare meta: EntityTable<MetaRecord, 'key'>
+  declare notDuplicate: EntityTable<NotDuplicateRecord, 'key'>
 
   constructor(name: string = DB_NAME) {
     super(name)
     this.version(1).stores(schemaV1)
+    // Phase 1 M1.6: pairs marked "different person".
+    this.version(2).stores({ notDuplicate: 'key, ownerId' })
   }
 }

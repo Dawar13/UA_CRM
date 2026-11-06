@@ -525,13 +525,11 @@ describe('perf sheet', () => {
 })
 
 describe('methods of later milestones', () => {
-  // The Phase 1 writes are covered by the contract suite (tests/contract); these three arrive
-  // with the dedupe scorer (M1.6) and the importer (M1.8).
+  // The Phase 1 writes are covered by the contract suite (tests/contract); the importer arrives
+  // in M1.8.
   it('throw NotAvailableYet, naming the milestone', async () => {
     const r: Repository = repo
     const calls: [string, string, () => Promise<unknown>][] = [
-      ['findDuplicates', 'M1.6', () => r.findDuplicates({})],
-      ['markNotDuplicate', 'M1.6', () => r.markNotDuplicate('a', 'b', ctx)],
       ['importRows', 'M1.8', () => r.importRows({ sheetId: 's', rows: [] }, ctx)],
     ]
     for (const [name, milestone, call] of calls) {

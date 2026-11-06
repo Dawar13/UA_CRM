@@ -20,6 +20,7 @@ import {
   useState,
 } from 'react'
 import { toast } from 'sonner'
+import { useUiStore } from '@/app/uiStore'
 import { useActor } from '@/auth/AuthContext'
 import { Kbd } from '@/components/ui/Kbd'
 import { Menu, MenuContent, MenuItem, MenuTrigger } from '@/components/ui/Menu'
@@ -35,6 +36,7 @@ import {
   useUpdateColumn,
   useUpdateRow,
 } from '@/data/hooks'
+import { useRepository } from '@/data/RepositoryContext'
 import {
   type CellTextContext,
   cellPatch,
@@ -49,6 +51,7 @@ import type { NewRowValues, RowPatch } from '@/domain/rows'
 import { nextStageIndex, previousStageIndex } from '@/domain/stages'
 import type { ColumnDef, Member, Row, Sheet, Warmth } from '@/domain/types'
 import { nextWarmth } from '@/domain/warmth'
+import { reviewNewRows } from '@/features/quick-add/DuplicateReview'
 import { cn } from '@/lib/cn'
 import { isModKey } from '@/lib/platform'
 import { readJson, storageKeys, writeJson } from '@/lib/storage'
@@ -210,6 +213,7 @@ export function SheetGrid({
   const createRow = useCreateRow()
   const deleteRows = useDeleteRows()
   const pasteRows = usePasteRows()
+  const repo = useRepository()
   const updateColumn = useUpdateColumn()
   const reorderColumns = useReorderColumns()
   /** A column being resized: its id and the width so far. */
@@ -280,6 +284,12 @@ export function SheetGrid({
       col: Math.min(a.col, Math.max(colCount - 1, 0)),
     }))
   }, [lastRow, colCount])
+
+  // Quick add logs a touch with > on the active row.
+  const setActiveRowId = useUiStore((s) => s.setActiveRowId)
+  const activeRowIdForQuickAdd =
+    active.row >= 0 ? (tableRows[active.row]?.original.id ?? null) : null
+  useEffect(() => setActiveRowId(activeRowIdForQuickAdd), [activeRowIdForQuickAdd, setActiveRowId])
 
   // Selected rows that are gone (moved to Trash) leave the selection.
   useEffect(() => {
@@ -476,13 +486,17 @@ export function SheetGrid({
     if (current.rowId === null) {
       // A new row: the outcome carries its name.
       if (outcome.kind === 'patch' && typeof outcome.patch.name === 'string') {
-        createRow.mutate({
-          sheet,
-          values: { name: outcome.patch.name },
-          actorId,
-          position: rows.reduce((max, r) => Math.max(max, r.position + 1), 0),
-          id: crypto.randomUUID(),
-        })
+        createRow.mutate(
+          {
+            sheet,
+            values: { name: outcome.patch.name },
+            actorId,
+            position: rows.reduce((max, r) => Math.max(max, r.position + 1), 0),
+            id: crypto.randomUUID(),
+          },
+          // The duplicate check runs for new rows too (CLAUDE.md §2.7).
+          { onSuccess: (result) => void reviewNewRows(repo, [result.row]) },
+        )
       }
       return
     }
@@ -579,7 +593,13 @@ export function SheetGrid({
       onRefuse()
       return
     }
-    const block = parseClipboardGrid(event.clipboardData.getData('text/plain'))
+    const pasted = event.clipboardData.getData('text/plain')
+    // Smart paste: a signature or profile (several lines, no tabs) goes to quick add.
+    if (!pasted.includes('\t') && pasted.trim().includes('\n')) {
+      useUiStore.getState().pasteIntoQuickAdd(pasted)
+      return
+    }
+    const block = parseClipboardGrid(pasted)
     if (block.length === 0) return
     const startRow = Math.max(0, active.row)
     const startCol = active.row === rowCount ? 0 : active.col
@@ -628,7 +648,19 @@ export function SheetGrid({
       toast('Nothing in the paste fits these columns', { id: 'paste' })
       return
     }
-    pasteRows.mutate({ sheet, rows: items, actorId, skipped })
+    pasteRows.mutate(
+      { sheet, rows: items, actorId, skipped },
+      {
+        // Pasted rows go through the duplicate check as one review.
+        onSuccess: async (done) => {
+          const added = await Promise.all(done.created.map((id) => repo.getRow(id)))
+          await reviewNewRows(
+            repo,
+            added.filter((r): r is Row => r !== undefined),
+          )
+        },
+      },
+    )
   }
 
   // ---------- Mouse ----------
@@ -810,6 +842,14 @@ export function SheetGrid({
         }
         moveTo({ row: rowCount, col: 0 })
         startEdit(rowCount, 0, null)
+        break
+      case '/':
+        if (mod || event.altKey) return
+        if (!editable) {
+          onRefuse()
+          break
+        }
+        useUiStore.getState().requestQuickAdd()
         break
       case ']':
       case '[': {

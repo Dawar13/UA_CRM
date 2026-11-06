@@ -34,6 +34,19 @@ export function useGlobalShortcuts(): void {
         ui.togglePanel()
         return
       }
+      if (
+        event.key === '/' &&
+        !isModKey(event) &&
+        !event.altKey &&
+        !isTypingTarget(event.target) &&
+        !ui.paletteOpen &&
+        !document.querySelector('[role="dialog"]') &&
+        document.querySelector('[data-testid="quick-add"]')
+      ) {
+        event.preventDefault()
+        ui.requestQuickAdd()
+        return
+      }
       if (event.key === '?' && !isModKey(event) && !isTypingTarget(event.target)) {
         if (ui.paletteOpen) return
         event.preventDefault()

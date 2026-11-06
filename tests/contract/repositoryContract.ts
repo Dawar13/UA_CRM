@@ -299,6 +299,34 @@ export function runRepositoryContract(
       })
     })
 
+    describe('duplicates', () => {
+      it('finds hard and soft matches in every tab, and forgets pairs marked different', async () => {
+        const hard = await dhruv.findDuplicates({ name: 'Someone', phone: '098450 12345' })
+        expect(
+          hard.map((c) => [c.level, c.reason, c.location.row.id, c.location.member.id]),
+        ).toEqual([['hard', 'phone', rohan.id, h.memberIds.dawar]])
+        const soft = await dhruv.findDuplicates({ name: 'Dr Rohan Mehta' })
+        expect(soft.map((c) => [c.level, c.reason])).toEqual([['soft', 'name']])
+        expect(await dhruv.findDuplicates({ name: 'Rohan' })).toEqual([])
+
+        // Different person: Dhruv keeps his own Rohan Mehta and the pair is remembered.
+        const mine = await dhruv.createRow(
+          { sheetId: dhruvConnectors.id, values: { name: 'Rohan Mehta' } },
+          ctx('dhruv', 1),
+        )
+        expect(
+          (await dhruv.findDuplicates({ name: 'Rohan Mehta' }, { selfId: mine.row.id })).map(
+            (c) => c.location.row.id,
+          ),
+        ).toEqual([rohan.id])
+        await dhruv.markNotDuplicate(mine.row.id, rohan.id, ctx('dhruv', 2))
+        expect(
+          await dhruv.findDuplicates({ name: 'Rohan Mehta' }, { selfId: mine.row.id }),
+        ).toEqual([])
+        await expectDenied(asha.markNotDuplicate(mine.row.id, rohan.id, ctx('asha')), 'not-owner')
+      })
+    })
+
     describe('files', () => {
       it('the owner attaches and removes files; others can open them', async () => {
         const data = new Blob(['UA pilot proposal'], { type: 'text/plain' })

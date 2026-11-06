@@ -19,6 +19,15 @@ interface UiState {
   shortcutsOpen: boolean
   /** A row briefly highlighted after a jump from search or a link chip. */
   flashRowId: string | null
+  /** The grid's active row, for logging a touch with `>` in quick add. */
+  activeRowId: string | null
+  setActiveRowId: (rowId: string | null) => void
+  /** Bumped to open and focus quick add (the / key). */
+  quickAddRequest: number
+  requestQuickAdd: () => void
+  /** Text pasted into the grid that reads like a contact (smart paste). */
+  quickAddPaste: { text: string; n: number } | null
+  pasteIntoQuickAdd: (text: string) => void
   /** The tag each sheet is filtered by, if any (for this session). */
   tagFilters: Record<string, string | null>
   setTagFilter: (sheetId: string, tagId: string | null) => void
@@ -62,6 +71,13 @@ export const useUiStore = create<UiState>((set, get) => ({
   paletteOpen: false,
   shortcutsOpen: false,
   flashRowId: null,
+  activeRowId: null,
+  setActiveRowId: (rowId) => set({ activeRowId: rowId }),
+  quickAddRequest: 0,
+  requestQuickAdd: () => set((s) => ({ quickAddRequest: s.quickAddRequest + 1 })),
+  quickAddPaste: null,
+  pasteIntoQuickAdd: (text) =>
+    set((s) => ({ quickAddPaste: { text, n: (s.quickAddPaste?.n ?? 0) + 1 } })),
   tagFilters: {},
   setTagFilter: (sheetId, tagId) =>
     set((s) => ({ tagFilters: { ...s.tagFilters, [sheetId]: tagId } })),

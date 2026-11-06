@@ -101,6 +101,8 @@ export const parseMember = (value: unknown): Member => memberSchema.parse(value)
 
 const locationSchema = z.object({ row: rowSchema, sheet: sheetSchema, member: memberSchema })
 export const parseLocation = (value: unknown): RowLocation => locationSchema.parse(value)
+export const parseLocations = (value: unknown): RowLocation[] =>
+  z.array(locationSchema).parse(value)
 
 const searchFields = [
   'name',

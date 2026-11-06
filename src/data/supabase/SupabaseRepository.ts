@@ -6,17 +6,11 @@
  * in the database.
  */
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { formatPhone, searchTokens } from '@/domain/identity'
+import { scoreDuplicate } from '@/domain/dedupe/score'
+import { formatPhone, normalisePhone, searchTokens } from '@/domain/identity'
 import { cleanMemberEmail, cleanMemberName, MemberRuleError } from '@/domain/members'
 import { type Action, type Actor, assertCan } from '@/domain/permissions'
-import {
-  copiedRowValues,
-  type NewRowValues,
-  newRow,
-  patchRow,
-  type RowPatch,
-  RowValidationError,
-} from '@/domain/rows'
+import { copiedRowValues, newRow, patchRow, type RowPatch, RowValidationError } from '@/domain/rows'
 import {
   convertColumn as domainConvertColumn,
   editStages as domainEditStages,
@@ -66,6 +60,7 @@ import {
   type ColumnPatch,
   type DateRange,
   type DuplicateCandidate,
+  type DuplicateQuery,
   FileTooLargeError,
   type HistoryPatch,
   type ImportBatch,
@@ -91,6 +86,7 @@ import {
   parseHistory,
   parseHistoryList,
   parseLocation,
+  parseLocations,
   parseMember,
   parseRow,
   parseRows,
@@ -894,11 +890,49 @@ export class SupabaseRepository implements Repository {
 
   // ---------- Later in Phase 1 ----------
 
-  findDuplicates(_values: NewRowValues): Promise<DuplicateCandidate[]> {
-    return Promise.reject(new NotAvailableYet('findDuplicates', 'M1.6'))
+  async findDuplicates(
+    query: DuplicateQuery,
+    options: { selfId?: Id } = {},
+  ): Promise<DuplicateCandidate[]> {
+    const phone = query.phone ? (normalisePhone(query.phone) ?? '') : ''
+    const value = await this.rpc('api_dedupe_candidates', {
+      p_name: query.name,
+      p_phone: phone || null,
+      p_email: query.email ?? null,
+      p_linkedin: query.linkedin ?? null,
+      p_company: query.company ?? null,
+      p_self: options.selfId ?? null,
+    })
+    const candidates = parseLocations(value)
+    const found: DuplicateCandidate[] = []
+    for (const location of candidates) {
+      if (location.row.id === options.selfId) continue
+      const match = scoreDuplicate(query, location.row)
+      if (match) found.push({ location, level: match.level, reason: match.reason })
+    }
+    return found.sort((a, b) => (a.level === b.level ? 0 : a.level === 'hard' ? -1 : 1))
   }
-  markNotDuplicate(_rowIdA: Id, _rowIdB: Id, _ctx: MutationContext): Promise<void> {
-    return Promise.reject(new NotAvailableYet('markNotDuplicate', 'M1.6'))
+
+  async markNotDuplicate(rowIdA: Id, rowIdB: Id, _ctx: MutationContext): Promise<void> {
+    const [actor, a, b] = await Promise.all([
+      this.actor(),
+      this.client.from('rows').select('id, owner_id').eq('id', rowIdA).maybeSingle(),
+      this.client.from('rows').select('id, owner_id').eq('id', rowIdB).maybeSingle(),
+    ])
+    const rowA = this.check(a) as { id: string; owner_id: string } | null
+    const rowB = this.check(b) as { id: string; owner_id: string } | null
+    if (!rowA) throw new NotFoundError('Row', rowIdA)
+    if (!rowB) throw new NotFoundError('Row', rowIdB)
+    assertCan(actor, 'markNotDuplicate', {
+      rows: [{ memberId: rowA.owner_id }, { memberId: rowB.owner_id }],
+    })
+    const [first, second] = rowIdA < rowIdB ? [rowIdA, rowIdB] : [rowIdB, rowIdA]
+    const inserted = await this.client
+      .from('not_duplicate_pairs')
+      .insert({ row_a: first, row_b: second })
+    if (inserted.error && inserted.error.code !== '23505') {
+      throw toDomainError(inserted.error, 'markNotDuplicate')
+    }
   }
   importRows(_batch: ImportBatch, _ctx: MutationContext): Promise<Row[]> {
     return Promise.reject(new NotAvailableYet('importRows', 'M1.8'))

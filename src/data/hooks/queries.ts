@@ -68,6 +68,32 @@ export function useTagMap(): Map<Id, Tag> {
   return useMemo(() => new Map((data ?? []).map((tag) => [tag.id, tag])), [data])
 }
 
+/** Everyone in the CRM with where they live, for `via:` and person links in quick add. */
+export function usePeople(): UseQueryResult<{ id: Id; name: string; where: string }[]> {
+  const repo = useRepository()
+  return useQuery({
+    queryKey: queryKeys.people(),
+    queryFn: async () => {
+      const members = await repo.listMembers()
+      const lists = await Promise.all(
+        members.map(async (member) => {
+          const [sheets, rows] = await Promise.all([
+            repo.listSheets(member.id),
+            repo.listMemberRows(member.id),
+          ])
+          const sheetName = new Map(sheets.map((s) => [s.id, s.name]))
+          return rows.map((r) => ({
+            id: r.id,
+            name: r.name,
+            where: `${member.name} · ${sheetName.get(r.sheetId) ?? ''}`,
+          }))
+        }),
+      )
+      return lists.flat()
+    },
+  })
+}
+
 /** Rows elsewhere that name this row as the same person. */
 export function useSamePersonOf(rowId: Id | undefined): UseQueryResult<Id[]> {
   const repo = useRepository()

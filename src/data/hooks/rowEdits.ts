@@ -304,7 +304,7 @@ async function tagIdsFor(repo: Repository, names: readonly string[], actorId: Id
   return ids
 }
 
-interface PasteUndo {
+export interface PasteUndo {
   updated: {
     rowId: Id
     patch: RowPatch

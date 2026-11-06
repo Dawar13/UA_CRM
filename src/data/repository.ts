@@ -110,10 +110,20 @@ export interface MemberPatch {
   isAdmin?: boolean
 }
 
+/** A row anywhere that a new or edited contact may duplicate, with where it lives. */
 export interface DuplicateCandidate {
-  row: Row
+  location: RowLocation
   level: 'hard' | 'soft'
   reason: 'phone' | 'email' | 'linkedin' | 'name' | 'first-name-company'
+}
+
+/** What the duplicate check compares. */
+export interface DuplicateQuery {
+  name: string
+  phone?: string
+  email?: string
+  linkedin?: string
+  company?: string
 }
 export interface ImportBatch {
   sheetId: Id
@@ -290,9 +300,12 @@ export interface Repository {
   listTrash(ctx: MutationContext): Promise<TrashItem[]>
 
   // ---------- Later in Phase 1 (both repositories gain them together, with contract tests) ----------
-  /** M1.6, with the dedupe scorer. */
-  findDuplicates(values: NewRowValues): Promise<DuplicateCandidate[]>
-  /** M1.6. */
+  /**
+   * Rows in every tab that `query` may duplicate (CLAUDE.md §2.7), hard matches first. With
+   * `selfId` (a saved row), the row itself and pairs marked "different person" are left out.
+   */
+  findDuplicates(query: DuplicateQuery, options?: { selfId?: Id }): Promise<DuplicateCandidate[]>
+  /** "Different person": the pair is never flagged again. Needs one of the two rows. */
   markNotDuplicate(rowIdA: Id, rowIdB: Id, ctx: MutationContext): Promise<void>
   /** M1.8, with the importer. */
   importRows(batch: ImportBatch, ctx: MutationContext): Promise<Row[]>

@@ -9,6 +9,7 @@ import { useActor } from '@/auth/AuthContext'
 import { Button } from '@/components/ui/Button'
 import { Menu, MenuContent, MenuItem, MenuLabel, MenuTrigger } from '@/components/ui/Menu'
 import { useCopyRow, useMembers, useSheets } from '@/data/hooks'
+import { useRepository } from '@/data/RepositoryContext'
 import { can, PermissionDenied } from '@/domain/permissions'
 import type { Row } from '@/domain/types'
 
@@ -18,6 +19,7 @@ export function CopyToMySheet({ row }: { row: Row }) {
   const { data: members = [] } = useMembers()
   const copy = useCopyRow()
   const jump = useJumpToRow()
+  const repo = useRepository()
   if (!actor || sheets.length === 0) return null
   if (!can(actor, 'copyToMySheet', { source: row, destination: { memberId: actor.id } })) {
     return null
@@ -37,26 +39,61 @@ export function CopyToMySheet({ row }: { row: Row }) {
         {sheets.map((sheet) => (
           <MenuItem
             key={sheet.id}
-            onSelect={() =>
-              copy.mutate(
-                { row, destination: sheet, actorId: actor.id },
+            onSelect={async () => {
+              const doCopy = () =>
+                copy.mutate(
+                  { row, destination: sheet, actorId: actor.id },
+                  {
+                    onSuccess: (result) =>
+                      toast(`Copied to ${sheet.name}`, {
+                        action: {
+                          label: 'Open',
+                          onClick: () => jump({ member: me, sheet, rowId: result.row.id }),
+                        },
+                      }),
+                    onError: (error) =>
+                      toast.error(
+                        error instanceof PermissionDenied
+                          ? error.message
+                          : "Couldn't copy the contact. Nothing was added.",
+                      ),
+                  },
+                )
+              // The duplicate check: do you have them already?
+              const found = await repo
+                .findDuplicates({
+                  name: row.name,
+                  phone: row.phone,
+                  email: row.email,
+                  linkedin: row.linkedin,
+                  company: row.company,
+                })
+                .catch(() => [])
+              const yours = found.filter(
+                (c) => c.location.member.id === actor.id && c.location.row.id !== row.id,
+              )
+              const first = yours[0]
+              if (!first) {
+                doCopy()
+                return
+              }
+              toast(
+                `You may already have ${row.name}: ${first.location.row.name} in your ${first.location.sheet.name}`,
                 {
-                  onSuccess: (result) =>
-                    toast(`Copied to ${sheet.name}`, {
-                      action: {
-                        label: 'Open',
-                        onClick: () => jump({ member: me, sheet, rowId: result.row.id }),
-                      },
-                    }),
-                  onError: (error) =>
-                    toast.error(
-                      error instanceof PermissionDenied
-                        ? error.message
-                        : "Couldn't copy the contact. Nothing was added.",
-                    ),
+                  duration: 12_000,
+                  action: { label: 'Copy anyway', onClick: doCopy },
+                  cancel: {
+                    label: 'Open yours',
+                    onClick: () =>
+                      jump({
+                        member: first.location.member,
+                        sheet: first.location.sheet,
+                        rowId: first.location.row.id,
+                      }),
+                  },
                 },
               )
-            }
+            }}
           >
             {sheet.name}
           </MenuItem>

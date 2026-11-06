@@ -4,17 +4,11 @@
  * too. Methods of later milestones throw NotAvailableYet.
  */
 import { Dexie } from 'dexie'
+import { findDuplicateMatches, pairKey } from '@/domain/dedupe/score'
 import { formatPhone, normaliseName, searchTokens } from '@/domain/identity'
 import { cleanMemberEmail, cleanMemberName, MemberRuleError } from '@/domain/members'
 import { type Actor, assertCan } from '@/domain/permissions'
-import {
-  copiedRowValues,
-  type NewRowValues,
-  newRow,
-  patchRow,
-  type RowPatch,
-  RowValidationError,
-} from '@/domain/rows'
+import { copiedRowValues, newRow, patchRow, type RowPatch, RowValidationError } from '@/domain/rows'
 import {
   convertColumn as domainConvertColumn,
   editStages as domainEditStages,
@@ -64,6 +58,7 @@ import {
   type ColumnPatch,
   type DateRange,
   type DuplicateCandidate,
+  type DuplicateQuery,
   FileTooLargeError,
   type HistoryPatch,
   type ImportBatch,
@@ -1258,11 +1253,43 @@ export class LocalRepository implements Repository {
 
   // ---------- Later in Phase 1 ----------
 
-  findDuplicates(_values: NewRowValues): Promise<DuplicateCandidate[]> {
-    return notYet('findDuplicates', 'M1.6')
+  async findDuplicates(
+    query: DuplicateQuery,
+    options: { selfId?: Id } = {},
+  ): Promise<DuplicateCandidate[]> {
+    const [rows, sheets, members, pairs] = await Promise.all([
+      this.db.rows.toArray(),
+      this.db.sheets.toArray(),
+      this.db.members.toArray(),
+      this.db.notDuplicate.toArray(),
+    ])
+    const sheetById = new Map(sheets.filter((s) => s.deletedAt === null).map((s) => [s.id, s]))
+    const memberById = new Map(members.map((m) => [m.id, m]))
+    const live = rows.filter((r) => r.deletedAt === null && sheetById.has(r.sheetId))
+    const byId = new Map(live.map((r) => [r.id, r]))
+    const matches = findDuplicateMatches(query, live, {
+      selfId: options.selfId,
+      notDuplicate: new Set(pairs.map((p) => p.key)),
+    })
+    const found: DuplicateCandidate[] = []
+    for (const match of matches) {
+      const row = byId.get(match.rowId)
+      const sheet = row ? sheetById.get(row.sheetId) : undefined
+      const member = row ? memberById.get(row.memberId) : undefined
+      if (row && sheet && member) {
+        found.push({ location: { row, sheet, member }, level: match.level, reason: match.reason })
+      }
+    }
+    return found
   }
-  markNotDuplicate(_rowIdA: Id, _rowIdB: Id, _ctx: MutationContext): Promise<void> {
-    return notYet('markNotDuplicate', 'M1.6')
+
+  async markNotDuplicate(rowIdA: Id, rowIdB: Id, ctx: MutationContext): Promise<void> {
+    const actor = await this.actor(ctx)
+    const [a, b] = await this.db.rows.bulkGet([rowIdA, rowIdB])
+    if (!a) throw new RowNotFoundError(rowIdA)
+    if (!b) throw new RowNotFoundError(rowIdB)
+    assertCan(actor, 'markNotDuplicate', { rows: [a, b] })
+    await this.db.notDuplicate.put({ key: pairKey(rowIdA, rowIdB), ownerId: ctx.actorId })
   }
   importRows(_batch: ImportBatch, _ctx: MutationContext): Promise<Row[]> {
     return notYet('importRows', 'M1.8')

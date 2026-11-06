@@ -34,6 +34,7 @@ export {
   useMemberHistory,
   useMemberRows,
   useMembers,
+  usePeople,
   useRow,
   useRowCounts,
   useRowLocation,

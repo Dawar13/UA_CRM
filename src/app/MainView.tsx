@@ -6,6 +6,7 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { useMembers, useRows, useSheets } from '@/data/hooks'
 import type { Member, Row, Sheet } from '@/domain/types'
 import { SheetGrid } from '@/features/grid/SheetGrid'
+import { QuickAdd } from '@/features/quick-add/QuickAdd'
 import { ExpandedRow } from '@/features/row-detail/ExpandedRow'
 import { SheetSummary, SheetSummarySkeleton } from '@/features/sheet-summary/SheetSummary'
 import { ColumnsDialog } from '@/features/sheets/ColumnsDialog'
@@ -96,6 +97,7 @@ function SheetContent({ member, sheet, index }: { member: Member; sheet: Sheet; 
   const [stagesOpen, setStagesOpen] = useState(false)
   const [columnsOpen, setColumnsOpen] = useState(false)
   const filterTag = useUiStore((s) => s.tagFilters[sheet.id] ?? null)
+  const activeRowId = useUiStore((s) => s.activeRowId)
 
   useEffect(() => {
     if (!flashRowId) return
@@ -159,6 +161,9 @@ function SheetContent({ member, sheet, index }: { member: Member; sheet: Sheet; 
       ) : null}
       {gate.editable ? (
         <ColumnsDialog sheet={sheet} open={columnsOpen} onOpenChange={setColumnsOpen} />
+      ) : null}
+      {gate.editable ? (
+        <QuickAdd member={member} sheet={sheet} selectedRowId={expandedRowId ?? activeRowId} />
       ) : null}
       {/* The grid scrolls inside whatever height the front leaves. */}
       <div className="relative min-h-0 flex-1">

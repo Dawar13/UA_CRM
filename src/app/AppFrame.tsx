@@ -5,6 +5,7 @@ import { AuthContext, useActor } from '@/auth/AuthContext'
 import { useMembers } from '@/data/hooks'
 import { useRepository } from '@/data/RepositoryContext'
 import { CommandPalette } from '@/features/command-palette/CommandPalette'
+import { DuplicateReviewDialog } from '@/features/quick-add/DuplicateReview'
 import { testHooksEnabled } from '@/lib/env'
 import { ShellSkeleton } from './MainView'
 import { NotFound } from './NotFound'
@@ -70,6 +71,7 @@ export function AppFrame() {
       <Outlet />
       <CommandPalette currentMember={currentMember} />
       <ShortcutSheet />
+      <DuplicateReviewDialog />
       <TestHooks />
     </>
   )
