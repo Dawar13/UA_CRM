@@ -115,9 +115,9 @@ jobs:
           retention-days: 14
 
   db:
-    name: Database policies on local Supabase
+    name: Database policies, Supabase contract and live browser tests on local Supabase
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
 
@@ -130,6 +130,38 @@ jobs:
 
       - name: Database policy tests (pgTAP)
         run: pnpm exec supabase test db
+
+      - name: Point the tests at local Supabase
+        # The local stack's own throwaway keys, never the project's.
+        run: |
+          pnpm exec supabase status -o env | grep -E '^[A-Z_]+=' > "$RUNNER_TEMP/supabase.env"
+          set -a; . "$RUNNER_TEMP/supabase.env"; set +a
+          {
+            echo "UA_TEST_SUPABASE_URL=$API_URL"
+            echo "UA_TEST_SUPABASE_PUBLISHABLE_KEY=${PUBLISHABLE_KEY:-$ANON_KEY}"
+            echo "UA_TEST_SUPABASE_SECRET_KEY=${SECRET_KEY:-$SERVICE_ROLE_KEY}"
+          } >> "$GITHUB_ENV"
+          rm "$RUNNER_TEMP/supabase.env"
+
+      - name: Repository contract against Supabase
+        # The same suite LocalRepository passes, with four signed-in members and every refusal.
+        run: pnpm exec vitest run --project contract tests/contract/supabase.contract.test.ts
+
+      - name: Install Chromium for the live browser tests
+        if: ${{ !cancelled() }}
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Live browser tests (two members, view only, a forced write refused, Realtime)
+        if: ${{ !cancelled() }}
+        run: pnpm test:e2e:live
+
+      - name: Upload live test traces
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-results-live
+          path: test-results-live/
+          retention-days: 14
 
       - name: Stop local Supabase
         if: ${{ always() }}

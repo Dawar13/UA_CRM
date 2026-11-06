@@ -345,9 +345,14 @@ export class SupabaseRepository implements Repository {
   // ---------- Rows ----------
 
   async createRow(input: NewRowInput, ctx: MutationContext): Promise<MutationResult> {
-    const [actor, sheet] = await Promise.all([this.actor(), this.liveSheet(input.sheetId)])
+    // One round trip for what the row needs, then the save (the policies refuse a foreign sheet
+    // whatever the position read returned).
+    const [actor, sheet, position] = await Promise.all([
+      this.actor(),
+      this.liveSheet(input.sheetId),
+      this.nextRowPosition(input.sheetId),
+    ])
     assertCan(actor, 'addRow', sheet)
-    const position = await this.nextRowPosition(sheet.id)
     const change = newRow(
       sheet,
       input.values,

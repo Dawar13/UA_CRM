@@ -23,6 +23,7 @@
     "test:visual": "playwright test --project=desktop --project=narrow tests/visual",
     "test:visual:update": "tsx scripts/visual-update.ts",
     "test:perf": "playwright test --project=desktop tests/perf",
+    "test:e2e:live": "playwright test --config playwright.live.config.ts",
     "test:all": "pnpm lint && pnpm typecheck && pnpm test:coverage && pnpm test:e2e && pnpm test:a11y && pnpm test:visual && pnpm test:perf && pnpm build",
     "tokens": "tsx scripts/generate-tokens.ts",
     "prepare": "lefthook install"

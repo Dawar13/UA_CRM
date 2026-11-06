@@ -53,6 +53,15 @@ function SupabaseSession({ client, children }: { client: SupabaseClient; childre
       live.stop()
     }
   }, [client, queryClient, repository])
+  // A save takes a round trip or two. Closing or reloading the tab in that moment would drop it
+  // silently, so the browser asks first (CLAUDE.md §3.1, never lose typed text).
+  useEffect(() => {
+    const guard = (event: BeforeUnloadEvent) => {
+      if (queryClient.isMutating() > 0) event.preventDefault()
+    }
+    window.addEventListener('beforeunload', guard)
+    return () => window.removeEventListener('beforeunload', guard)
+  }, [queryClient])
   return (
     <RepositoryProvider repository={repository} fallback={<ShellSkeleton />}>
       {children}

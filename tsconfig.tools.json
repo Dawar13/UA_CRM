@@ -30,6 +30,7 @@
     "vite.config.ts",
     "vitest.config.ts",
     "playwright.config.ts",
+    "playwright.live.config.ts",
     "scripts",
     "tests",
     "src"
