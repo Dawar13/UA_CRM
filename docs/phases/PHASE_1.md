@@ -5,7 +5,7 @@ Read `CLAUDE.md`, `docs/PROGRESS.md`, `docs/DECISIONS.md` and the Phase 0 report
 ## Goal
 
 Turn the Phase 0 skeleton into the CRM the founders use every day:
-- real accounts and Google sign-in;
+- real accounts and sign-in;
 - data in Supabase, deployed on Vercel;
 - full editing of rows, columns, sheets and stages;
 - history, next actions, tags and links;
@@ -56,7 +56,7 @@ This is a new product rule. Add it to the product model in `CLAUDE.md` during M1
 
 **Members**
 - A member is either an admin or a regular member. Both founders start as admins.
-- Admins can add a member (name and Google email) and deactivate a member. Admins get no extra rights over anyone's data.
+- Admins can add a member (name and email) and deactivate a member. Admins get no extra rights over anyone's data.
 - A deactivated member cannot sign in. Their tab stays visible to everyone, marked inactive and view only.
 - Transferring sheet ownership goes to `BACKLOG.md`.
 
@@ -74,24 +74,19 @@ In another member's tab:
 
 ---
 
-## Founder setup (about 30 minutes, needed before M1.1 step 3)
+## Founder setup (about 10 minutes, needed before M1.1 step 3)
 
-When you reach M1.1 step 3, stop and ask the founders to do the following. Then collect the values from them into local `.env` files, Vercel and GitHub secrets. Never commit secrets and never paste them into docs.
+Simplified on 6 Nov 2026 (D-035): one Supabase project, email and password sign-in, no Google Cloud setup until Phase 2. Never commit secrets and never paste them into docs or chat.
 
-1. **GitHub:** the `ua-crm` repository (private), plus a second private repository, `ua-crm-backups`.
-2. **Supabase:**
-   - Two free projects in the Mumbai region: `ua-crm-prod` and `ua-crm-staging`.
-   - For each, note the project URL, the publishable (anon) key, the secret (service role) key and the database password.
-3. **Google Cloud:**
-   - A project named "UA Internal CRM".
-   - The consent screen: External, with the publishing status set to In production.
-   - An OAuth client of type Web application. Its authorised redirect URIs are each Supabase project's `https://<ref>.supabase.co/auth/v1/callback`.
-   - Paste the client ID and secret into Supabase Auth, under Google provider, for both projects.
-   - Sign-in uses only the basic scopes (openid, email, profile), so there is no unverified-app screen in Phase 1. The calendar scope is added in Phase 2.
-4. **Vercel:**
+1. **Supabase:** one free project in the Mumbai region, `ua-crm`.
+   - Authentication → Sign In / Providers: Email on, "Allow new users to sign up" off.
+   - Authentication → Users → Add user → Create new user: each founder's email and a password, with "Auto Confirm User" ticked.
+   - Put the project URL and the publishable key into `.env.local` at the repository root (gitignored), as `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`. The secret key and the database password stay in Supabase until the release and backup workflows ask for them as GitHub secrets.
+2. **Vercel:**
    - Import the repository.
-   - Set the Production environment variables from the prod project and the Preview variables from the staging project.
-   - In each Supabase project's Auth URL settings, add the production URL, the Vercel preview URL pattern and `http://localhost:5173`.
+   - Production environment variables: `VITE_DATA=supabase`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`. Previews get none, so they run on sample data.
+   - In Supabase, Authentication → URL Configuration: the production URL as the site URL, plus `http://localhost:5173`.
+3. **GitHub** (when the nightly backup is built): a private repository, `ua-crm-backups`.
 
 ---
 
@@ -118,7 +113,7 @@ Every milestone ends with: all tests green, light and dark screenshots of the ne
 
 ### M1.1 Backend, sign-in and permissions in the database
 
-1. **Local Supabase.** Set up the Supabase CLI with a local stack for development and tests. Email and password sign-in is enabled **only in the local config**, for test users; production allows Google only.
+1. **Local Supabase.** Set up the Supabase CLI with a local stack for development and tests. Sign-in is email and password, in the local config and in production (D-035); logins are created by an admin.
 2. **Schema migrations** (`supabase/migrations/`) that mirror the existing domain types: members, sheets, columns, stages, rows, tags, row tags, history, row links, files, not-duplicate pairs.
    - **Ownership:** every owned table carries `owner_id` (denormalised from the sheet), so policies stay simple and fast.
    - **Last touch:** `rows.last_touch_at` is maintained by a trigger on history insert and delete. It is never written by the client.
@@ -132,11 +127,11 @@ Every milestone ends with: all tests green, light and dark screenshots of the ne
    - **Tags:** a security-definer function enforces the rename, recolour and delete rule.
    - **Links:** the source row must be yours.
    - **Members:** only admins can insert members or change `active` and `is_admin`. Nobody can change their own `is_admin`.
-   - A Google user who is not an active member can read nothing and write nothing.
+   - A signed-in user who is not an active member can read nothing and write nothing.
 5. **Sign-in:**
-   - Google through Supabase Auth, with the redirect flow (not a popup).
+   - Email and password through Supabase Auth (D-035). Google sign-in joins with Calendar in Phase 2.
    - A sign-in screen in the current design.
-   - A non-member who signs in sees "This Google account isn't on the UA team list. Ask a founder to add you." and is signed out.
+   - A user who signs in but is not an active member sees "This account isn't on the UA team list. Ask a founder to add you." and is signed out.
    - The session persists. Sign out sits in the account menu.
    - The signed-in member's tab is the default landing tab.
 6. **`SupabaseRepository`** implements the full Repository interface. `LocalRepository` is brought up to the full interface too, and **enforces the same ownership rules in code**, so UI tests in local mode catch permission leaks.
@@ -146,7 +141,7 @@ Every milestone ends with: all tests green, light and dark screenshots of the ne
    - When the connection drops, show a quiet offline notice and block edits until it is back. Do not queue writes.
    - A failed write rolls back and says what happened in plain words.
 9. **Deploy:**
-   - Vercel builds previews against staging.
+   - Vercel builds previews on sample data (local mode); there is no staging project (D-035).
    - Production releases are manual: one GitHub workflow applies the migrations to prod, then triggers the production deploy.
    - Migrations must stay backward compatible for one release (expand first, contract later).
 10. **CI:** add a `db` job that starts local Supabase and runs:
@@ -216,7 +211,7 @@ All of this applies only in your own tab.
    - Add, rename, reorder and remove, and mark which stage is the win.
    - Removing a stage that rows sit at asks where those rows should go.
 4. **Members (admins only):**
-   - Add a member by name and Google email, deactivate, reactivate.
+   - Add a member by name and email, deactivate, reactivate. Their login is created in the Supabase dashboard.
    - A new member's tab appears for everyone live.
 
 ### M1.5 Contact essentials
@@ -290,7 +285,7 @@ All of this applies only in your own tab.
 4. **Nightly backup** (a GitHub Actions cron at 02:00 IST):
    - Dump the prod database with the Supabase CLI into `ua-crm-backups`, keeping the last 30 dumps.
    - Fail loudly through GitHub's failure notifications.
-   - Write `docs/RUNBOOK.md`, explaining how to restore a dump into staging and then prod, and test the restore once on staging.
+   - Write `docs/RUNBOOK.md`, explaining how to restore a dump, and test the restore once into a scratch free project.
    - Record in `DECISIONS.md` how Storage files are backed up within free limits.
    - The daily job also keeps the free Supabase project from pausing.
 5. **Launch checklist:**

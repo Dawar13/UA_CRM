@@ -96,7 +96,7 @@ describe('validateRowFields', () => {
       fields: {
         plantLocation: 'Hosur',
         archetype: 'Foundries and forging shops',
-        turnoverBand: '₹50–250 Cr',
+        turnoverBand: 'Medium · ₹100–500 Cr',
         roleInDeal: 'Decision maker',
         pain: 'Unplanned downtime on 4 heading lines',
         wedgeAgent: 'Maintenance',

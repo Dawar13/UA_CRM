@@ -237,3 +237,5 @@ Four questions for the founders (plan §5): hosting provider, the private reposi
 ### Founder feedback, 6 Nov 2026
 
 - **Names without initials** (D-034): the initials tile beside every name is gone. Names stand alone in the grid, search, link chips, calendar chips and the member switch. Try it: open the app in light and dark; each row starts with the name.
+- **Turnover bands** (D-035): Customers now offer Micro < ₹10 Cr, Small ₹10–100 Cr, Medium ₹100–500 Cr and Large > ₹500 Cr, after India's MSME limits. Try it: scroll the Customers grid right to the Turnover band column; the sample data reseeds on the next load.
+- **Light sign-in** (D-035): email and password, logins created in the Supabase dashboard, one Supabase project and no staging. The founder setup in `docs/phases/PHASE_1.md` is now about 10 minutes and needs no Google Cloud project.

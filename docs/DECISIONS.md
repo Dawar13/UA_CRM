@@ -401,3 +401,17 @@ Container jobs first make sure git is installed (otherwise checkout falls back t
 **Decision.** Names stand alone everywhere a person appears: grid rows, search results, link chips in the expanded row, contact chips on calendar events and the member switch in the header. `AvatarInitials`, the `initials()` helper, the avatar gradient tokens and the Avatars section of `/design` are removed. Chips that held a tile keep their shape with even padding.
 
 **Consequences.** New surfaces that name a person (the Today view, the account menu, the Team dialog) show the name as text, with no tile. The visual baselines for the grid, the header, the palette and `/design` change, and the `design-avatars` baselines are gone.
+
+## D-035 · 6 Nov 2026 · Email sign-in, one Supabase project, MSME turnover bands
+
+**Context.** The founders want a better spreadsheet first and light sign-in: "we don't need very hard sign ins". Google sign-in needs a Google Cloud OAuth app before anyone can sign in, and the plan had a second Supabase project for staging. They also chose the turnover bands that D-032 left open.
+
+**Decision.**
+
+- **Sign-in is email and password** through Supabase Auth. Sign-ups are off; an admin creates each login in the Supabase dashboard ("Auto Confirm User"). Each person signs in once per browser and the session persists. Google sign-in joins in Phase 2, when the Calendar needs a Google app anyway; the same email keeps the same member.
+- **One Supabase project** (`ua-crm`), with no staging project. Previews run on sample data in local mode. The pgTAP, contract and live tests run against the local Supabase that CI starts, so testing does not need a hosted second project.
+- **Strangers still get nothing.** Row-level security matches the signed-in email against active members, so a login without a membership reads and writes nothing. The `before_user_created` hook (D-033) stays in the schema and in the CI config as a second guard; it no longer needs switching on in the hosted project.
+- **The first members** are added once in the Supabase SQL editor, which runs without a member and passes the members guard. Real emails never go into a migration or seed, because the repository is public.
+- **Turnover bands** follow India's MSME turnover limits as revised in 2025: Micro < ₹10 Cr, Small ₹10–100 Cr, Medium ₹100–500 Cr, Large > ₹500 Cr. The column widens to 180px to fit. Sample rows moved to the nearest band and the seed version is 5, so local data reseeds.
+
+**Consequences.** Founder setup drops to about 10 minutes and needs no Google Cloud project. Adding a member is two steps: the member row in the app, then their login in the dashboard. This supersedes the staging project in D-032 and the hosted hook setup in D-033.

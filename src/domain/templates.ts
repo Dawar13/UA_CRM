@@ -27,14 +27,14 @@ export const customerArchetypes: readonly string[] = [
 ]
 
 /**
- * Annual turnover bands for Customers. CLAUDE.md names the column but not the bands; these
- * follow the Indian MSME cut-offs loosely (small and medium plants under ₹250 Cr).
+ * Annual turnover bands for Customers, chosen by the founders (D-035). They follow India's MSME
+ * turnover limits as revised in 2025: micro up to ₹10 Cr, small up to ₹100 Cr, medium up to ₹500 Cr.
  */
 export const turnoverBands: readonly string[] = [
-  '< ₹50 Cr',
-  '₹50–250 Cr',
-  '₹250–1,000 Cr',
-  '> ₹1,000 Cr',
+  'Micro · < ₹10 Cr',
+  'Small · ₹10–100 Cr',
+  'Medium · ₹100–500 Cr',
+  'Large · > ₹500 Cr',
 ]
 
 export interface TemplateDef {
@@ -69,7 +69,7 @@ export const templates: Readonly<Record<TemplateKey, TemplateDef>> = {
     extraColumns: [
       extra('plantLocation', 'Plant location', 'text', 150),
       extra('archetype', 'Archetype', 'dropdown', 220, customerArchetypes),
-      extra('turnoverBand', 'Turnover band', 'dropdown', 140, turnoverBands),
+      extra('turnoverBand', 'Turnover band', 'dropdown', 180, turnoverBands),
       extra('roleInDeal', 'Role in deal', 'dropdown', 140, [
         'Decision maker',
         'Champion',

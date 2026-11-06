@@ -27,7 +27,7 @@ import type {
 } from '@/domain/types'
 
 /** Bump when the seed changes; existing local databases are then reseeded. */
-export const SEED_VERSION = 4
+export const SEED_VERSION = 5
 
 export interface SeedData {
   members: Member[]
@@ -425,7 +425,7 @@ const dawarCustomers: RowSpec[] = [
     fields: {
       plantLocation: 'Hosur',
       archetype: 'Foundries and forging shops',
-      turnoverBand: '₹50–250 Cr',
+      turnoverBand: 'Medium · ₹100–500 Cr',
       roleInDeal: 'Decision maker',
       pain: 'Unplanned downtime on the heading lines',
       wedgeAgent: 'Maintenance',
@@ -451,7 +451,7 @@ const dawarCustomers: RowSpec[] = [
     fields: {
       plantLocation: 'Chakan, Pune',
       archetype: 'Foundries and forging shops',
-      turnoverBand: '₹50–250 Cr',
+      turnoverBand: 'Medium · ₹100–500 Cr',
       roleInDeal: 'Champion',
       pain: 'Casting rejection rates swing with sand quality',
       wedgeAgent: 'Quality',
@@ -479,7 +479,7 @@ const dawarCustomers: RowSpec[] = [
     fields: {
       plantLocation: 'Oragadam, Chennai',
       archetype: 'Electronics manufacturing',
-      turnoverBand: '₹250–1,000 Cr',
+      turnoverBand: 'Large · > ₹500 Cr',
       roleInDeal: 'Decision maker',
       pain: 'SMT line changeovers take two hours a shift',
       wedgeAgent: 'Production',
@@ -505,7 +505,7 @@ const dawarCustomers: RowSpec[] = [
     fields: {
       plantLocation: 'Rajkot',
       archetype: 'Precision job shops',
-      turnoverBand: '< ₹50 Cr',
+      turnoverBand: 'Small · ₹10–100 Cr',
       roleInDeal: 'Decision maker',
       pain: 'Quotes take three days; loses jobs to faster shops',
       wedgeAgent: 'Quote',
@@ -527,7 +527,7 @@ const dawarCustomers: RowSpec[] = [
     fields: {
       plantLocation: 'Vapi GIDC',
       archetype: 'Specialty and batch chemicals',
-      turnoverBand: '₹50–250 Cr',
+      turnoverBand: 'Medium · ₹100–500 Cr',
       roleInDeal: 'Champion',
       pain: 'Batch records are on paper; audits take weeks',
       wedgeAgent: 'Compliance',
@@ -549,7 +549,7 @@ const dawarCustomers: RowSpec[] = [
     fields: {
       plantLocation: 'Hosur',
       archetype: 'Auto and EV component makers',
-      turnoverBand: '₹250–1,000 Cr',
+      turnoverBand: 'Large · > ₹500 Cr',
       roleInDeal: 'Decision maker',
       pain: 'Motor housing machining scrap at 4%',
       wedgeAgent: 'Quality',
@@ -583,7 +583,7 @@ const dawarCustomers: RowSpec[] = [
     fields: {
       plantLocation: 'Ambad, Nashik',
       archetype: 'Auto and EV component makers',
-      turnoverBand: '₹50–250 Cr',
+      turnoverBand: 'Medium · ₹100–500 Cr',
       roleInDeal: 'Decision maker',
       pain: 'Press downtime and slow die changes',
       wedgeAgent: 'Maintenance',
@@ -607,7 +607,7 @@ const dawarCustomers: RowSpec[] = [
     fields: {
       plantLocation: 'Coimbatore',
       archetype: 'Hardware OEMs with supplier networks',
-      turnoverBand: '₹250–1,000 Cr',
+      turnoverBand: 'Large · > ₹500 Cr',
       roleInDeal: 'Blocker',
       pain: 'Supplier delays on castings',
       wedgeAgent: 'Procurement',
@@ -629,7 +629,7 @@ const dawarCustomers: RowSpec[] = [
     fields: {
       plantLocation: 'Ludhiana',
       archetype: 'Foundries and forging shops',
-      turnoverBand: '₹50–250 Cr',
+      turnoverBand: 'Medium · ₹100–500 Cr',
       roleInDeal: 'User',
       pain: 'Die wear is tracked by memory',
       wedgeAgent: 'Maintenance',
@@ -659,7 +659,7 @@ const dawarCustomers: RowSpec[] = [
     fields: {
       plantLocation: 'Sriperumbudur',
       archetype: 'Consumer durables and appliances',
-      turnoverBand: '> ₹1,000 Cr',
+      turnoverBand: 'Large · > ₹500 Cr',
       roleInDeal: 'Decision maker',
       pain: 'Energy cost per unit in the paint shop',
       wedgeAgent: 'Energy',
@@ -680,7 +680,7 @@ const dawarCustomers: RowSpec[] = [
     fields: {
       plantLocation: 'Waluj, Aurangabad',
       archetype: 'Plastics, rubber and packaging',
-      turnoverBand: '< ₹50 Cr',
+      turnoverBand: 'Small · ₹10–100 Cr',
     },
   },
   {
@@ -696,7 +696,7 @@ const dawarCustomers: RowSpec[] = [
     fields: {
       plantLocation: 'Jamshedpur',
       archetype: 'Steel and metals processing',
-      turnoverBand: '₹250–1,000 Cr',
+      turnoverBand: 'Large · > ₹500 Cr',
       roleInDeal: 'Champion',
       pain: 'Furnace energy per tonne',
       wedgeAgent: 'Energy',
@@ -1087,7 +1087,7 @@ const dhruvCustomers: RowSpec[] = [
     fields: {
       plantLocation: 'Belagavi',
       archetype: 'Foundries and forging shops',
-      turnoverBand: '₹50–250 Cr',
+      turnoverBand: 'Medium · ₹100–500 Cr',
       roleInDeal: 'Decision maker',
       pain: 'Core-making defects',
       wedgeAgent: 'Quality',
@@ -1109,7 +1109,7 @@ const dhruvCustomers: RowSpec[] = [
     fields: {
       plantLocation: 'Ankleshwar',
       archetype: 'Specialty and batch chemicals',
-      turnoverBand: '₹50–250 Cr',
+      turnoverBand: 'Medium · ₹100–500 Cr',
       roleInDeal: 'Decision maker',
       pain: 'Batch cycle time varies by shift',
       wedgeAgent: 'Production',
@@ -1131,7 +1131,7 @@ const dhruvCustomers: RowSpec[] = [
     fields: {
       plantLocation: 'Kochi',
       archetype: 'Paints, coatings and adhesives',
-      turnoverBand: '< ₹50 Cr',
+      turnoverBand: 'Small · ₹10–100 Cr',
       roleInDeal: 'Champion',
       pain: 'Shade matching rework',
       wedgeAgent: 'Quality',
@@ -1152,7 +1152,7 @@ const dhruvCustomers: RowSpec[] = [
     fields: {
       plantLocation: 'Baddi',
       archetype: 'Pharma',
-      turnoverBand: '₹250–1,000 Cr',
+      turnoverBand: 'Large · > ₹500 Cr',
       roleInDeal: 'User',
       pain: 'Audit preparation takes weeks',
       wedgeAgent: 'Compliance',
@@ -1181,7 +1181,7 @@ const dhruvCustomers: RowSpec[] = [
     fields: {
       plantLocation: 'Mysuru',
       archetype: 'FMCG and food and beverage',
-      turnoverBand: '₹50–250 Cr',
+      turnoverBand: 'Medium · ₹100–500 Cr',
       roleInDeal: 'Decision maker',
       pain: 'Packing line OEE',
       wedgeAgent: 'Production',
