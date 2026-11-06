@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { Database, Keyboard, MoreHorizontal, RotateCcw, Search } from 'lucide-react'
+import { Database, Keyboard, MoreHorizontal, RotateCcw, Search, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { toast } from 'sonner'
@@ -67,6 +67,7 @@ export function Header({ members, member }: { members: readonly Member[]; member
   const navigate = useNavigate()
   const setPaletteOpen = useUiStore((s) => s.setPaletteOpen)
   const setShortcutsOpen = useUiStore((s) => s.setShortcutsOpen)
+  const showTrash = useUiStore((s) => s.showTrash)
   const [passwordOpen, setPasswordOpen] = useState(false)
 
   return (
@@ -109,6 +110,10 @@ export function Header({ members, member }: { members: readonly Member[]; member
           </MenuTrigger>
           <MenuContent align="end" className="w-64">
             <AccountMenuItems members={members} onChangePassword={() => setPasswordOpen(true)} />
+            <MenuItem onSelect={showTrash}>
+              <Trash2 aria-hidden className="size-4" />
+              Trash
+            </MenuItem>
             <MenuItem onSelect={() => setShortcutsOpen(true)} shortcut={['?']}>
               <Keyboard aria-hidden className="size-4" />
               Keyboard shortcuts

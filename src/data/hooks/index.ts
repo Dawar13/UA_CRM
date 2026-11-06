@@ -33,3 +33,19 @@ export {
   useTagMap,
   useTags,
 } from './queries'
+export {
+  type CreateRowVariables,
+  type DeleteRowsVariables,
+  inversePatch,
+  type PastedRow,
+  type PasteVariables,
+  saveErrorMessage,
+  type UpdateRowVariables,
+  useCreateRow,
+  useCreateTag,
+  useDeleteRows,
+  usePasteRows,
+  useRestoreFromTrash,
+  useTrash,
+  useUpdateRow,
+} from './rowEdits'

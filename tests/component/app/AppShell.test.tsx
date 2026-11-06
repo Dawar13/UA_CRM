@@ -99,7 +99,8 @@ describe('app shell', () => {
     expect(screen.getByRole('tab', { name: 'Customers' })).toHaveAttribute('aria-selected', 'true')
     expect(screen.getByRole('tab', { name: 'Investors' })).toBeInTheDocument()
 
-    expect(grid).toHaveAttribute('aria-rowcount', '13')
+    // Header, 12 rows and the add line (Dawar's own tab).
+    expect(grid).toHaveAttribute('aria-rowcount', '14')
     expect(await within(grid).findByText('Rohan Mehta')).toBeInTheDocument()
     expect(
       within(grid)
@@ -131,7 +132,7 @@ describe('app shell', () => {
     const expanded = await screen.findByTestId('expanded-row')
     expect(within(expanded).getByText('Next action')).toBeInTheDocument()
     expect(within(expanded).getByText('History')).toBeInTheDocument()
-    expect(grid).toHaveAttribute('aria-rowcount', '14')
+    expect(grid).toHaveAttribute('aria-rowcount', '15')
 
     await user.keyboard('{Escape}')
     await waitFor(() => expect(screen.queryByTestId('expanded-row')).not.toBeInTheDocument())

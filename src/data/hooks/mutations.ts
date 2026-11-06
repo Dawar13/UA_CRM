@@ -18,6 +18,7 @@ import {
 } from '@/domain/stages'
 import type { DomainContext, HistoryEntry, Id, Row, RowChange, Sheet, Warmth } from '@/domain/types'
 import { setWarmth, warmthLabel } from '@/domain/warmth'
+import { type UndoEntry, useUndoStack } from '@/lib/undoStack'
 import { useRepository } from '../RepositoryContext'
 import type { MutationContext, MutationResult, Repository, RowLocation } from '../repository'
 import { queryKeys, rowMutationKey } from './keys'
@@ -89,7 +90,7 @@ function touch(change: RowChange, ctx: MutationContext): Row {
   }
 }
 
-function writeRow(qc: QueryClient, row: Row): void {
+export function writeRow(qc: QueryClient, row: Row): void {
   qc.setQueryData<Row[]>(queryKeys.rows(row.sheetId), (old) =>
     old?.map((r) => (r.id === row.id ? row : r)),
   )
@@ -106,7 +107,7 @@ function restoreSnapshot(qc: QueryClient, row: Row, snapshot: CacheSnapshot): vo
   qc.setQueryData(queryKeys.history(row.id), snapshot.history)
 }
 
-function invalidateRow(qc: QueryClient, row: Row): Promise<unknown> {
+export function invalidateRow(qc: QueryClient, row: Row): Promise<unknown> {
   return Promise.all([
     qc.invalidateQueries({ queryKey: queryKeys.rows(row.sheetId) }),
     qc.invalidateQueries({ queryKey: queryKeys.row(row.id) }),
@@ -125,13 +126,14 @@ function useRowMutation<V extends RowVariables>(
   const repo = useRepository()
   const qc = useQueryClient()
 
-  const runUndo = async (vars: V): Promise<void> => {
-    const ctx: MutationContext = { actorId: vars.actorId, now: new Date() }
+  /** Runs a change through the repository and puts the saved row in the cache. */
+  const apply = async (
+    vars: V,
+    run: (repo: Repository, vars: V, ctx: MutationContext) => Promise<MutationResult>,
+  ): Promise<void> => {
     try {
-      const result = await spec.undo(repo, vars, ctx)
+      const result = await run(repo, vars, { actorId: vars.actorId, now: new Date() })
       writeRow(qc, result.row)
-    } catch {
-      toast.error(UNDO_FAILED_MESSAGE, { id: undoToastId(spec.kind, vars.row.id) })
     } finally {
       await invalidateRow(qc, vars.row)
     }
@@ -168,13 +170,19 @@ function useRowMutation<V extends RowVariables>(
     },
     onSuccess: (result, vars) => {
       writeRow(qc, result.row)
+      const entry: UndoEntry = {
+        label: spec.message(vars),
+        undo: () => apply(vars, spec.undo),
+        redo: () => apply(vars, spec.run),
+      }
+      useUndoStack.getState().push(entry)
       toast(spec.message(vars), {
         id: undoToastId(spec.kind, vars.row.id),
         duration: UNDO_TOAST_DURATION,
         action: {
           label: 'Undo',
           onClick: () => {
-            void runUndo(vars)
+            void useUndoStack.getState().undoEntry(entry)
           },
         },
       })

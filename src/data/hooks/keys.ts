@@ -10,6 +10,7 @@ export const queryKeys = {
   rowLocation: (rowId: Id) => ['rowLocation', rowId] as const,
   tags: () => ['tags'] as const,
   history: (rowId: Id) => ['history', rowId] as const,
+  trash: (memberId: Id) => ['trash', memberId] as const,
   samePersonOf: (rowId: Id) => ['samePersonOf', rowId] as const,
   search: (query: string) => ['search', query] as const,
   events: (memberId: Id, from: string, to: string) => ['events', memberId, from, to] as const,

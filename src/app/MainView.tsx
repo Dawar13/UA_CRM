@@ -144,7 +144,7 @@ function SheetContent({ member, sheet, index }: { member: Member; sheet: Sheet; 
       {/* The grid scrolls inside whatever height the front leaves. */}
       <div className="relative min-h-0 flex-1">
         <div className="absolute inset-0">
-          {list.length === 0 ? (
+          {list.length === 0 && !gate.editable ? (
             <div className="grid h-full place-items-center p-8">
               <EmptyState
                 title={gate.viewOnly ? 'No one here yet.' : `Add your first ${singular(sheet)}.`}
@@ -157,18 +157,29 @@ function SheetContent({ member, sheet, index }: { member: Member; sheet: Sheet; 
               />
             </div>
           ) : (
-            <SheetGrid
-              key={sheet.id}
-              sheet={sheet}
-              rows={list}
-              member={member}
-              expandedRowId={expandedRowId}
-              onExpandedChange={onExpandedChange}
-              flashRowId={flashRowId}
-              renderExpanded={renderExpanded}
-              editable={gate.editable}
-              onRefuse={gate.refuse}
-            />
+            <>
+              <SheetGrid
+                key={sheet.id}
+                sheet={sheet}
+                rows={list}
+                member={member}
+                expandedRowId={expandedRowId}
+                onExpandedChange={onExpandedChange}
+                flashRowId={flashRowId}
+                renderExpanded={renderExpanded}
+                editable={gate.editable}
+                onRefuse={gate.refuse}
+              />
+              {list.length === 0 ? (
+                <div className="pointer-events-none absolute inset-x-0 top-28 grid place-items-center p-8">
+                  <EmptyState
+                    title={`Add your first ${singular(sheet)}.`}
+                    description="Press N, or click Add a contact."
+                    art
+                  />
+                </div>
+              ) : null}
+            </>
           )}
         </div>
       </div>

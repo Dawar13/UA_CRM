@@ -76,6 +76,8 @@ export interface DateRange {
 export interface NewRowInput {
   sheetId: Id
   values: NewRowValues
+  /** Chosen by the caller so an optimistic row and the saved one share it. A UUID. */
+  id?: Id
 }
 
 /** A touch logged by hand (or, from Phase 2, by the calendar). The actor is the member. */

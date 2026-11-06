@@ -4,8 +4,11 @@ import { readStorage, STORAGE_PREFIX, storageKeys, writeStorage } from '@/lib/st
 /** Whether the folder front (the sheet summary) is open. Remembered across sessions. */
 export const SUMMARY_OPEN_KEY = `${STORAGE_PREFIX}summary-open`
 
-/** What the right panel shows: the calendar week, or one row's full history. */
-export type PanelView = { kind: 'calendar' } | { kind: 'history'; rowId: string }
+/** What the right panel shows: the calendar week, one row's full history, or your Trash. */
+export type PanelView =
+  | { kind: 'calendar' }
+  | { kind: 'history'; rowId: string }
+  | { kind: 'trash' }
 
 interface UiState {
   panelOpen: boolean
@@ -22,6 +25,7 @@ interface UiState {
   setSummaryOpen: (open: boolean) => void
   showHistory: (rowId: string) => void
   showCalendar: () => void
+  showTrash: () => void
   setPaletteOpen: (open: boolean) => void
   setShortcutsOpen: (open: boolean) => void
   flashRow: (rowId: string) => void
@@ -70,6 +74,10 @@ export const useUiStore = create<UiState>((set, get) => ({
     set({ panelOpen: true, panelView: { kind: 'history', rowId } })
   },
   showCalendar: () => set({ panelView: { kind: 'calendar' } }),
+  showTrash: () => {
+    writeStorage(storageKeys.panelOpen, 'true')
+    set({ panelOpen: true, panelView: { kind: 'trash' } })
+  },
   setPaletteOpen: (open) => set({ paletteOpen: open }),
   setShortcutsOpen: (open) => set({ shortcutsOpen: open }),
   flashRow: (rowId) => set({ flashRowId: rowId }),

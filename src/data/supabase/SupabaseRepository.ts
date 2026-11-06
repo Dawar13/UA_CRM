@@ -342,7 +342,7 @@ export class SupabaseRepository implements Repository {
     const change = newRow(
       sheet,
       input.values,
-      { id: uuid(), position },
+      { id: input.id ?? uuid(), position },
       this.domainContext(ctx, actor),
     )
     const saved = await this.saveRow(change.row, change.history, 'addRow')

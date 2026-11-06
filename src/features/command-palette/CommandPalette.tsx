@@ -1,6 +1,16 @@
 import { useQueries } from '@tanstack/react-query'
 import { Command } from 'cmdk'
-import { Keyboard, Monitor, Moon, PanelRight, Search, Sun, Table2, Users } from 'lucide-react'
+import {
+  Keyboard,
+  Monitor,
+  Moon,
+  PanelRight,
+  Search,
+  Sun,
+  Table2,
+  Trash2,
+  Users,
+} from 'lucide-react'
 import { Dialog, VisuallyHidden } from 'radix-ui'
 import { type ReactNode, useDeferredValue, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
@@ -111,6 +121,7 @@ export function CommandPalette({ currentMember }: { currentMember: Member | unde
   const setOpen = useUiStore((s) => s.setPaletteOpen)
   const togglePanel = useUiStore((s) => s.togglePanel)
   const setShortcutsOpen = useUiStore((s) => s.setShortcutsOpen)
+  const showTrash = useUiStore((s) => s.showTrash)
   const { setMode } = useTheme()
   const navigate = useNavigate()
   const jump = useJumpToRow()
@@ -175,6 +186,13 @@ export function CommandPalette({ currentMember }: { currentMember: Member | unde
       run: togglePanel,
     })
     list.push({
+      id: 'trash',
+      label: 'Open Trash',
+      icon: <Trash2 aria-hidden className="size-4" />,
+      keywords: 'trash deleted restore bin',
+      run: showTrash,
+    })
+    list.push({
       id: 'shortcuts',
       label: 'Show keyboard shortcuts',
       icon: <Keyboard aria-hidden className="size-4" />,
@@ -183,7 +201,16 @@ export function CommandPalette({ currentMember }: { currentMember: Member | unde
       run: () => setShortcutsOpen(true),
     })
     return list
-  }, [members, allSheets, currentMember?.id, navigate, setMode, togglePanel, setShortcutsOpen])
+  }, [
+    members,
+    allSheets,
+    currentMember?.id,
+    navigate,
+    setMode,
+    togglePanel,
+    setShortcutsOpen,
+    showTrash,
+  ])
 
   const q = deferredQuery.toLowerCase()
   const visibleCommands = q

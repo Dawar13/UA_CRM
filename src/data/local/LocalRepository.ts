@@ -618,7 +618,7 @@ export class LocalRepository implements Repository {
       const change = newRow(
         sheet,
         input.values,
-        { id: newId('r')(), position: last ? last.position + 1 : 0 },
+        { id: input.id ?? newId('r')(), position: last ? last.position + 1 : 0 },
         this.domainContext(ctx),
       )
       await db.rows.add(change.row)

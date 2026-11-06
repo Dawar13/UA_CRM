@@ -6,6 +6,7 @@ import { useHistory, useMembers, useRow } from '@/data/hooks'
 import type { Member } from '@/domain/types'
 import { CalendarPanel } from '@/features/calendar-panel/CalendarPanel'
 import { HistoryList } from '@/features/row-detail/HistoryList'
+import { TrashPanel } from '@/features/trash/TrashPanel'
 import { useUiStore } from './uiStore'
 
 function HistoryPanel({ rowId }: { rowId: string }) {
@@ -59,6 +60,8 @@ export function RightPanel({ member }: { member: Member }) {
     >
       {view.kind === 'history' ? (
         <HistoryPanel rowId={view.rowId} />
+      ) : view.kind === 'trash' ? (
+        <TrashPanel />
       ) : (
         <CalendarPanel member={member} />
       )}

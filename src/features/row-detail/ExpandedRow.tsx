@@ -1,3 +1,4 @@
+import { Trash2 } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
 import { type ReactNode, useMemo } from 'react'
 import { useUiStore } from '@/app/uiStore'
@@ -7,6 +8,7 @@ import { StageTracker, trackerTitleClassName } from '@/components/crm/StageTrack
 import { WarmthChip, WarmthRadioGroup } from '@/components/crm/WarmthChip'
 import { Button } from '@/components/ui/Button'
 import {
+  useDeleteRows,
   useHistory,
   useMarkLost,
   useMembers,
@@ -94,6 +96,7 @@ export function ExpandedRow({
   const markLost = useMarkLost()
   const reopen = useReopen()
   const setWarmth = useSetWarmth()
+  const deleteRows = useDeleteRows()
   const { data: history = [] } = useHistory(row.id)
   const { data: members = [] } = useMembers()
   const showHistory = useUiStore((s) => s.showHistory)
@@ -159,11 +162,23 @@ export function ExpandedRow({
       data-testid="expanded-row"
     >
       <div className="flex flex-col gap-6 px-6 pt-[22px] pb-[26px]">
-        {isMine ? null : (
-          <div className="-mb-2 flex justify-end">
+        <div className="-mb-2 flex justify-end empty:hidden">
+          {isMine ? (
+            editable ? (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => deleteRows.mutate({ sheet, rows: [row], actorId })}
+                data-testid="move-to-trash"
+              >
+                <Trash2 aria-hidden />
+                Move to Trash
+              </Button>
+            ) : null
+          ) : (
             <CopyToMySheet row={row} />
-          </div>
-        )}
+          )}
+        </div>
         {sheet.stages.length > 0 ? (
           <StageTracker
             readOnly={!editable}
