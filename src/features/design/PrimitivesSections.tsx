@@ -209,7 +209,7 @@ export function BrandSection() {
     <Section
       id="brand"
       title="Brand"
-      caption="The mark is a 28px square in the sky gradient with a white UA in Geist 700. Wordmark 15px at 600; the label is Geist Mono caps in link blue with a hairline."
+      caption="The mark is the founders' UA logo, a 28px rounded square; the favicon is the same logo. Wordmark 15px at 600; the label is Geist Mono caps in link blue with a hairline."
     >
       <div className="grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <Specimen title="Header lockup" bodyClassName="p-0">

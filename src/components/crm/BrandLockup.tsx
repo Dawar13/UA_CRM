@@ -1,10 +1,10 @@
 import { BRAND_MARK_SIZE } from '@/assets/brand/brandMark'
+import markUrl from '@/assets/brand/ua-mark.png'
 import { cn } from '@/lib/cn'
 
 /**
- * The UA brand mark: a rounded square in the sky gradient (--brand-mark) with a white "UA" in
- * Geist 700. 28px with 7px corners by default; other sizes keep the proportions. Decorative: the
- * wordmark next to it carries the name.
+ * The UA brand mark: the founders' monogram on UA blue (D-044), 28px with 7px corners by default;
+ * other sizes keep the proportions. Decorative: the wordmark next to it carries the name.
  */
 export function BrandMark({
   size = BRAND_MARK_SIZE,
@@ -14,24 +14,17 @@ export function BrandMark({
   className?: string
 }) {
   return (
-    <span
+    <img
+      src={markUrl}
+      alt=""
       aria-hidden="true"
       data-testid="brand-mark"
-      className={cn(
-        'inline-grid shrink-0 select-none place-items-center bg-[image:var(--brand-mark)]',
-        'font-sans leading-none font-bold tracking-[-0.01em] text-white',
-        'shadow-[inset_0_1px_0_color-mix(in_srgb,white_35%,transparent)]',
-        className,
-      )}
-      style={{
-        width: size,
-        height: size,
-        borderRadius: Math.round(size / 4),
-        fontSize: Math.round((size * 12) / 28),
-      }}
-    >
-      UA
-    </span>
+      width={size}
+      height={size}
+      draggable={false}
+      className={cn('shrink-0 select-none object-cover', className)}
+      style={{ width: size, height: size, borderRadius: Math.round(size / 4) }}
+    />
   )
 }
 

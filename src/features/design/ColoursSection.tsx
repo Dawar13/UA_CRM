@@ -98,7 +98,7 @@ function Foundation({ t }: { t: ThemeColours }) {
             <>
               {brandMark.from} → {brandMark.to}
               <br />
-              Brand mark, the open member
+              The open member and accents
             </>
           }
         />
