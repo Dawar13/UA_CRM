@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
   formatPhone,
-  initials,
   linkedinSlug,
   nameTitles,
   normaliseCompany,
@@ -188,25 +187,5 @@ describe('searchTokens', () => {
     expect(searchTokens('Zoë, Zoe and ZOE')).toEqual(['zoe', 'and'])
     expect(searchTokens('+91 98450 12345')).toEqual(['91', '98450', '12345'])
     expect(searchTokens('  ')).toEqual([])
-  })
-})
-
-describe('initials', () => {
-  it('uses first and last names', () => {
-    expect(initials('Rohan Mehta')).toBe('RM')
-    expect(initials('Cdr Arvind Menon')).toBe('AM')
-    expect(initials('Dr. A. Kumar')).toBe('AK')
-    expect(initials('rohan kumar mehta')).toBe('RM')
-  })
-
-  it('uses two letters of a single name', () => {
-    expect(initials('Dhruv')).toBe('DH')
-    expect(initials('A')).toBe('A')
-    expect(initials('Dr')).toBe('DR')
-  })
-
-  it('falls back to a question mark', () => {
-    expect(initials('')).toBe('?')
-    expect(initials('  -- ')).toBe('?')
   })
 })

@@ -287,7 +287,7 @@ Warmth squares in the folder front have three shades each: deeper means the pers
 
 **Tag palette:** a small coloured square beside the tag name, no pill. The 8 softened hues are indigo #7C83F2, violet #A28CF4, pink #EE8FB5, orange #F2A06E, amber #E9BC5C, lime #8DC46E, teal #4FC2B4, slate #8B98A9. New tags take the least-used hue.
 
-**Gradients** are soft and purposeful: folder tabs and fronts, warmth and today chips, the brand mark, monogram avatars (grey) and the funnel. Never behind body text that would lose contrast. The old 3px strip at the top of the app is gone; the soft sampled gradient (#6CAAFD → #B5DBFF → #70BEFF) remains only for the sign-in background and empty-state art.
+**Gradients** are soft and purposeful: folder tabs and fronts, warmth and today chips, the brand mark and the funnel. Never behind body text that would lose contrast. The old 3px strip at the top of the app is gone; the soft sampled gradient (#6CAAFD → #B5DBFF → #70BEFF) remains only for the sign-in background and empty-state art.
 
 **Contrast is tested, not assumed.** Body and label text must be ≥ 4.5:1, including text on every folder colour, stage block and chip gradient stop. Focus rings and hollow outlines must be ≥ 3:1. Stage cells, warmth squares and activity dots are supplementary: each sits beside text that says the same thing, so they are not held to 3:1. This applies in both themes and is enforced by a unit test over the token file. If a hex above fails, adjust the hex, keep the intent, and log the change.
 
@@ -296,7 +296,7 @@ Warmth squares in the folder front have three shades each: deeper means the pers
 - **Fonts:** Geist Variable for the UI and Geist Mono Variable for labels, dates, money, counts and the quick-add input. Both are self-hosted through Fontsource. Numbers use `font-variant-numeric: tabular-nums`.
 - **Type scale:** 12 / 13 / **14 (base)** / 16 / 20 / 24 px for UI text; figures on the folder front are 40px (27px when long) at weight 400 with tight tracking. Section labels are Geist Mono, 10.5 to 11.5px, uppercase, letter-spacing 0.08 to 0.1em. Weights 400, 500 and 600 (550 for names). Line height 1.45 for UI and 1.6 for long text.
 - **Spacing:** a 4px grid. The grid reads like a spreadsheet: single-line rows of 36px (comfortable) or 30px (compact, Phase 1 toggle), 13px cell text, visible gridlines between every row and column (`--grid-line`) and a shaded 32px header row (`--grid-header`). The header is 56px; the active folder tab is 40px and the others 31px.
-- **Corners:** squarer than before: 4px for chips and badges, 6px for controls, 8px for the top of folder tabs, 10px for cards and popovers. Avatars are rounded squares.
+- **Corners:** squarer than before: 4px for chips and badges, 6px for controls, 8px for the top of folder tabs, 10px for cards and popovers. Names stand alone: no initials or avatar tiles beside them (D-034).
 - **Surfaces:** 1px hairline borders. Floating cards get one soft shadow; the pipeline card on the folder front is frosted glass.
 - **Motion:** 120 to 180 ms, ease-out. Folder tabs rise when chosen; row expansion animates height. `prefers-reduced-motion` disables non-essential motion.
 - **Focus:** a visible 2px focus ring with a 2px offset on every focusable element.
@@ -376,7 +376,7 @@ ua-crm/
                                  Popover, Tooltip (in-house), Dialog, Toast, Skeleton, EmptyState, Pill, Separator
     components/crm/              BrandLockup, MemberTabs, SheetTabs (folder tabs), WarmthChip,
                                  TagChip, StageDots (stage bar), StageTracker, DateText,
-                                 AvatarInitials, ThemeToggle
+                                 ThemeToggle
     features/
       grid/                      SheetGrid (virtualised ARIA grid and keyboard layer), GridRow,
                                  cells, column model

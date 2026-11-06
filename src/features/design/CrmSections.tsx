@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { AvatarInitials } from '@/components/crm/AvatarInitials'
 import { BrandLockup } from '@/components/crm/BrandLockup'
 import { DateText } from '@/components/crm/DateText'
 import { MemberTabs } from '@/components/crm/MemberTabs'
@@ -70,7 +69,6 @@ export function WarmthSection() {
             </div>
             <div className="overflow-hidden rounded-control border border-border">
               <div className="group/row flex h-10 items-center gap-3 border-b border-border px-3 hover:bg-row-hover">
-                <AvatarInitials name="Meera Pillai" />
                 <span className="w-36 truncate text-base font-medium text-text">Meera Pillai</span>
                 <WarmthChip value={null} onChange={() => {}} size="sm" tabbable={false} />
                 <StateLabel className="ml-auto">Hover the row</StateLabel>
@@ -79,7 +77,6 @@ export function WarmthSection() {
                 data-active="true"
                 className="group/row flex h-10 items-center gap-3 bg-row-selected px-3"
               >
-                <AvatarInitials name="Sanjay Kulkarni" />
                 <span className="w-36 truncate text-base font-medium text-text">
                   Sanjay Kulkarni
                 </span>
@@ -390,41 +387,6 @@ export function DatesSection() {
           </div>
         </Specimen>
       </div>
-    </Section>
-  )
-}
-
-/* Avatars --------------------------------------------------------------------------------- */
-
-const people = [
-  'Dawar',
-  'Dhruv',
-  'Rohan Mehta',
-  'Cdr Arvind Menon',
-  'Priya Raghavan',
-  'Navaneetha Krishnan',
-  'Kavya Iyer',
-  'Sanjay Kulkarni',
-]
-
-export function AvatarsSection() {
-  return (
-    <Section
-      id="avatars"
-      title="Avatars"
-      caption="Initials beside every name, drawn the same way everywhere a person appears."
-    >
-      <Specimen>
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-x-6 gap-y-4">
-          {people.map((name) => (
-            <div key={name} className="flex items-center gap-2.5">
-              <AvatarInitials name={name} size="md" />
-              <AvatarInitials name={name} />
-              <span className="truncate text-base font-medium text-text">{name}</span>
-            </div>
-          ))}
-        </div>
-      </Specimen>
     </Section>
   )
 }

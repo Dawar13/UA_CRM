@@ -50,7 +50,6 @@ const textPairs: [Role, Role][] = [
   // The grid's shaded header row.
   ['text', 'gridHeader'],
   ['textMuted', 'gridHeader'],
-  ['avatarFg', 'avatarBottom'],
   // Dates.
   ['todayFg', 'todayBg'],
   ['todayFg', 'todayBgTop'],

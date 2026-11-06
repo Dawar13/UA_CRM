@@ -8,7 +8,6 @@ import { memberPath, sheetPath, useJumpToRow } from '@/app/navigation'
 import { type ThemeMode, useTheme } from '@/app/theme'
 import { useUiStore } from '@/app/uiStore'
 import { useReturnFocus } from '@/app/useReturnFocus'
-import { AvatarInitials } from '@/components/crm/AvatarInitials'
 import { Kbd } from '@/components/ui/Kbd'
 import { queryKeys, useMembers, useSearch } from '@/data/hooks'
 import { useRepository } from '@/data/RepositoryContext'
@@ -81,7 +80,6 @@ function ResultItem({
       data-testid="palette-result"
       className={cn('group', itemClassName)}
     >
-      <AvatarInitials name={row.name} size="md" />
       <span className="flex min-w-0 flex-1 flex-col">
         <span className="truncate font-medium">{highlight(row.name, query)}</span>
         {secondary ? (

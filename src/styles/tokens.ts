@@ -123,10 +123,6 @@ export interface ThemeColours {
   glass: string
   glassBorder: string
   glassShadow: string
-  /** Monogram avatars: a soft grey gradient with light initials. */
-  avatarTop: string
-  avatarBottom: string
-  avatarFg: string
 
   // ---------- Dates ----------
   /** "Today" chip: a blue gradient with ink text. */
@@ -287,9 +283,6 @@ export const themes: Record<ThemeName, ThemeColours> = {
     glass: 'rgba(255, 255, 255, 0.74)',
     glassBorder: 'rgba(255, 255, 255, 0.9)',
     glassShadow: '0 1px 2px rgba(14, 26, 34, 0.04), 0 12px 32px -14px rgba(14, 26, 34, 0.22)',
-    avatarTop: '#7F8893',
-    avatarBottom: '#5F6873',
-    avatarFg: '#FFFFFF',
 
     todayBgTop: '#48CAE4',
     todayBg: '#00B4D7',
@@ -420,9 +413,6 @@ export const themes: Record<ThemeName, ThemeColours> = {
     glass: 'rgba(12, 20, 26, 0.66)',
     glassBorder: 'rgba(255, 255, 255, 0.07)',
     glassShadow: '0 1px 2px rgba(0, 0, 0, 0.2), 0 12px 32px -14px rgba(0, 0, 0, 0.6)',
-    avatarTop: '#56606B',
-    avatarBottom: '#3D4650',
-    avatarFg: '#F2F5F7',
 
     todayBgTop: '#48CAE4',
     todayBg: '#00B4D7',

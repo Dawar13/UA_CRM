@@ -1,5 +1,4 @@
 import { Tabs } from 'radix-ui'
-import { initials } from '@/domain/identity'
 import { cn } from '@/lib/cn'
 
 export interface MemberTabsProps {
@@ -11,8 +10,8 @@ export interface MemberTabsProps {
 
 /**
  * The member switch in the header: a segmented control. Each member is a tab; arrow keys move
- * and activate (automatic activation). The selected member is a raised white pill with their
- * initials on the sky gradient; the others are ghost buttons with a neutral avatar.
+ * and activate (automatic activation). The selected member is a raised white pill; the others
+ * are ghost buttons. Names stand alone, without initials.
  */
 export function MemberTabs({ members, value, onValueChange, className }: MemberTabsProps) {
   return (
@@ -34,7 +33,7 @@ export function MemberTabs({ members, value, onValueChange, className }: MemberT
             aria-controls={undefined}
             data-testid={`member-tab-${member.id}`}
             className={cn(
-              'group/member flex h-7 shrink-0 cursor-default select-none items-center gap-2 rounded-control pr-3 pl-[5px]',
+              'group/member flex h-7 shrink-0 cursor-default select-none items-center gap-2 rounded-control px-3',
               'text-sm font-medium whitespace-nowrap text-secondary',
               'transition-[background-color,color,box-shadow] duration-(--duration-fast) ease-out',
               'hover:bg-bg/60 hover:text-text',
@@ -42,16 +41,6 @@ export function MemberTabs({ members, value, onValueChange, className }: MemberT
               'data-[state=active]:shadow-[0_1px_2px_var(--shadow),0_0_0_1px_var(--border)]',
             )}
           >
-            <span
-              aria-hidden="true"
-              className={cn(
-                'inline-grid size-[19px] shrink-0 place-items-center rounded-chip text-[9px] leading-none font-bold',
-                'bg-[image:linear-gradient(180deg,var(--avatar-top),var(--avatar-bottom))] text-avatar-fg',
-                'group-data-[state=active]/member:bg-[image:var(--brand-mark)] group-data-[state=active]/member:text-white',
-              )}
-            >
-              {initials(member.name)}
-            </span>
             {member.name}
           </Tabs.Trigger>
         ))}

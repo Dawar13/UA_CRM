@@ -15,7 +15,6 @@ import {
   parseIsoDate,
   todayIst,
 } from '@/domain/dates'
-import { initials } from '@/domain/identity'
 import type { CalendarEvent, IsoDate, Member } from '@/domain/types'
 import { cn } from '@/lib/cn'
 import { useNow } from '@/lib/useNow'
@@ -110,18 +109,6 @@ export function WeekStrip({ days, now }: { days: readonly WeekStripDay[]; now: D
   )
 }
 
-/** 18px initials on the neutral avatar gradient, for contact chips. */
-function ChipAvatar({ name }: { name: string }) {
-  return (
-    <span
-      aria-hidden="true"
-      className="inline-grid size-[18px] shrink-0 select-none place-items-center rounded-chip bg-[image:linear-gradient(180deg,var(--avatar-top),var(--avatar-bottom))] text-[9px] leading-none font-semibold tracking-[0.02em] text-avatar-fg"
-    >
-      {initials(name)}
-    </span>
-  )
-}
-
 function ContactChip({ location }: { location: RowLocation }) {
   const jump = useJumpToRow()
   const contextId = useId()
@@ -131,11 +118,10 @@ function ContactChip({ location }: { location: RowLocation }) {
       onClick={() =>
         jump({ member: location.member, sheet: location.sheet, rowId: location.row.id })
       }
-      className="inline-flex h-6 max-w-full items-center gap-1.5 rounded-control bg-bg pr-2 pl-[3px] text-xs text-text shadow-[inset_0_0_0_1px_var(--border)] transition-shadow duration-(--duration-fast) ease-out hover:shadow-[inset_0_0_0_1px_var(--border-strong)]"
+      className="inline-flex h-6 max-w-full items-center gap-1.5 rounded-control bg-bg px-2 text-xs text-text shadow-[inset_0_0_0_1px_var(--border)] transition-shadow duration-(--duration-fast) ease-out hover:shadow-[inset_0_0_0_1px_var(--border-strong)]"
       data-testid="event-contact"
       aria-describedby={contextId}
     >
-      <ChipAvatar name={location.row.name} />
       <span className="truncate">{location.row.name}</span>
       {/* The name is the visible text; where the row lives is the description. */}
       <span id={contextId} hidden>

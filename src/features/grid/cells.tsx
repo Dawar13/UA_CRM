@@ -1,6 +1,5 @@
 import { Check, Paperclip } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { AvatarInitials } from '@/components/crm/AvatarInitials'
 import { DateText } from '@/components/crm/DateText'
 import { StageDots } from '@/components/crm/StageDots'
 import { TagList } from '@/components/crm/TagChip'
@@ -64,16 +63,12 @@ function NextActionCell({ row }: { row: Row }) {
   )
 }
 
-/** Avatar, then the name over "Title · Company", both truncating. */
-/** One line, like a spreadsheet: a small monogram and the name. Company and Title have columns. */
+/** One line, like a spreadsheet: just the name. Company and Title have their own columns. */
 function NameCell({ row }: { row: Row }) {
   return (
-    <span className="flex min-w-0 items-center gap-2">
-      <AvatarInitials name={row.name} size="xs" />
-      <Truncate className="text-[13.5px] leading-[1.3] font-[550] tracking-[-0.005em] text-text">
-        {row.name}
-      </Truncate>
-    </span>
+    <Truncate className="text-[13.5px] leading-[1.3] font-[550] tracking-[-0.005em] text-text">
+      {row.name}
+    </Truncate>
   )
 }
 

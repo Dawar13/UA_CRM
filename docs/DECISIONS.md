@@ -393,3 +393,11 @@ Container jobs first make sure git is installed (otherwise checkout falls back t
 **Decision.** Sign-ups stay on, and a `before_user_created` auth hook (`public.hook_before_user_created`) refuses every email that is not an active member. Row-level security is the second wall: `current_member_id()` matches the JWT email against active members, so a user without a membership reads and writes nothing. The hook is enabled in `supabase/config.toml` for CI and must be switched on in both hosted projects (Authentication → Hooks).
 
 **Consequences.** Adding a member is one insert by an admin; their first Google sign-in creates their user. Deactivating a member blocks both new sign-ups and every read and write at once. pgTAP covers the hook for an active member, a deactivated member and a stranger.
+
+## D-034 · 6 Nov 2026 · Names without initials
+
+**Context.** The founders asked for the initials tile beside every name to go: in dark mode it read as a black box, and the name says it already.
+
+**Decision.** Names stand alone everywhere a person appears: grid rows, search results, link chips in the expanded row, contact chips on calendar events and the member switch in the header. `AvatarInitials`, the `initials()` helper, the avatar gradient tokens and the Avatars section of `/design` are removed. Chips that held a tile keep their shape with even padding.
+
+**Consequences.** New surfaces that name a person (the Today view, the account menu, the Team dialog) show the name as text, with no tile. The visual baselines for the grid, the header, the palette and `/design` change, and the `design-avatars` baselines are gone.

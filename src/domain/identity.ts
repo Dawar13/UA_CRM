@@ -159,16 +159,3 @@ export function normaliseCompany(raw: string): string {
 export function searchTokens(text: string): string[] {
   return [...new Set(wordRuns(text.toLowerCase()))]
 }
-
-/**
- * Initials for avatars: "Rohan Mehta" → "RM", "Cdr Arvind Menon" → "AM", "Dhruv" → "DH".
- * First and last word for longer names; "?" when there are no letters or numbers.
- */
-export function initials(name: string): string {
-  const words = withoutTitles(wordRuns(name))
-  const first = words[0]
-  if (first === undefined) return '?'
-  if (words.length === 1) return Array.from(first).slice(0, 2).join('').toUpperCase()
-  const last = words[words.length - 1] ?? ''
-  return `${Array.from(first)[0] ?? ''}${Array.from(last)[0] ?? ''}`.toUpperCase()
-}

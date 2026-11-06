@@ -1,4 +1,3 @@
-export { AvatarInitials, type AvatarInitialsProps, avatarHue } from './AvatarInitials'
 export { BrandLockup, BrandMark } from './BrandLockup'
 export { DateText, type DateTextProps, toFuzzyDate } from './DateText'
 export { MemberTabs, type MemberTabsProps } from './MemberTabs'

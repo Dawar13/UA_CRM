@@ -233,3 +233,7 @@ Phase 0, including the redesign, is complete pending the founders' review. Phase
 ### Next
 
 Four questions for the founders (plan §5): hosting provider, the private repository, Docker for the local Supabase stack, and two Phase 0 leftovers. Then M1.1.
+
+### Founder feedback, 6 Nov 2026
+
+- **Names without initials** (D-034): the initials tile beside every name is gone. Names stand alone in the grid, search, link chips, calendar chips and the member switch. Try it: open the app in light and dark; each row starts with the name.

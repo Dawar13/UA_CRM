@@ -3,7 +3,6 @@ import { BrandMark } from '@/components/crm/BrandLockup'
 import { ThemeSegmented } from '@/components/crm/ThemeToggle'
 import { ColoursSection } from './ColoursSection'
 import {
-  AvatarsSection,
   DatesSection,
   EmptySection,
   StageDotsSection,
@@ -39,7 +38,6 @@ const index = [
   ['stage-dots', 'Stage dots'],
   ['stage-tracker', 'Stage tracker'],
   ['dates', 'Dates'],
-  ['avatars', 'Avatars'],
   ['tabs', 'Tabs'],
   ['empty', 'Empty states'],
 ] as const
@@ -114,7 +112,6 @@ export function DesignPage() {
         <StageDotsSection />
         <StageTrackerSection />
         <DatesSection />
-        <AvatarsSection />
         <TabsSection />
         <EmptySection />
       </main>

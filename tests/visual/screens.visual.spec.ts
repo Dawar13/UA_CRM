@@ -36,7 +36,6 @@ const designSections = [
   'design-stage-dots',
   'design-stage-tracker',
   'design-dates',
-  'design-avatars',
   'design-tabs',
   'design-empty',
 ]

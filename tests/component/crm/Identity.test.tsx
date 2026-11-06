@@ -1,8 +1,6 @@
 import { screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { AvatarInitials, avatarHue } from '@/components/crm/AvatarInitials'
 import { BrandLockup, BrandMark } from '@/components/crm/BrandLockup'
-import { tagColourNames } from '@/styles/tokens'
 import { renderUi } from '../ui/renderUi'
 
 describe('BrandLockup', () => {
@@ -37,52 +35,5 @@ describe('BrandMark', () => {
       height: '40px',
       borderRadius: '10px',
     })
-  })
-})
-
-describe('AvatarInitials', () => {
-  it('shows initials, hidden from assistive tech', () => {
-    renderUi(<AvatarInitials name="Cdr Arvind Menon" />)
-    const avatar = screen.getByText('AM')
-    expect(avatar).toHaveAttribute('aria-hidden', 'true')
-    expect(avatar.className).toContain('size-6')
-  })
-
-  it('is 28px at md', () => {
-    renderUi(<AvatarInitials name="Rohan Mehta" size="md" />)
-    expect(screen.getByText('RM').className).toContain('size-7')
-  })
-
-  // The redesign drops the per-name tint for one calm slate gradient on a squarer tile.
-  it('uses the avatar gradient and 6px corners for every name', () => {
-    renderUi(
-      <>
-        <AvatarInitials name="Rohan Mehta" size="md" />
-        <AvatarInitials name="Priya Raghavan" />
-      </>,
-    )
-    for (const text of ['RM', 'PR']) {
-      const cls = screen.getByText(text).className
-      expect(cls).toContain(
-        'bg-[image:linear-gradient(180deg,var(--avatar-top),var(--avatar-bottom))]',
-      )
-      expect(cls).toContain('text-avatar-fg')
-      expect(cls).toContain('rounded-[6px]')
-      expect(cls).toContain('text-[10.5px]')
-      expect(cls).toContain('font-semibold')
-      expect(cls).not.toContain('rounded-full')
-      expect(cls).not.toContain('--tag-')
-    }
-  })
-
-  it('still offers a deterministic hue from the tag palette', () => {
-    const hue = avatarHue('Rohan Mehta')
-    expect(tagColourNames).toContain(hue)
-    expect(avatarHue('  rohan mehta ')).toBe(hue)
-  })
-
-  it('spreads names across hues', () => {
-    const names = ['Dawar', 'Dhruv', 'Rohan Mehta', 'Priya Raghavan', 'Kavya Iyer', 'Meera Pillai']
-    expect(new Set(names.map(avatarHue)).size).toBeGreaterThan(2)
   })
 })
