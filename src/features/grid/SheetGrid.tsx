@@ -47,6 +47,7 @@ import {
   toClipboardGrid,
 } from '@/domain/cellInput'
 import { pluralise } from '@/domain/format'
+import { isContactText } from '@/domain/quickadd/smartPaste'
 import type { NewRowValues, RowPatch } from '@/domain/rows'
 import { nextStageIndex, previousStageIndex } from '@/domain/stages'
 import type { ColumnDef, Member, Row, Sheet, Warmth } from '@/domain/types'
@@ -594,8 +595,8 @@ export function SheetGrid({
       return
     }
     const pasted = event.clipboardData.getData('text/plain')
-    // Smart paste: a signature or profile (several lines, no tabs) goes to quick add.
-    if (!pasted.includes('\t') && pasted.trim().includes('\n')) {
+    // Smart paste: a signature or profile goes to quick add; a spreadsheet block fills cells.
+    if (isContactText(pasted, event.clipboardData.getData('text/html'))) {
       useUiStore.getState().pasteIntoQuickAdd(pasted)
       return
     }

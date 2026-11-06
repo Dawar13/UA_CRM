@@ -106,9 +106,19 @@ export function istInstant(date: IsoDate, time = '00:00'): Date {
   return new Date(`${date}T${time}:00+05:30`)
 }
 
+/**
+ * The IST calendar date of an instant, by arithmetic: IST is a fixed UTC+5:30, so shifting the
+ * instant and reading its UTC date is exact, and far cheaper than a time-zone formatter. Summaries
+ * call this for every row (thousands of times on a large sheet).
+ */
+function istDateOfMs(ms: number): IsoDate {
+  const shifted = new Date(ms + IST_OFFSET_MINUTES * 60_000)
+  return toIsoDate(shifted.getUTCFullYear(), shifted.getUTCMonth() + 1, shifted.getUTCDate())
+}
+
 /** Today's IST calendar date as "YYYY-MM-DD". */
 export function todayIst(now: Date): IsoDate {
-  return format(now, 'yyyy-MM-dd', { in: inIst })
+  return istDateOfMs(now.getTime())
 }
 
 /** IST calendar date of an instant. A plain calendar date string is returned unchanged. */
@@ -116,7 +126,7 @@ export function istDateOf(instant: Date | string): IsoDate {
   if (typeof instant === 'string' && isIsoDate(instant)) return instant
   const date = typeof instant === 'string' ? new Date(instant) : instant
   if (Number.isNaN(date.getTime())) throw new RangeError(`Invalid instant: ${String(instant)}`)
-  return format(date, 'yyyy-MM-dd', { in: inIst })
+  return istDateOfMs(date.getTime())
 }
 
 // ---------------------------------------------------------------------------------------------

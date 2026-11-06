@@ -21,6 +21,7 @@ export const shortcuts: { keys: string[][]; label: string }[] = [
   { keys: [['Tab']], label: 'Save and move right while editing' },
   { keys: [['Esc']], label: 'Cancel the edit, collapse, or clear the selection' },
   { keys: [['N']], label: 'Add a contact' },
+  { keys: [['/']], label: 'Quick add' },
   {
     keys: [
       ['Shift', '↓'],

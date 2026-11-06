@@ -40,7 +40,14 @@ test.describe('sheets, columns, stages and the team', () => {
 
   test('stages are renamed, and removing one asks where its rows go', async ({ page }) => {
     await openSheet(page, 'dawar', 'customers')
-    await page.getByTestId('edit-stages').click()
+    // The open folder front has a shortcut; a folded one (short screens start folded) does not,
+    // and the sheet menu always works.
+    const summary = page.getByTestId('sheet-summary')
+    if ((await summary.getAttribute('data-state')) === 'open') {
+      await page.getByTestId('edit-stages').click()
+    } else {
+      await sheetMenu(page, 'Edit stages')
+    }
     const dialog = page.getByRole('dialog', { name: 'Stages of Customers' })
     await dialog.getByLabel('Stage 1 name').fill('Spotted')
     // Remove First call, where Rohan Mehta is.
@@ -52,7 +59,9 @@ test.describe('sheets, columns, stages and the team', () => {
     await expect(toast(page, 'Stages saved')).toBeVisible()
 
     await reloadApp(page)
-    await expect(page.getByTestId('edit-stages')).toHaveText('6 stages')
+    if ((await summary.getAttribute('data-state')) === 'open') {
+      await expect(page.getByTestId('edit-stages')).toHaveText('6 stages')
+    }
     await expect(gridRow(page, ids.rohanMehta).locator('[data-stage-label]')).toHaveText(
       'Plant visit',
     )

@@ -22,7 +22,8 @@ test.describe('2,000-row sheet', () => {
     await expect(grid.locator('[role="row"][data-row-id]').first()).toBeVisible()
     const elapsed = Date.now() - started
     expect(elapsed, `first rows took ${elapsed} ms`).toBeLessThan(1500)
-    await expect(grid).toHaveAttribute('aria-rowcount', '2001')
+    // The header, 2,000 rows and the "Add a contact" line of your own tab (M1.3).
+    await expect(grid).toHaveAttribute('aria-rowcount', '2002')
 
     // Watch for long tasks while scrolling.
     await page.evaluate(() => {
