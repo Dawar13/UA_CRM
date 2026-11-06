@@ -44,8 +44,9 @@ interface UiState {
   clearFlash: () => void
 }
 
+/** Closed until someone opens it (the founders' default, 7 Nov 2026); the choice is kept. */
 function readPanelOpen(): boolean {
-  return readStorage(storageKeys.panelOpen) !== 'false'
+  return readStorage(storageKeys.panelOpen) === 'true'
 }
 
 /** Below this window height the folder front starts folded, so the grid keeps room. */
@@ -65,7 +66,7 @@ export function readSummaryOpen(): boolean {
 }
 
 export const useUiStore = create<UiState>((set, get) => ({
-  panelOpen: typeof window === 'undefined' ? true : readPanelOpen(),
+  panelOpen: typeof window === 'undefined' ? false : readPanelOpen(),
   panelView: { kind: 'calendar' },
   summaryOpen: typeof window === 'undefined' ? true : readSummaryOpen(),
   paletteOpen: false,

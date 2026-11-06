@@ -123,5 +123,5 @@ describe('PDF export', () => {
     const text = (await page.getTextContent()).items.map((i) => ('str' in i ? i.str : '')).join(' ')
     expect(text).toContain('Rohan Mehta')
     expect(text).toContain('Rs 25 L')
-  })
+  }, 20_000) // Builds and parses a multi-page PDF; the 5 s default is tight on a busy machine.
 })

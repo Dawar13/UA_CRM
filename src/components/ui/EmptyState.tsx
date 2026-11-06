@@ -1,63 +1,60 @@
-import { type ReactNode, useId } from 'react'
+import type { ReactNode } from 'react'
 import { cn } from '@/lib/cn'
-import { softGradient } from '@/styles/tokens'
+
+const CELL = 14
+const GAP = 4
+const COLUMNS = 4
+const ROWS = 3
+/** Filled cells rise like a stage bar: [row, column, stage colour]. */
+const FILLED: readonly (readonly [number, number, string])[] = [
+  [0, 0, 'var(--stage4)'],
+  [1, 0, 'var(--stage3)'],
+  [1, 1, 'var(--stage4)'],
+  [2, 0, 'var(--stage2)'],
+  [2, 1, 'var(--stage3)'],
+  [2, 2, 'var(--stage4)'],
+]
 
 /**
- * Abstract art for empty states: a calm card of rows drawn in the soft gradient. Shapes only, no
- * illustration. Purely decorative.
+ * The empty-state mark: a small grid of spreadsheet cells, hairline and light, with a staircase
+ * of stage blues rising through it. Flat and geometric; purely decorative.
  */
 export function EmptyStateArt({ className }: { className?: string }) {
-  const id = useId().replace(/[^a-zA-Z0-9_-]/g, '')
-  const fill = `url(#${id}-fill)`
-  const glow = `url(#${id}-glow)`
-  const rows = [
-    { y: 44, bar: 50, opacity: 0.95 },
-    { y: 58, bar: 38, opacity: 0.6 },
-    { y: 72, bar: 44, opacity: 0.35 },
-  ]
+  const width = COLUMNS * CELL + (COLUMNS - 1) * GAP
+  const height = ROWS * CELL + (ROWS - 1) * GAP
+  const fillAt = (row: number, column: number) =>
+    FILLED.find(([r, c]) => r === row && c === column)?.[2]
   return (
     <svg
-      viewBox="0 0 160 112"
-      width="160"
-      height="112"
+      viewBox={`-1 -1 ${width + 2} ${height + 2}`}
+      width={width + 2}
+      height={height + 2}
       aria-hidden="true"
       focusable="false"
+      data-testid="empty-state-art"
       className={cn('shrink-0', className)}
     >
-      <defs>
-        <linearGradient id={`${id}-fill`} x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stopColor={softGradient.from} />
-          <stop offset="50%" stopColor={softGradient.via} />
-          <stop offset="100%" stopColor={softGradient.to} />
-        </linearGradient>
-        <radialGradient id={`${id}-glow`} cx="0.5" cy="0.5" r="0.5">
-          <stop offset="0%" stopColor={softGradient.via} stopOpacity="0.55" />
-          <stop offset="100%" stopColor={softGradient.via} stopOpacity="0" />
-        </radialGradient>
-      </defs>
-      <ellipse cx="80" cy="58" rx="74" ry="52" fill={glow} />
-      <rect
-        x="30"
-        y="28"
-        width="100"
-        height="60"
-        rx="10"
-        className="fill-surface-raised"
-        stroke={fill}
-        strokeOpacity="0.85"
-        strokeWidth="1.25"
-      />
-      <rect x="30" y="28" width="100" height="6" rx="3" fill={fill} opacity="0.5" />
-      {rows.map((row) => (
-        <g key={row.y} opacity={row.opacity}>
-          <circle cx="43" cy={row.y + 3} r="4.5" fill={fill} />
-          <rect x="53" y={row.y} width={row.bar} height="6" rx="3" fill={fill} />
-          <rect x="108" y={row.y} width="12" height="6" rx="3" fill={fill} opacity="0.7" />
-        </g>
-      ))}
-      <circle cx="134" cy="22" r="4" fill={softGradient.to} opacity="0.9" />
-      <circle cx="145" cy="33" r="2" fill={softGradient.from} opacity="0.7" />
-      <circle cx="22" cy="86" r="2.5" fill={softGradient.via} />
+      {Array.from({ length: ROWS }, (_, row) =>
+        Array.from({ length: COLUMNS }, (_, column) => {
+          const fill = fillAt(row, column)
+          return (
+            <rect
+              // biome-ignore lint/suspicious/noArrayIndexKey: a fixed grid.
+              key={`${row}-${column}`}
+              x={column * (CELL + GAP)}
+              y={row * (CELL + GAP)}
+              width={CELL}
+              height={CELL}
+              rx="3"
+              style={
+                fill
+                  ? { fill }
+                  : { fill: 'var(--stage-track)', stroke: 'var(--grid-line)', strokeWidth: 1 }
+              }
+            />
+          )
+        }),
+      )}
     </svg>
   )
 }

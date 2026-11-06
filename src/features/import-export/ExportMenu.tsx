@@ -105,12 +105,10 @@ export function ExportMenu({ member, sheet }: { member: Member; sheet: Sheet }) 
         </IconButton>
       </MenuTrigger>
       <MenuContent align="end" className="w-56">
-        <MenuItem onSelect={() => void run('xlsx')}>
-          <FileSpreadsheet aria-hidden />
+        <MenuItem onSelect={() => void run('xlsx')} icon={<FileSpreadsheet aria-hidden />}>
           Excel (.xlsx)
         </MenuItem>
-        <MenuItem onSelect={() => void run('pdf')}>
-          <FileText aria-hidden />
+        <MenuItem onSelect={() => void run('pdf')} icon={<FileText aria-hidden />}>
           PDF (A4 landscape)
         </MenuItem>
       </MenuContent>

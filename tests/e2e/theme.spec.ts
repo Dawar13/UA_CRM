@@ -76,10 +76,12 @@ async function expectNoFlash(page: Page, mode: string) {
 }
 
 test.describe('theme', () => {
-  test.describe('system default, light', () => {
+  // The default is light (tests/e2e/defaults.spec.ts); these cover System once chosen.
+  test.describe('System, light computer', () => {
     test.use({ colorScheme: 'light' })
 
     test('follows a light system setting', async ({ page }) => {
+      await setTheme(page, 'system')
       await gotoApp(page, '/', { waitForReady: true })
       await expect(page.locator('html')).toHaveAttribute('data-theme', 'system')
       await expect(themeToggle(page)).toHaveAccessibleName('Theme: System')
@@ -87,10 +89,11 @@ test.describe('theme', () => {
     })
   })
 
-  test.describe('system default, dark', () => {
+  test.describe('System, dark computer', () => {
     test.use({ colorScheme: 'dark' })
 
     test('follows a dark system setting, and live changes to it', async ({ page }) => {
+      await setTheme(page, 'system')
       await gotoApp(page, '/', { waitForReady: true })
       await expect(page.locator('html')).toHaveAttribute('data-theme', 'system')
       await expect(themeToggle(page)).toHaveAccessibleName('Theme: System')
@@ -104,15 +107,13 @@ test.describe('theme', () => {
     })
   })
 
-  test('the toggle cycles system → light → dark → system, and the choice persists', async ({
+  test('the toggle cycles light → dark → system → light, and the choice persists', async ({
     page,
   }) => {
     await page.emulateMedia({ colorScheme: 'light' })
     await gotoApp(page, '/', { waitForReady: true })
     const html = page.locator('html')
-    await expect(themeToggle(page)).toHaveAccessibleName('Theme: System')
-
-    await themeToggle(page).click()
+    // Light by default.
     await expect(html).toHaveAttribute('data-theme', 'light')
     await expect(themeToggle(page)).toHaveAccessibleName('Theme: Light')
     expect(await bodyBackground(page)).toBe(LIGHT_BG)
@@ -138,6 +139,10 @@ test.describe('theme', () => {
     expect(await page.evaluate((key) => localStorage.getItem(key), THEME_STORAGE_KEY)).toBe(
       'system',
     )
+
+    await themeToggle(page).click()
+    await expect(html).toHaveAttribute('data-theme', 'light')
+    await expect(themeToggle(page)).toHaveAccessibleName('Theme: Light')
   })
 
   test('the palette can set the theme', async ({ page }) => {

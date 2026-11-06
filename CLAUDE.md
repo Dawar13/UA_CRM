@@ -294,7 +294,7 @@ Warmth squares in the folder front have three shades each: deeper means the pers
 
 **Tag palette:** a small coloured square beside the tag name, no pill. The 8 softened hues are indigo #7C83F2, violet #A28CF4, pink #EE8FB5, orange #F2A06E, amber #E9BC5C, lime #8DC46E, teal #4FC2B4, slate #8B98A9. New tags take the least-used hue.
 
-**Gradients** are soft and purposeful: folder tabs and fronts, warmth and today chips, and the funnel. Never behind body text that would lose contrast. The old 3px strip at the top of the app is gone; the soft sampled gradient (#6CAAFD → #B5DBFF → #70BEFF) remains only for the sign-in background and empty-state art.
+**Gradients** are soft and purposeful: folder tabs and fronts, warmth and today chips, and the funnel. Never behind body text that would lose contrast. The old 3px strip at the top of the app is gone; the soft sampled gradient (#6CAAFD → #B5DBFF → #70BEFF) remains only for the sign-in background. Empty states use a small flat grid of cells with a staircase of stage blues (D-047).
 
 **Contrast is tested, not assumed.** Body and label text must be ≥ 4.5:1, including text on every folder colour, stage block and chip gradient stop. Focus rings and hollow outlines must be ≥ 3:1. Stage cells, warmth squares and activity dots are supplementary: each sits beside text that says the same thing, so they are not held to 3:1. This applies in both themes and is enforced by a unit test over the token file. If a hex above fails, adjust the hex, keep the intent, and log the change.
 

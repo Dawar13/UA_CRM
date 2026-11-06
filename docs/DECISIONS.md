@@ -536,3 +536,16 @@ Container jobs first make sure git is installed (otherwise checkout falls back t
 - The release workflow, its Build Output config and the Vercel CLI pin are removed. The nightly backup is unchanged (the founders chose to keep the private backup repository); its repository name now defaults to `<owner>/ua-crm-backups`, so it needs four secrets and no variables.
 
 **Consequences.** Setup is: import the repository in Vercel with three variables, and for backups one private repository, one token and four secrets. CI no longer gates production; a push that fails CI is still deployed, so wait for CI before pushing behaviour changes, or roll back in Vercel.
+
+## D-047 · 7 Nov 2026 · First use: light by default, side panel closed, flat empty states, one-line menus
+
+**Context.** The founders' first session on the live app.
+
+**Decision.**
+
+- **Light by default.** The theme starts as Light, not System, until someone chooses otherwise (in the app and in the pre-paint script in `index.html`, so there is no flash). The toggle cycles Light → Dark → System.
+- **Side panel closed by default.** It opens with its button or Ctrl/Cmd+.; the choice is remembered. Browser tests that read the panel open it through a fixture option (`startWithPanel`), and `tests/e2e/defaults.spec.ts` covers the first visit.
+- **Empty states** drop the glowing card, floating dots and soft gradient for a flat mark: a 4 × 3 grid of hairline cells with a staircase of stage blues, drawn from tokens so it follows the theme.
+- **Menus.** 21 menu items had their icon inside the label, where Tailwind's base styles render an SVG as a block, so the text sat on a line below the icon. Each now uses the item's `icon` slot, and `tests/unit/menuIcons.test.ts` fails if an icon goes back inside a label.
+
+**Consequences.** The visual baselines change (theme default does not affect them, since visual tests set the theme; the empty-state mark and menus do).

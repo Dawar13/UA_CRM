@@ -38,7 +38,8 @@ function isThemeMode(value: unknown): value is ThemeMode {
 /** Reads the stored mode. The inline script in index.html uses the same key and values. */
 export function readStoredThemeMode(): ThemeMode {
   const stored = readStorage(storageKeys.theme)
-  return isThemeMode(stored) ? stored : 'system'
+  // Light until someone chooses otherwise (the founders' default, 7 Nov 2026).
+  return isThemeMode(stored) ? stored : 'light'
 }
 
 function systemPrefersDark(): boolean {

@@ -42,6 +42,11 @@ interface UaFixtures {
   consoleIssues: ConsoleIssue[]
   /** Fail an otherwise passing test when `consoleIssues` is not empty. On by default. */
   failOnConsoleIssues: boolean
+  /**
+   * Open the side panel before the app boots, as most tests expect. The app itself starts with it
+   * closed; a test of that default sets this to false. Applied once per tab, like `setTheme`.
+   */
+  startWithPanel: boolean
 }
 
 function describeConsoleMessage(message: ConsoleMessage): ConsoleIssue | null {
@@ -57,9 +62,25 @@ function describeConsoleMessage(message: ConsoleMessage): ConsoleIssue | null {
 
 export const test = base.extend<UaFixtures>({
   failOnConsoleIssues: [true, { option: true }],
+  startWithPanel: [true, { option: true }],
 
-  page: async ({ page }, use) => {
+  page: async ({ page, startWithPanel }, use) => {
     await page.clock.setFixedTime(FROZEN_NOW)
+    if (startWithPanel) {
+      await page.addInitScript(
+        ({ key, flag }) => {
+          try {
+            if (window.sessionStorage.getItem(flag) === null) {
+              window.localStorage.setItem(key, 'true')
+              window.sessionStorage.setItem(flag, '1')
+            }
+          } catch {
+            // Storage is unavailable on about:blank; the next real navigation runs this again.
+          }
+        },
+        { key: 'ua-crm:panel-open', flag: 'ua-crm:test-panel-applied' },
+      )
+    }
     await use(page)
   },
 

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en-IN" data-theme="system">
+<html lang="en-IN" data-theme="light">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -10,7 +10,7 @@
       // Sets the theme before first paint so there is never a flash of the wrong theme.
       // Keep the key and values in sync with src/app/theme.tsx.
       ;(() => {
-        let mode = 'system'
+        let mode = 'light'
         try {
           const stored = localStorage.getItem('ua-crm:theme')
           if (stored === 'light' || stored === 'dark' || stored === 'system') mode = stored

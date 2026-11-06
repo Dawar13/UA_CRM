@@ -37,12 +37,16 @@ export function AccountMenuItems({
         <MenuLabel>Signed in as {auth.member.name}</MenuLabel>
         {auth.mode === 'supabase' ? (
           <>
-            <MenuItem onSelect={onChangePassword}>
-              <KeyRound aria-hidden className="size-4" />
+            <MenuItem
+              onSelect={onChangePassword}
+              icon={<KeyRound aria-hidden className="size-4" />}
+            >
               Change password
             </MenuItem>
-            <MenuItem onSelect={() => void auth.signOut()}>
-              <LogOut aria-hidden className="size-4" />
+            <MenuItem
+              onSelect={() => void auth.signOut()}
+              icon={<LogOut aria-hidden className="size-4" />}
+            >
               Sign out
             </MenuItem>
           </>

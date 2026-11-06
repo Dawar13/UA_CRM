@@ -187,23 +187,23 @@ describe('SheetTabs', () => {
 })
 
 describe('ThemeToggle', () => {
-  it('cycles system → light → dark and names the mode', async () => {
+  it('starts in light, cycles light → dark → system and names the mode', async () => {
     const { user } = renderUi(<ThemeToggle />)
-    const button = screen.getByRole('button', { name: 'Theme: System' })
+    const button = screen.getByRole('button', { name: 'Theme: Light' })
     await user.click(button)
-    expect(screen.getByRole('button', { name: 'Theme: Light' })).toBeInTheDocument()
-    expect(document.documentElement).toHaveAttribute('data-theme', 'light')
-    expect(window.localStorage.getItem('ua-crm:theme')).toBe('light')
-    await user.click(button)
+    expect(screen.getByRole('button', { name: 'Theme: Dark' })).toBeInTheDocument()
     expect(document.documentElement).toHaveAttribute('data-theme', 'dark')
+    expect(window.localStorage.getItem('ua-crm:theme')).toBe('dark')
     await user.click(button)
     expect(screen.getByRole('button', { name: 'Theme: System' })).toBeInTheDocument()
+    await user.click(button)
+    expect(document.documentElement).toHaveAttribute('data-theme', 'light')
   })
 
   it('names the mode in its tooltip', async () => {
     const { user } = renderUi(<ThemeToggle />)
-    await user.hover(screen.getByRole('button', { name: 'Theme: System' }))
-    expect(await screen.findByRole('tooltip')).toHaveTextContent('Theme: System')
+    await user.hover(screen.getByRole('button', { name: 'Theme: Light' }))
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Theme: Light')
   })
 })
 
@@ -212,7 +212,8 @@ describe('ThemeSegmented', () => {
     const { user } = renderUi(<ThemeSegmented />)
     const group = screen.getByRole('radiogroup', { name: 'Theme' })
     expect(group).toBeInTheDocument()
-    expect(screen.getByRole('radio', { name: 'System' })).toBeChecked()
+    // Light by default (7 Nov 2026).
+    expect(screen.getByRole('radio', { name: 'Light' })).toBeChecked()
     await user.click(screen.getByRole('radio', { name: 'Dark' }))
     expect(screen.getByRole('radio', { name: 'Dark' })).toBeChecked()
     expect(document.documentElement).toHaveAttribute('data-theme', 'dark')
@@ -221,11 +222,11 @@ describe('ThemeSegmented', () => {
   it('moves with arrow keys', async () => {
     const { user } = renderUi(<ThemeSegmented />)
     await user.tab()
-    expect(screen.getByRole('radio', { name: 'System' })).toHaveFocus()
+    expect(screen.getByRole('radio', { name: 'Light' })).toHaveFocus()
     // Hold the key: Radix checks the radio when focus arrives while an arrow key is down.
     await user.keyboard('{ArrowRight>}')
-    await waitFor(() => expect(screen.getByRole('radio', { name: 'Light' })).toBeChecked())
+    await waitFor(() => expect(screen.getByRole('radio', { name: 'Dark' })).toBeChecked())
     await user.keyboard('{/ArrowRight}')
-    expect(document.documentElement).toHaveAttribute('data-theme', 'light')
+    expect(document.documentElement).toHaveAttribute('data-theme', 'dark')
   })
 })

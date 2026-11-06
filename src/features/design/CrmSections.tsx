@@ -480,7 +480,7 @@ export function EmptySection() {
     <Section
       id="empty"
       title="Empty states"
-      caption="Say what belongs here and how to add it. The art is drawn from shapes in the soft gradient."
+      caption="Say what belongs here and how to add it. The mark is a small grid of cells with a staircase of stage blues rising through it."
     >
       <div className="grid gap-6 lg:grid-cols-3">
         <Specimen bodyClassName="p-0">

@@ -1017,13 +1017,12 @@ export function SheetGrid({
                                 actorId,
                               })
                             }
+                            icon={<EyeOff aria-hidden />}
                           >
-                            <EyeOff aria-hidden />
                             Hide column
                           </MenuItem>
                           {onManageColumns ? (
-                            <MenuItem onSelect={onManageColumns}>
-                              <Settings2 aria-hidden />
+                            <MenuItem onSelect={onManageColumns} icon={<Settings2 aria-hidden />}>
                               Columns
                             </MenuItem>
                           ) : null}

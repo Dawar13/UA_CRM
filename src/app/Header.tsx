@@ -56,8 +56,8 @@ function DeveloperItems() {
             navigate('/')
             toast('Sample data reset')
           }}
+          icon={<RotateCcw aria-hidden className="size-4" />}
         >
-          <RotateCcw aria-hidden className="size-4" />
           Reset sample data
         </MenuItem>
         <MenuItem
@@ -69,8 +69,8 @@ function DeveloperItems() {
             if (owner) navigate(sheetPath(owner.slug, sheet.slug))
             toast('Loaded the 2,000-row sheet')
           }}
+          icon={<Database aria-hidden className="size-4" />}
         >
-          <Database aria-hidden className="size-4" />
           Load 2,000-row sheet
         </MenuItem>
       </MenuGroup>
@@ -145,30 +145,40 @@ export function Header({
           </MenuTrigger>
           <MenuContent align="end" className="w-64">
             <AccountMenuItems members={members} onChangePassword={() => setPasswordOpen(true)} />
-            <MenuItem onSelect={() => setTeamOpen(true)}>
-              <Users aria-hidden className="size-4" />
+            <MenuItem
+              onSelect={() => setTeamOpen(true)}
+              icon={<Users aria-hidden className="size-4" />}
+            >
               Team
             </MenuItem>
-            <MenuItem onSelect={() => setTagsOpen(true)}>
-              <Hash aria-hidden className="size-4" />
+            <MenuItem
+              onSelect={() => setTagsOpen(true)}
+              icon={<Hash aria-hidden className="size-4" />}
+            >
               Tags
             </MenuItem>
             {me ? (
-              <MenuItem onSelect={() => setImportOpen(true)}>
-                <Upload aria-hidden className="size-4" />
+              <MenuItem
+                onSelect={() => setImportOpen(true)}
+                icon={<Upload aria-hidden className="size-4" />}
+              >
                 Import the old spreadsheet
               </MenuItem>
             ) : null}
-            <MenuItem onSelect={() => void exportEverything()}>
-              <Database aria-hidden className="size-4" />
+            <MenuItem
+              onSelect={() => void exportEverything()}
+              icon={<Database aria-hidden className="size-4" />}
+            >
               Export everything
             </MenuItem>
-            <MenuItem onSelect={showTrash}>
-              <Trash2 aria-hidden className="size-4" />
+            <MenuItem onSelect={showTrash} icon={<Trash2 aria-hidden className="size-4" />}>
               Trash
             </MenuItem>
-            <MenuItem onSelect={() => setShortcutsOpen(true)} shortcut={['?']}>
-              <Keyboard aria-hidden className="size-4" />
+            <MenuItem
+              onSelect={() => setShortcutsOpen(true)}
+              shortcut={['?']}
+              icon={<Keyboard aria-hidden className="size-4" />}
+            >
               Keyboard shortcuts
             </MenuItem>
             <MenuSeparator />

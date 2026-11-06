@@ -124,29 +124,31 @@ export function SheetMenu({
           </IconButton>
         </MenuTrigger>
         <MenuContent align="end" className="w-56">
-          <MenuItem onSelect={() => setOpen('rename')}>
-            <PenLine aria-hidden />
+          <MenuItem onSelect={() => setOpen('rename')} icon={<PenLine aria-hidden />}>
             Rename sheet
           </MenuItem>
-          <MenuItem onSelect={() => setOpen('stages')}>
-            <ListOrdered aria-hidden />
+          <MenuItem onSelect={() => setOpen('stages')} icon={<ListOrdered aria-hidden />}>
             {sheet.stages.length > 0 ? 'Edit stages' : 'Add stages'}
           </MenuItem>
-          <MenuItem onSelect={() => setOpen('columns')}>
-            <Columns3 aria-hidden />
+          <MenuItem onSelect={() => setOpen('columns')} icon={<Columns3 aria-hidden />}>
             Columns
           </MenuItem>
-          <MenuItem onSelect={() => setOpen('import')}>
-            <Upload aria-hidden />
+          <MenuItem onSelect={() => setOpen('import')} icon={<Upload aria-hidden />}>
             Import from a file
           </MenuItem>
           <MenuSeparator />
-          <MenuItem disabled={index <= 0} onSelect={() => move(-1)}>
-            <ArrowLeft aria-hidden />
+          <MenuItem
+            disabled={index <= 0}
+            onSelect={() => move(-1)}
+            icon={<ArrowLeft aria-hidden />}
+          >
             Move left
           </MenuItem>
-          <MenuItem disabled={index < 0 || index >= sheets.length - 1} onSelect={() => move(1)}>
-            <ArrowRight aria-hidden />
+          <MenuItem
+            disabled={index < 0 || index >= sheets.length - 1}
+            onSelect={() => move(1)}
+            icon={<ArrowRight aria-hidden />}
+          >
             Move right
           </MenuItem>
           <MenuSeparator />
@@ -156,8 +158,8 @@ export function SheetMenu({
               remove.mutate({ sheet, actorId: actor.id })
               navigate(memberPath(member.slug))
             }}
+            icon={<Trash2 aria-hidden />}
           >
-            <Trash2 aria-hidden />
             Delete sheet
           </MenuItem>
         </MenuContent>
