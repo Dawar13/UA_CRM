@@ -5,9 +5,9 @@ import { capsuleGeometry } from './folder'
 export const CAPSULE_HEIGHT = 56
 
 /**
- * The pipeline drawn as one long tapered capsule, measured to its real pixel width so the round
- * ends stay truly round. Each stage is a band of the blue ramp; the band stops at the last stage
- * anyone reached. Decorative: the card carries the numbers as text.
+ * The pipeline drawn as a horizontal funnel (D-031), measured to its real pixel width so the
+ * rounded spout stays round. Each stage is a band of the blue ramp; the funnel stops at the last
+ * stage anyone reached. Decorative: the card carries the numbers as text.
  */
 export function PipelineCapsule({
   reached,

@@ -63,6 +63,8 @@
   --color-pill-border: var(--pill-border);
   --color-overlay: var(--overlay);
   --color-tile: var(--tile);
+  --color-grid-line: var(--grid-line);
+  --color-grid-header: var(--grid-header);
   --color-today-bg: var(--today-bg);
   --color-today-fg: var(--today-fg);
   --color-won-fg: var(--won-fg);

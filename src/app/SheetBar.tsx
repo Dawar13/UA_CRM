@@ -4,7 +4,7 @@ import { SheetTabs } from '@/components/crm/SheetTabs'
 import { IconButton } from '@/components/ui/IconButton'
 import { useRowCounts } from '@/data/hooks'
 import type { Member, Sheet } from '@/domain/types'
-import { sheetPath } from './navigation'
+import { rememberLocation, sheetPath } from './navigation'
 import { useUiStore } from './uiStore'
 
 /**
@@ -35,7 +35,11 @@ export function SheetBar({
           value={sheet.id}
           onValueChange={(id) => {
             const next = sheets.find((s) => s.id === id)
-            if (next) navigate(sheetPath(member.slug, next.slug))
+            if (!next) return
+            // Remember the choice now, not after the new sheet renders, so a reload straight
+            // after switching still comes back to it.
+            rememberLocation(member.id, next.id)
+            navigate(sheetPath(member.slug, next.slug))
           }}
           onActiveTabClick={toggleSummary}
         />

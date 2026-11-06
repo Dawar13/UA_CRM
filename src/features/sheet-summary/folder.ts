@@ -52,7 +52,7 @@ export function faceBackground(folder: FolderNumber, open: boolean): string {
 /** Number of capsule shades, `--capsule1` (lightest in light mode) to `--capsule8`. */
 export const CAPSULE_STEPS = 8
 
-/** Capsule shade (1 to 8) for stage `index` of `count`: evenly from first to last. */
+/** Funnel band shade (1 to 8) for stage `index` of `count`: evenly from first to last. */
 export function capsuleStep(index: number, count: number): number {
   if (count <= 1) return 5
   return Math.round((index * (CAPSULE_STEPS - 1)) / (count - 1)) + 1
@@ -80,7 +80,7 @@ export interface CapsuleBand {
 }
 
 export interface CapsuleGeometry {
-  /** Outline of the tapered capsule, used as a clip path. */
+  /** Outline of the funnel, used as a clip path. */
   path: string
   /** One band per stage up to the last reached stage, 1px apart. */
   bands: CapsuleBand[]
@@ -93,10 +93,11 @@ function round(value: number): number {
 }
 
 /**
- * One long tapered capsule across `width` × `height`. Each stage owns an equal column; the
- * capsule's half-thickness at a column centre follows how many reached that stage, with smooth
- * curves between centres, a round cap on the left and a round cap at the end of the last stage
- * anyone reached. Nothing is drawn past that stage. Null when there is nothing to draw.
+ * The pipeline as a horizontal funnel across `width` × `height`. Each stage owns an equal column.
+ * The funnel opens with a flat, full-height mouth on the left (everyone who reached the first
+ * stage) and narrows through each stage boundary in proportion to how many reached that stage,
+ * along monotone curves (Fritsch–Carlson) so the sides never bulge, to a rounded spout at the end
+ * of the last stage anyone reached. Nothing is drawn past it. Null when there is nothing to draw.
  */
 export function capsuleGeometry(
   reached: readonly number[],
@@ -111,38 +112,62 @@ export function capsuleGeometry(
   const max = Math.max(1, ...reached)
   const col = width / count
   const half = (value: number) => Math.min(cy, MIN_HALF + (value / max) * (cy - MIN_HALF))
-  const h0 = half(reached[0] ?? 0)
-  const hLast = half(reached[last] ?? 0)
   const end = (last + 1) * col - 2
+  const tip = Math.max(MIN_HALF * 0.75, half(reached[last] ?? 0) * 0.7)
 
-  // Control points along the top edge: [x, half-thickness], with x always moving right.
-  const points: [number, number][] = [[h0, h0]]
-  for (let i = 0; i <= last; i++) points.push([col * (i + 0.5), half(reached[i] ?? 0)])
-  points.push([end - hLast, hLast])
-  for (let k = 1; k < points.length; k++) {
-    const prev = points[k - 1] as [number, number]
-    const point = points[k] as [number, number]
-    if (point[0] < prev[0] + 0.5) point[0] = prev[0] + 0.5
+  // The top edge at each stage boundary: [x, half-thickness], then the spout.
+  const points: [number, number][] = []
+  for (let i = 0; i <= last; i++) points.push([i * col, half(reached[i] ?? 0)])
+  points.push([Math.max(end - tip, last * col + 1), tip])
+  const n = points.length
+  const xs = points.map((p) => p[0])
+  const hs = points.map((p) => p[1])
+
+  // Monotone cubic slopes (Fritsch–Carlson).
+  const secants: number[] = []
+  for (let k = 0; k < n - 1; k++) {
+    const dx = (xs[k + 1] as number) - (xs[k] as number)
+    secants.push(dx > 0 ? ((hs[k + 1] as number) - (hs[k] as number)) / dx : 0)
+  }
+  const slopes: number[] = new Array(n).fill(0)
+  slopes[0] = secants[0] ?? 0
+  slopes[n - 1] = secants[n - 2] ?? 0
+  for (let k = 1; k < n - 1; k++) {
+    const a = secants[k - 1] as number
+    const b = secants[k] as number
+    slopes[k] = a * b <= 0 ? 0 : (a + b) / 2
+  }
+  for (let k = 0; k < n - 1; k++) {
+    const s = secants[k] as number
+    if (s === 0) {
+      slopes[k] = 0
+      slopes[k + 1] = 0
+      continue
+    }
+    const a = (slopes[k] as number) / s
+    const b = (slopes[k + 1] as number) / s
+    const r = a * a + b * b
+    if (r > 9) {
+      const t = 3 / Math.sqrt(r)
+      slopes[k] = t * a * s
+      slopes[k + 1] = t * b * s
+    }
   }
 
-  const at = (k: number) => points[k] as [number, number]
-  const first = at(0)
-  const tail = at(points.length - 1)
-  let d = `M ${round(first[0])} ${round(cy - first[1])}`
-  for (let k = 1; k < points.length; k++) {
-    const [x0, h0k] = at(k - 1)
-    const [x1, h1] = at(k)
-    const mx = round((x0 + x1) / 2)
-    d += ` C ${mx} ${round(cy - h0k)} ${mx} ${round(cy - h1)} ${round(x1)} ${round(cy - h1)}`
+  const x = (k: number) => xs[k] as number
+  const h = (k: number) => hs[k] as number
+  const m = (k: number) => slopes[k] as number
+  let d = `M ${round(x(0))} ${round(cy - h(0))}`
+  for (let k = 0; k < n - 1; k++) {
+    const third = (x(k + 1) - x(k)) / 3
+    d += ` C ${round(x(k) + third)} ${round(cy - (h(k) + m(k) * third))} ${round(x(k + 1) - third)} ${round(cy - (h(k + 1) - m(k + 1) * third))} ${round(x(k + 1))} ${round(cy - h(k + 1))}`
   }
-  d += ` A ${round(tail[1])} ${round(tail[1])} 0 0 1 ${round(tail[0])} ${round(cy + tail[1])}`
-  for (let k = points.length - 1; k > 0; k--) {
-    const [x1, h1] = at(k)
-    const [x0, h0k] = at(k - 1)
-    const mx = round((x0 + x1) / 2)
-    d += ` C ${mx} ${round(cy + h1)} ${mx} ${round(cy + h0k)} ${round(x0)} ${round(cy + h0k)}`
+  d += ` A ${round(h(n - 1))} ${round(h(n - 1))} 0 0 1 ${round(x(n - 1))} ${round(cy + h(n - 1))}`
+  for (let k = n - 1; k > 0; k--) {
+    const third = (x(k) - x(k - 1)) / 3
+    d += ` C ${round(x(k) - third)} ${round(cy + (h(k) - m(k) * third))} ${round(x(k - 1) + third)} ${round(cy + (h(k - 1) + m(k - 1) * third))} ${round(x(k - 1))} ${round(cy + h(k - 1))}`
   }
-  d += ` A ${round(first[1])} ${round(first[1])} 0 0 1 ${round(first[0])} ${round(cy - first[1])} Z`
+  d += ' Z'
 
   const bands: CapsuleBand[] = []
   for (let i = 0; i <= last; i++) {

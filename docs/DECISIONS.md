@@ -358,3 +358,15 @@ Container jobs first make sure git is installed (otherwise checkout falls back t
 **Decision.** Opening a row (deep link, search jump, click or Enter) aligns it to the top of the grid, just under the header, with its details below. Start alignment depends only on the fixed-height rows above it, so the grid always lands in the same place. No scroll is issued when the row is already there (a no-op scroll raced with focus returning from the search dialog in WebKit). The visual tests also wait for the side panel's idle-loaded 30-day field and contact chips, and give `/design` sections up to 15 s to settle.
 
 **Consequences.** An e2e test checks that a deep-linked row opens from its top on desktop and at 1024px. The expanded-row visual baselines change once more.
+
+## D-031 · 6 Nov 2026 · A spreadsheet-like grid and a true funnel
+
+**Context.** The founders asked for smaller, more Excel-like cells with visible lines, and a pipeline that reads as a funnel rather than a capsule.
+
+**Decision.**
+
+- Rows are single-line and 36px (compact 30px), with 13px text, a gridline on every row and column (`--grid-line`: #DCE3E8 light, #22303A dark) and a shaded 32px header row (`--grid-header`). The name cell is a small monogram and the name, so Company and Title are visible columns again (reverting that part of D-027); the seed version is 3 so open browsers pick it up.
+- Rows use CSS layout and paint containment, and the virtualizer keeps 6 rows (was 12) above and below the screen: shorter rows mean each mouse-wheel step mounts a whole new screen, and this keeps the 2,000-row scroll under the 200 ms long-task limit. Tooltips and menus render in portals, so containment clips nothing.
+- The pipeline is a horizontal funnel: a flat, full-height mouth at the first stage, sides that narrow through each stage boundary in proportion to how many reached it (monotone Fritsch–Carlson curves, so they never bulge) and a rounded spout at the last stage anyone reached. The blue stage bands and the conversion pills are unchanged.
+
+**Consequences.** All grid and summary visual baselines change once more.

@@ -38,7 +38,7 @@ import { GridRow, type GridRowHandlers } from './GridRow'
 
 /** Row height in px (the --row-height token). */
 export const ROW_HEIGHT = layout.rowHeight
-const HEADER_HEIGHT = 38
+const HEADER_HEIGHT = 32
 /** First guess at the expanded details' height; the virtualizer measures the real one. */
 const EXPANDED_ESTIMATE = 480
 
@@ -196,7 +196,8 @@ export function SheetGrid({
     estimateSize: (index) =>
       tableRows[index]?.original.id === expandedRowId ? ROW_HEIGHT + EXPANDED_ESTIMATE : ROW_HEIGHT,
     getItemKey: (index) => tableRows[index]?.original.id ?? index,
-    overscan: 12,
+    // Rows are 36px, so 6 rows each way already cover a fast scroll; more costs long tasks on jumps.
+    overscan: 6,
     rangeExtractor,
     scrollPaddingStart: HEADER_HEIGHT,
     // Render a first screen before the scroll element is measured (replaced on measurement).
@@ -398,11 +399,11 @@ export function SheetGrid({
     >
       <div style={{ width: totalWidth, minWidth: '100%' }}>
         {/* Header */}
-        <div role="rowgroup" className="sticky top-0 z-20 bg-bg">
+        <div role="rowgroup" className="sticky top-0 z-20 bg-grid-header">
           <div
             role="row"
             aria-rowindex={1}
-            className="grid border-y border-border"
+            className="grid border-y border-grid-line"
             style={{ gridTemplateColumns, height: HEADER_HEIGHT }}
           >
             {headerGroup?.headers.map((header, colIndex) => {
@@ -421,10 +422,10 @@ export function SheetGrid({
                   data-active={isActive || undefined}
                   onMouseDown={() => rowHandlers.onCellMouseDown(-1, colIndex)}
                   className={cn(
-                    'relative flex items-center bg-bg',
+                    'relative flex items-center border-r border-grid-line bg-grid-header',
                     // Labels start where the cells' content starts; start-aligned ones may use
                     // the right padding so "Last touch" fits its narrow default column.
-                    def && columnAlign(def) === 'end' ? 'justify-end px-3' : 'pr-0 pl-3',
+                    def && columnAlign(def) === 'end' ? 'justify-end px-2.5' : 'pr-0 pl-2.5',
                     colIndex === 0 && 'sticky left-0 z-10',
                     'group-focus/grid:data-[active]:focus-ring-inset',
                   )}

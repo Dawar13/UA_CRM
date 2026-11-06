@@ -47,6 +47,9 @@ const textPairs: [Role, Role][] = [
   ['brandTintFg', 'brandTint'],
   ['textSecondary', 'pillBg'],
   ['textSecondary', 'tile'],
+  // The grid's shaded header row.
+  ['text', 'gridHeader'],
+  ['textMuted', 'gridHeader'],
   ['avatarFg', 'avatarBottom'],
   // Dates.
   ['todayFg', 'todayBg'],

@@ -27,7 +27,7 @@ import type {
 } from '@/domain/types'
 
 /** Bump when the seed changes; existing local databases are then reseeded. */
-export const SEED_VERSION = 2
+export const SEED_VERSION = 3
 
 export interface SeedData {
   members: Member[]

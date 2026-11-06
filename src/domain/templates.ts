@@ -167,12 +167,10 @@ export const templates: Readonly<Record<TemplateKey, TemplateDef>> = {
 }
 
 /**
- * Core columns hidden in the grid by default. Company and Title are hidden because the Name cell
- * shows them as its second line (M0.6); Next date because the Next action cell shows its date.
+ * Core columns hidden in the grid by default. Next date is hidden because the Next action cell
+ * already shows its date.
  */
 const HIDDEN_BY_DEFAULT: ReadonlySet<CoreFieldKey> = new Set<CoreFieldKey>([
-  'company',
-  'title',
   'linkedin',
   'links',
   'nextDate',
@@ -194,6 +192,8 @@ const LEADING_CORE: readonly CoreFieldKey[] = [
   'tags',
   'lastTouch',
   'nextAction',
+  'company',
+  'title',
   'phone',
   'email',
 ]
@@ -204,7 +204,7 @@ const CORE: readonly {
   type: ColumnDef['type']
   width: number
 }[] = [
-  { key: 'name', label: 'Name', type: 'text', width: 236 },
+  { key: 'name', label: 'Name', type: 'text', width: 200 },
   { key: 'company', label: 'Company', type: 'text', width: 180 },
   { key: 'title', label: 'Title', type: 'text', width: 160 },
   { key: 'phone', label: 'Phone', type: 'phone', width: 150 },
@@ -227,8 +227,7 @@ const CORE: readonly {
  * Core columns every sheet has, in CLAUDE.md §2.3 definition order: Name, Company, Title, Phone,
  * Email, LinkedIn, Links, Warmth, Stage (only if the sheet has stages), Tags, Last touch,
  * Next action, Next date, Introduced by, Connects to, Notes, Files. All `system: true`.
- * Company, Title, LinkedIn, Links, Next date, Introduced by, Connects to, Notes and Files are
- * hidden.
+ * LinkedIn, Links, Next date, Introduced by, Connects to, Notes and Files are hidden.
  */
 export function coreColumns(hasStages: boolean): Omit<ColumnDef, 'id' | 'position'>[] {
   return CORE.filter((c) => hasStages || c.key !== 'stage').map((c) => ({
@@ -242,10 +241,10 @@ export function coreColumns(hasStages: boolean): Omit<ColumnDef, 'id' | 'positio
  * Full column and stage definitions for a new sheet from a template. `newId` makes ids
  * (columns first, in position order, then stages).
  * Default order (positions 0..n, and the order of the returned array), following the
- * CLAUDE.md §2.1 layout: Name (with title and company as its second line), Warmth, Stage (if
- * any), Tags, Last touch, Next action, Phone, Email, then the template's extra columns, then the
- * hidden-by-default core columns (Company, Title, LinkedIn, Links, Next date, Introduced by,
- * Connects to, Notes, Files, in §2.3 order). Everything except those nine is visible.
+ * CLAUDE.md §2.1 layout: Name, Warmth, Stage (if any), Tags, Last touch, Next action, Company,
+ * Title, Phone, Email, then the template's extra columns, then the hidden-by-default core
+ * columns (LinkedIn, Links, Next date, Introduced by, Connects to, Notes, Files, in §2.3 order).
+ * Everything except those seven is visible.
  */
 export function buildSheetSchema(
   template: TemplateKey,

@@ -18,7 +18,7 @@ export function avatarHue(name: string): TagColour {
 export interface AvatarInitialsProps {
   name: string
   /** sm is 24px, md is 28px (grid rows). */
-  size?: 'sm' | 'md'
+  size?: 'xs' | 'sm' | 'md'
   className?: string
 }
 
@@ -33,8 +33,10 @@ export function AvatarInitials({ name, size = 'sm', className }: AvatarInitialsP
       className={cn(
         'inline-flex shrink-0 select-none items-center justify-center rounded-[6px]',
         'bg-[image:linear-gradient(180deg,var(--avatar-top),var(--avatar-bottom))] text-avatar-fg',
-        'text-[10.5px] leading-none font-semibold tracking-[0.02em]',
-        size === 'sm' ? 'size-6' : 'size-7',
+        'leading-none font-semibold tracking-[0.02em]',
+        size === 'xs' ? 'size-5 rounded-[5px] text-[9px]' : 'text-[10.5px]',
+        size === 'sm' && 'size-6',
+        size === 'md' && 'size-7',
         className,
       )}
     >

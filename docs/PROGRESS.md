@@ -176,8 +176,8 @@ After reviewing Phase 0, the founders asked for a calmer, more art-like look and
 
 ### Done
 
-- **Tokens:** paper white surfaces; the navy-to-white blue palette for folders, stages and the pipeline capsule; the earthy field palette (olive, ochre, brick, sand) for warmth and activity; squarer corners (4 / 6 / 8 / 10px); 56px header and 52px two-line rows. Every text pair is contrast-tested in both themes (D-028).
-- **Sheets are folders:** blue gradient folder tabs (01 deepest to 05 lightest); the active tab joins a folder front that fades into the sheet. The front shows People, Open pipeline (or This week), Won (or Next actions) and Due, plus a frosted pipeline card: one tapered capsule whose thickness follows how many reached each stage, with the share that moved on, and warmth squares for who is there now, shaded by how recently they were touched. Clicking the active tab folds the front to one line; the choice is remembered, and short screens start folded.
+- **Tokens:** paper white surfaces; the navy-to-white blue palette for folders, stages and the pipeline funnel; the earthy field palette (olive, ochre, brick, sand) for warmth and activity; squarer corners (4 / 6 / 8 / 10px); 56px header and 36px single-line, spreadsheet-style rows with visible gridlines (D-031). Every text pair is contrast-tested in both themes (D-028).
+- **Sheets are folders:** blue gradient folder tabs (01 deepest to 05 lightest); the active tab joins a folder front that fades into the sheet. The front shows People, Open pipeline (or This week), Won (or Next actions) and Due, plus a frosted pipeline card: a horizontal funnel, from a full-height mouth to a rounded spout, whose thickness follows how many reached each stage, with the share that moved on, and warmth squares for who is there now, shaded by how recently they were touched. Clicking the active tab folds the front to one line; the choice is remembered, and short screens start folded.
 - **Grid:** two-line name cells with grey gradient monograms (title and company as the second line, so those columns are hidden by default), soft warmth chips, a joined stage bar beside the stage name, legend-style tags, Geist Mono dates and a blue "Today" chip.
 - **Expanded row:** joined stage blocks with names and dates, a warmth radio group, next action, notes, fields and a history with tinted icon tiles.
 - **Side panel:** a 7-day strip and a 30-day dot field (touches held stack up in deepening greens, a blue dot when a stage moved, missed follow-ups hang below a sand line from ochre to brick), then agenda cards.
@@ -198,7 +198,7 @@ After reviewing Phase 0, the founders asked for a calmer, more art-like look and
 
 ### Try this
 
-1. Open `/m/dawar/customers`. The Customers folder is the deepest blue; its front shows 12 people, ₹2.2 Cr open pipeline, ₹30 L won and 2 due. The capsule narrows from 12 identified to 1 paid, with 83%, 80%… between stages.
+1. Open `/m/dawar/customers`. The Customers folder is the deepest blue; its front shows 12 people, ₹2.2 Cr open pipeline, ₹30 L won and 2 due. The funnel narrows from 12 identified to 1 paid, with 83%, 80%… between stages.
 2. Click the open **Customers** tab: the front folds to one line. Reload: it stays folded. Press Enter on the tab to unfold it.
 3. Switch to **Investors** and **Connectors**: each folder is a lighter blue; Connectors (no stages) groups people by relationship.
 4. Open Sunita Kulkarni's row: click **Pilot scoped**, see the block take the ramp colour, "5 Nov" stamped and a new history line; Undo restores it. Choose **Cold** in the warmth group; the chip in the row and the square in the pipeline card change.

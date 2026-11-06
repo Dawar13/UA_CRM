@@ -56,9 +56,10 @@ export const GridRow = memo(function GridRow({
       data-flash={isFlashing || undefined}
       onClick={(e) => handlers.onRowClick(e, row)}
       className={cn(
-        'group/row grid cursor-default border-b border-tile bg-bg transition-colors duration-[var(--duration-fast)]',
+        // Fixed-height rows: contain their layout and paint so mounting a screenful stays cheap.
+        'group/row grid cursor-default border-b border-grid-line bg-bg transition-colors duration-[var(--duration-fast)] [contain:layout_paint_style]',
         'hover:bg-row-hover',
-        isExpanded && 'border-transparent bg-row-selected hover:bg-row-selected',
+        isExpanded && 'bg-row-selected hover:bg-row-selected',
         'data-[flash]:animate-[row-flash_1.2s_var(--motion-ease-out)]',
       )}
       style={{ gridTemplateColumns, height }}
@@ -75,7 +76,8 @@ export const GridRow = memo(function GridRow({
           data-active={activeCol === colIndex || undefined}
           onMouseDown={() => handlers.onCellMouseDown(rowIndex, colIndex)}
           className={cn(
-            'flex min-w-0 items-center overflow-hidden bg-inherit px-3 text-base',
+            // Spreadsheet cells: a gridline on the right of every cell, compact 13px text.
+            'flex min-w-0 items-center overflow-hidden border-r border-grid-line bg-inherit px-2.5 text-sm',
             colIndex === 0 && 'sticky left-0 z-10',
             columnAlign(def) === 'end' && 'justify-end',
             'group-focus/grid:data-[active]:focus-ring-inset',

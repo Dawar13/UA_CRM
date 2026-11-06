@@ -77,16 +77,21 @@ describe('capsule', () => {
     ])
   })
 
-  it('is round at both ends and tapers with the numbers', () => {
+  it('is a funnel: a flat full-height mouth, sides that only narrow, and a round spout', () => {
     const geometry = capsuleGeometry([12, 10, 8, 6, 3, 2, 1], 700, 56)
-    if (!geometry) throw new Error('expected a capsule')
+    if (!geometry) throw new Error('expected a funnel')
     const { path } = geometry
-    // Starts on the top of the left cap: half-thickness 28 (full height) at x = 28.
-    expect(path.startsWith('M 28 0 ')).toBe(true)
-    // The left cap is a semicircle of radius 28; the right cap's radius follows the last stage:
-    // 6 + (1 / 12) × 22 ≈ 7.83, ending 2px before the column edge.
-    expect(path).toMatch(/A 28 28 0 0 1 28 0 Z$/)
-    expect(path).toContain('A 7.83 7.83 0 0 1 690.17 35.83')
+    // The mouth: everyone reached the first stage, so the left edge is the full 56px height.
+    expect(path.startsWith('M 0 0 ')).toBe(true)
+    expect(path.endsWith(' 0 56 Z')).toBe(true)
+    // The spout: 70% of the last stage's half-thickness (6 + 1/12 × 22 ≈ 7.83), so ≈ 5.48,
+    // ending 2px before the column edge.
+    expect(path).toContain('A 5.48 5.48 0 0 1 692.52 33.48')
+    // The top edge only ever moves down (narrows) from the mouth to the spout.
+    const top = path.split(' A ')[0] ?? ''
+    const ys = [...top.matchAll(/ ([\d.]+) ([\d.]+)(?= C| *$)/g)].map((m) => Number(m[2]))
+    expect(ys.length).toBeGreaterThan(5)
+    for (let i = 1; i < ys.length; i++) expect(ys[i]).toBeGreaterThanOrEqual(ys[i - 1] as number)
     expect(geometry.bands).toHaveLength(7)
   })
 

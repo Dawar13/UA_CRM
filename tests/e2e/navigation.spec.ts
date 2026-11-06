@@ -136,9 +136,9 @@ test.describe('navigation', () => {
     const view = await grid(page).boundingBox()
     const row = await gridRow(page, ids.sunitaKulkarni).boundingBox()
     if (!view || !row) throw new Error('Expected the grid and the row to be on screen')
-    // Just under the 38px header, never above it.
-    expect(row.y).toBeGreaterThanOrEqual(view.y + 37)
-    expect(row.y).toBeLessThanOrEqual(view.y + 38 + 52)
+    // Just under the 32px header, never above it.
+    expect(row.y).toBeGreaterThanOrEqual(view.y + 31)
+    expect(row.y).toBeLessThanOrEqual(view.y + 32 + 36)
     await expect(
       expandedRow(page).getByRole('button', { name: 'Move to Pilot scoped' }),
     ).toBeInViewport()

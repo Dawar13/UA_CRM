@@ -101,6 +101,9 @@ export interface ThemeColours {
   rowHover: string
   /** Expanded or selected row tint. */
   rowSelected: string
+  /** Spreadsheet gridlines between cells and rows, and the shaded header row. */
+  gridLine: string
+  gridHeader: string
   /** Brand tint: the "Internal CRM" label and soft highlights. */
   brandTint: string
   brandTintStrong: string
@@ -270,6 +273,8 @@ export const themes: Record<ThemeName, ThemeColours> = {
     focusRing: '#0078B7',
     rowHover: '#F6F9FB',
     rowSelected: '#F0F8FE',
+    gridLine: '#DCE3E8',
+    gridHeader: '#F3F6F8',
     brandTint: '#EAF8FC',
     brandTintStrong: '#CAF1F8',
     brandTintFg: '#0B6AA6',
@@ -401,6 +406,8 @@ export const themes: Record<ThemeName, ThemeColours> = {
     focusRing: '#48CAE4',
     rowHover: '#0E1920',
     rowSelected: '#0D2130',
+    gridLine: '#22303A',
+    gridHeader: '#0F1A21',
     brandTint: '#0D2130',
     brandTintStrong: '#103049',
     brandTintFg: '#7CC8F5',
@@ -563,8 +570,9 @@ export const layout = {
   headerHeight: 56,
   /** The folder tab row; the active tab is this tall, the others 31px. */
   sheetBarHeight: 40,
-  rowHeight: 52,
-  rowHeightCompact: 40,
+  /** Single-line, spreadsheet-like rows (D-031). */
+  rowHeight: 36,
+  rowHeightCompact: 30,
   panelWidth: 320,
 } as const
 

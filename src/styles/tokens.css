@@ -48,8 +48,8 @@
   --corner-card: 10px;
   --header-height: 56px;
   --sheet-bar-height: 40px;
-  --row-height: 52px;
-  --row-height-compact: 40px;
+  --row-height: 36px;
+  --row-height-compact: 30px;
   --panel-width: 320px;
   --duration-fast: 120ms;
   --duration-base: 180ms;
@@ -78,6 +78,8 @@
   --focus-ring: #0078B7;
   --row-hover: #F6F9FB;
   --row-selected: #F0F8FE;
+  --grid-line: #DCE3E8;
+  --grid-header: #F3F6F8;
   --brand-tint: #EAF8FC;
   --brand-tint-strong: #CAF1F8;
   --brand-tint-fg: #0B6AA6;
@@ -205,6 +207,8 @@
   --focus-ring: #48CAE4;
   --row-hover: #0E1920;
   --row-selected: #0D2130;
+  --grid-line: #22303A;
+  --grid-header: #0F1A21;
   --brand-tint: #0D2130;
   --brand-tint-strong: #103049;
   --brand-tint-fg: #7CC8F5;
@@ -333,6 +337,8 @@
     --focus-ring: #48CAE4;
     --row-hover: #0E1920;
     --row-selected: #0D2130;
+    --grid-line: #22303A;
+    --grid-header: #0F1A21;
     --brand-tint: #0D2130;
     --brand-tint-strong: #103049;
     --brand-tint-fg: #7CC8F5;

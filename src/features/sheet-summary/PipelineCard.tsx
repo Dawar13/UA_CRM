@@ -231,7 +231,7 @@ function groupHeading(column: ColumnDef | null): string {
 }
 
 /**
- * The frosted card on the folder front. Sheets with stages show the pipeline capsule with the
+ * The frosted card on the folder front. Sheets with stages show the pipeline funnel with the
  * people at each stage; sheets without stages show people grouped by their first dropdown
  * column (or by warmth when there is none).
  */

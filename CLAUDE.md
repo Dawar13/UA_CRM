@@ -37,7 +37,7 @@ None of the three is optional. A screen that works but looks rough is not done, 
 | /01 Customers 12\ /02 Investors 6\ /03 …\   (folder tabs)| THIS WEEK      |
 | +-------------------------------------------------------+| 7-day strip    |
 | | 01 — CUSTOMERS            folder front (blue → white)  || last 30 days   |
-| | People · Open pipeline    | Pipeline: capsule + squares|| (dot field)    |
+| | People · Open pipeline    | Pipeline: funnel + squares || (dot field)    |
 | | Won    · Due              |                            ||                |
 | +-------------------------------------------------------+| agenda cards   |
 | | > quick add (Phase 1)                                  ||                |
@@ -236,7 +236,7 @@ The founders approved this look in M0.6 (5 Nov 2026). It is calm and art-like: p
 **The blue palette** (from the founders' reference), navy to white: #03045E, #033E8A, #0078B7, #0096C8, #00B4D7, #48CAE4, #91E0EF, #AEE8F4, #CAF1F8, #FFFFFF. It is used for:
 - **Folders.** Each sheet's tab is a two-stop gradient, deepest first: 01 #0096C8 → #00B4D7, 02 #00B4D7 → #48CAE4, 03 #48CAE4 → #91E0EF, 04 #91E0EF → #AEE8F4, 05 #AEE8F4 → #CAF1F8 (sheet n takes folder n mod 5). The folder front fades from its colour to paper. Ink text. In dark mode the tabs run #0078B7 down to #03045E with white text.
 - **Stages.** Open stages step from light (early) to deep (far along): #CAF1F8, #91E0EF, #48CAE4, #00B4D7, #0096C8, #0078B7.
-- **The pipeline capsule:** #CAF1F8 → #033E8A across the stages (reversed in dark mode).
+- **The pipeline funnel:** #CAF1F8 → #033E8A across the stages (reversed in dark mode).
 - **Primary buttons:** #0078B7 with white text. The focus ring is #0078B7 (light) and #48CAE4 (dark).
 - **The brand mark and today markers:** a sky gradient (#6CC4F6 → #1C9BEA for the mark; #48CAE4 → #00B4D7 with ink text for today).
 
@@ -259,7 +259,7 @@ Warmth squares in the folder front have three shades each: deeper means the pers
 
 **Tag palette:** a small coloured square beside the tag name, no pill. The 8 softened hues are indigo #7C83F2, violet #A28CF4, pink #EE8FB5, orange #F2A06E, amber #E9BC5C, lime #8DC46E, teal #4FC2B4, slate #8B98A9. New tags take the least-used hue.
 
-**Gradients** are soft and purposeful: folder tabs and fronts, warmth and today chips, the brand mark, monogram avatars (grey) and the capsule. Never behind body text that would lose contrast. The old 3px strip at the top of the app is gone; the soft sampled gradient (#6CAAFD → #B5DBFF → #70BEFF) remains only for the sign-in background and empty-state art.
+**Gradients** are soft and purposeful: folder tabs and fronts, warmth and today chips, the brand mark, monogram avatars (grey) and the funnel. Never behind body text that would lose contrast. The old 3px strip at the top of the app is gone; the soft sampled gradient (#6CAAFD → #B5DBFF → #70BEFF) remains only for the sign-in background and empty-state art.
 
 **Contrast is tested, not assumed.** Body and label text must be ≥ 4.5:1, including text on every folder colour, stage block and chip gradient stop. Focus rings and hollow outlines must be ≥ 3:1. Stage cells, warmth squares and activity dots are supplementary: each sits beside text that says the same thing, so they are not held to 3:1. This applies in both themes and is enforced by a unit test over the token file. If a hex above fails, adjust the hex, keep the intent, and log the change.
 
@@ -267,7 +267,7 @@ Warmth squares in the folder front have three shades each: deeper means the pers
 
 - **Fonts:** Geist Variable for the UI and Geist Mono Variable for labels, dates, money, counts and the quick-add input. Both are self-hosted through Fontsource. Numbers use `font-variant-numeric: tabular-nums`.
 - **Type scale:** 12 / 13 / **14 (base)** / 16 / 20 / 24 px for UI text; figures on the folder front are 40px (27px when long) at weight 400 with tight tracking. Section labels are Geist Mono, 10.5 to 11.5px, uppercase, letter-spacing 0.08 to 0.1em. Weights 400, 500 and 600 (550 for names). Line height 1.45 for UI and 1.6 for long text.
-- **Spacing:** a 4px grid. Grid rows are 52px (comfortable, two lines: name, then title and company) or 40px (compact, Phase 1 toggle). The header is 56px; the active folder tab is 40px and the others 31px.
+- **Spacing:** a 4px grid. The grid reads like a spreadsheet: single-line rows of 36px (comfortable) or 30px (compact, Phase 1 toggle), 13px cell text, visible gridlines between every row and column (`--grid-line`) and a shaded 32px header row (`--grid-header`). The header is 56px; the active folder tab is 40px and the others 31px.
 - **Corners:** squarer than before: 4px for chips and badges, 6px for controls, 8px for the top of folder tabs, 10px for cards and popovers. Avatars are rounded squares.
 - **Surfaces:** 1px hairline borders. Floating cards get one soft shadow; the pipeline card on the folder front is frosted glass.
 - **Motion:** 120 to 180 ms, ease-out. Folder tabs rise when chosen; row expansion animates height. `prefers-reduced-motion` disables non-essential motion.
