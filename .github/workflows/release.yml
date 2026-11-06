@@ -1,0 +1,104 @@
+name: Release
+
+# Manual releases (D-035, D-036). Run it from the Actions tab on main:
+# - preview: the app on sample data, at a Vercel preview URL. Nothing touches the database.
+# - production: database migrations first, then the app on Supabase at the production URL.
+# The app is built here, with the same Node and pnpm as CI, and Vercel only hosts the files.
+# Settings: docs/RUNBOOK.md.
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Where to release
+        type: choice
+        options: [preview, production]
+        default: preview
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"
+  # Apache-2.0. Used only here; bump deliberately and log it in docs/DECISIONS.md.
+  VERCEL_CLI: vercel@65.3.1
+
+jobs:
+  release:
+    name: Release to ${{ inputs.target }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    if: github.repository == 'Dawar13/UA_CRM' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Check that CI passed for this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          passed=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yml --commit "$GITHUB_SHA" \
+            --status success --json databaseId --jq length)
+          if [ "$passed" = "0" ]; then
+            echo "::error::CI has not passed for ${GITHUB_SHA::7} yet. Wait for it, then release."
+            exit 1
+          fi
+
+      - name: Check the settings
+        env:
+          TARGET: ${{ inputs.target }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          needed=(VERCEL_TOKEN VERCEL_ORG_ID VERCEL_PROJECT_ID)
+          if [ "$TARGET" = production ]; then
+            needed+=(SUPABASE_URL SUPABASE_PUBLISHABLE_KEY SUPABASE_DB_URL)
+          fi
+          missing=()
+          for name in "${needed[@]}"; do [ -n "${!name}" ] || missing+=("$name"); done
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error::Missing settings: ${missing[*]}. See docs/RUNBOOK.md."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/setup
+
+      - name: Build
+        env:
+          # Production talks to Supabase; a preview runs on sample data in the browser.
+          VITE_DATA: ${{ inputs.target == 'production' && 'supabase' || 'local' }}
+          VITE_SUPABASE_URL: ${{ inputs.target == 'production' && secrets.SUPABASE_URL || '' }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ inputs.target == 'production' && secrets.SUPABASE_PUBLISHABLE_KEY || '' }}
+        run: |
+          pnpm build
+          rm -rf .vercel/output
+          mkdir -p .vercel/output
+          cp -r dist .vercel/output/static
+          cp scripts/release/vercel-config.json .vercel/output/config.json
+
+      - name: Apply database migrations
+        if: ${{ inputs.target == 'production' }}
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: pnpm exec supabase db push --remote="$SUPABASE_DB_URL" --yes
+
+      - name: Deploy to Vercel
+        env:
+          TARGET: ${{ inputs.target }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+        run: |
+          flags=(--prebuilt --yes)
+          if [ "$TARGET" = production ]; then flags+=(--prod); fi
+          url=$(pnpm dlx "$VERCEL_CLI" deploy "${flags[@]}" --token "$VERCEL_TOKEN")
+          echo "Released to $TARGET: $url"
+          echo "### Released ${GITHUB_SHA::7} to $TARGET: $url" >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,104 @@
+name: Nightly backup
+
+# Dumps the production database and mirrors its stored files into the private backup
+# repository, then restores the dump into a scratch database to prove it can be restored.
+# Settings and the restore steps: docs/RUNBOOK.md. A failed run emails whoever last changed
+# the schedule below (GitHub's notification for scheduled workflows).
+#
+# This repository is public, so its logs are too: every step prints counts, never data.
+
+on:
+  schedule:
+    # 02:00 IST. GitHub sometimes starts scheduled runs a few minutes late, never early.
+    - cron: "30 20 * * *"
+  workflow_dispatch:
+    inputs:
+      restore_check:
+        description: Restore the dump into a scratch database and compare row counts
+        type: boolean
+        default: true
+
+concurrency:
+  group: backup
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"
+
+jobs:
+  backup:
+    name: Back up the database and files
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Copies of this public repository have none of the settings; only the original runs it.
+    if: github.repository == 'Dawar13/UA_CRM'
+    steps:
+      - name: Check the settings
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          BACKUP_REPO_TOKEN: ${{ secrets.BACKUP_REPO_TOKEN }}
+          BACKUP_REPOSITORY: ${{ vars.BACKUP_REPOSITORY }}
+        run: |
+          missing=()
+          for name in SUPABASE_DB_URL SUPABASE_URL SUPABASE_SECRET_KEY BACKUP_REPO_TOKEN BACKUP_REPOSITORY; do
+            [ -n "${!name}" ] || missing+=("$name")
+          done
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error::Missing settings: ${missing[*]}. See docs/RUNBOOK.md."
+            exit 1
+          fi
+          private=$(GH_TOKEN="$BACKUP_REPO_TOKEN" gh api "repos/$BACKUP_REPOSITORY" --jq .private)
+          if [ "$private" != "true" ]; then
+            echo "::error::$BACKUP_REPOSITORY must be a private repository."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/setup
+
+      - name: Check out the backup repository
+        uses: actions/checkout@v7
+        with:
+          repository: ${{ vars.BACKUP_REPOSITORY }}
+          token: ${{ secrets.BACKUP_REPO_TOKEN }}
+          path: backup
+          fetch-depth: 1
+
+      - name: Dump the database
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          day=$(TZ=Asia/Kolkata date +%F)
+          echo "DAY=$day" >> "$GITHUB_ENV"
+          bash scripts/backup/dump.sh "backup/db/$day"
+
+      - name: Mirror the stored files
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: pnpm exec tsx scripts/backup/storage-mirror.ts backup/files
+
+      - name: Keep the newest 30 dumps and push
+        working-directory: backup
+        run: |
+          ls -1d db/*/ | sort | head -n -30 | xargs -r git rm -rq --
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Nothing changed since the last backup."
+          else
+            git -c user.name="github-actions[bot]" \
+                -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+                commit -q -m "Backup $DAY"
+            git push -q
+          fi
+          echo "Dumps kept: $(ls -1d db/*/ | wc -l)"
+
+      - name: Restore check
+        if: ${{ github.event_name == 'schedule' || inputs.restore_check }}
+        run: bash scripts/backup/restore-check.sh "backup/db/$DAY"

@@ -6,6 +6,9 @@ coverage
 *.tsbuildinfo
 .vitest
 
+# Release output (built in the release workflow)
+.vercel
+
 # Playwright
 playwright-report
 test-results*
