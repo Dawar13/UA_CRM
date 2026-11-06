@@ -5,15 +5,27 @@ export interface MemberTabsProps {
   members: readonly { id: string; name: string }[]
   value: string
   onValueChange: (id: string) => void
+  /** A "Today" item first (value TODAY_TAB): the signed-in member's day. */
+  withToday?: boolean
   className?: string
 }
+
+/** The value of the Today item in the member switch. */
+export const TODAY_TAB = '__today'
 
 /**
  * The member switch in the header: a segmented control. Each member is a tab; arrow keys move
  * and activate (automatic activation). The selected member is a raised white pill; the others
  * are ghost buttons. Names stand alone, without initials.
  */
-export function MemberTabs({ members, value, onValueChange, className }: MemberTabsProps) {
+export function MemberTabs({
+  members,
+  value,
+  onValueChange,
+  withToday = false,
+  className,
+}: MemberTabsProps) {
+  const items = withToday ? [{ id: TODAY_TAB, name: 'Today' }, ...members] : members
   return (
     <Tabs.Root
       value={value}
@@ -25,7 +37,7 @@ export function MemberTabs({ members, value, onValueChange, className }: MemberT
         aria-label="Team members"
         className="flex items-center gap-0.5 rounded-[8px] bg-surface-hover p-[3px]"
       >
-        {members.map((member) => (
+        {items.map((member) => (
           <Tabs.Trigger
             key={member.id}
             value={member.id}

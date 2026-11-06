@@ -1,4 +1,5 @@
 import type { RouteObject } from 'react-router'
+import { TodayView } from '@/features/today/TodayView'
 import { testHooksEnabled } from '@/lib/env'
 import { AppFrame, RootRedirect } from './AppFrame'
 import { RouteError } from './ErrorBoundary'
@@ -11,6 +12,7 @@ export const routes: RouteObject[] = [
     errorElement: <RouteError />,
     children: [
       { index: true, Component: RootRedirect },
+      { path: 'today', Component: TodayView },
       { path: 'm/:memberSlug', Component: MemberRedirect },
       { path: 'm/:memberSlug/:sheetSlug', Component: MainView },
       ...(testHooksEnabled

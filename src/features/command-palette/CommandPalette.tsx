@@ -186,6 +186,13 @@ export function CommandPalette({ currentMember }: { currentMember: Member | unde
       run: togglePanel,
     })
     list.push({
+      id: 'today',
+      label: 'Go to Today',
+      icon: <Sun aria-hidden className="size-4" />,
+      keywords: 'today due overdue added this week agenda',
+      run: () => navigate('/today'),
+    })
+    list.push({
       id: 'trash',
       label: 'Open Trash',
       icon: <Trash2 aria-hidden className="size-4" />,

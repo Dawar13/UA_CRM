@@ -13,7 +13,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { toast } from 'sonner'
 import { BrandLockup } from '@/components/crm/BrandLockup'
-import { MemberTabs } from '@/components/crm/MemberTabs'
+import { MemberTabs, TODAY_TAB } from '@/components/crm/MemberTabs'
 import { ThemeSegmented, ThemeToggle } from '@/components/crm/ThemeToggle'
 import { IconButton } from '@/components/ui/IconButton'
 import { Kbd } from '@/components/ui/Kbd'
@@ -74,7 +74,16 @@ function DeveloperItems() {
   )
 }
 
-export function Header({ members, member }: { members: readonly Member[]; member: Member }) {
+export function Header({
+  members,
+  member,
+  today = false,
+}: {
+  members: readonly Member[]
+  member: Member
+  /** The Today view is open. */
+  today?: boolean
+}) {
   const navigate = useNavigate()
   const setPaletteOpen = useUiStore((s) => s.setPaletteOpen)
   const setShortcutsOpen = useUiStore((s) => s.setShortcutsOpen)
@@ -89,8 +98,13 @@ export function Header({ members, member }: { members: readonly Member[]; member
       <nav aria-label="Members" className="flex min-w-0 items-center">
         <MemberTabs
           members={members.map((m) => ({ id: m.id, name: m.name }))}
-          value={member.id}
+          value={today ? TODAY_TAB : member.id}
+          withToday
           onValueChange={(id) => {
+            if (id === TODAY_TAB) {
+              navigate('/today')
+              return
+            }
             const next = members.find((m) => m.id === id)
             if (next) navigate(memberPath(next.slug))
           }}
