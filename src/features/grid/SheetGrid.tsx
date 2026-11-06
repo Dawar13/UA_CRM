@@ -6,11 +6,12 @@ import {
   useTable,
 } from '@tanstack/react-table'
 import { defaultRangeExtractor, type Range, useVirtualizer } from '@tanstack/react-virtual'
-import { ArrowDown, ArrowUp, Plus } from 'lucide-react'
+import { ArrowDown, ArrowUp, ChevronDown, EyeOff, Plus, Settings2 } from 'lucide-react'
 import {
   type ClipboardEvent,
   type KeyboardEvent,
   type ReactNode,
+  type PointerEvent as ReactPointerEvent,
   useCallback,
   useEffect,
   useId,
@@ -21,14 +22,17 @@ import {
 import { toast } from 'sonner'
 import { useActor } from '@/auth/AuthContext'
 import { Kbd } from '@/components/ui/Kbd'
+import { Menu, MenuContent, MenuItem, MenuTrigger } from '@/components/ui/Menu'
 import {
   type PastedRow,
   useCreateRow,
   useDeleteRows,
   useMoveStage,
   usePasteRows,
+  useReorderColumns,
   useSetWarmth,
   useTagMap,
+  useUpdateColumn,
   useUpdateRow,
 } from '@/data/hooks'
 import {
@@ -129,6 +133,8 @@ export interface SheetGridProps {
   editable: boolean
   /** An edit was attempted where it is not allowed: says why. */
   onRefuse: () => void
+  /** Opens the column manager (your own tab). */
+  onManageColumns?: () => void
 }
 
 interface ActiveCell {
@@ -190,6 +196,7 @@ export function SheetGrid({
   renderExpanded,
   editable,
   onRefuse,
+  onManageColumns,
 }: SheetGridProps) {
   const gridId = useId().replace(/:/g, '')
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -203,6 +210,11 @@ export function SheetGrid({
   const createRow = useCreateRow()
   const deleteRows = useDeleteRows()
   const pasteRows = usePasteRows()
+  const updateColumn = useUpdateColumn()
+  const reorderColumns = useReorderColumns()
+  /** A column being resized: its id and the width so far. */
+  const [resizing, setResizing] = useState<{ id: string; width: number } | null>(null)
+  const [draggingCol, setDraggingCol] = useState<string | null>(null)
   const [sorting, setSorting] = usePersistedSorting(sheet.id)
   const [active, setActive] = useState<ActiveCell>({ row: 0, col: 0 })
   const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set())
@@ -325,8 +337,48 @@ export function SheetGrid({
     if (jumpTarget) scrollRef.current?.focus({ preventScroll: true })
   }, [jumpTarget])
 
-  const gridTemplateColumns = defs.map((d) => `${d.width}px`).join(' ')
-  const totalWidth = defs.reduce((sum, d) => sum + d.width, 0)
+  const widthOf = (d: ColumnDef) => (resizing?.id === d.id ? resizing.width : d.width)
+  const gridTemplateColumns = defs.map((d) => `${widthOf(d)}px`).join(' ')
+  const totalWidth = defs.reduce((sum, d) => sum + widthOf(d), 0)
+
+  // ---------- Columns: resize, reorder, hide (your own tab) ----------
+
+  const startResize = (event: ReactPointerEvent<HTMLSpanElement>, def: ColumnDef) => {
+    event.preventDefault()
+    event.stopPropagation()
+    const startX = event.clientX
+    const startWidth = def.width
+    const handle = event.currentTarget
+    handle.setPointerCapture(event.pointerId)
+    let width = startWidth
+    const onMove = (e: PointerEvent) => {
+      width = Math.max(48, Math.round(startWidth + e.clientX - startX))
+      setResizing({ id: def.id, width })
+    }
+    const onUp = () => {
+      handle.removeEventListener('pointermove', onMove)
+      handle.removeEventListener('pointerup', onUp)
+      setResizing(null)
+      if (width !== startWidth) {
+        updateColumn.mutate({ sheet, column: def, patch: { width }, actorId })
+      }
+    }
+    handle.addEventListener('pointermove', onMove)
+    handle.addEventListener('pointerup', onUp)
+  }
+
+  const dropColumn = (targetId: string) => {
+    const dragged = draggingCol
+    setDraggingCol(null)
+    if (!dragged || dragged === targetId) return
+    const ordered = sheet.columns
+      .filter((c) => !c.deletedAt)
+      .sort((a, b) => a.position - b.position)
+      .map((c) => c.id)
+    const ids = ordered.filter((id) => id !== dragged)
+    ids.splice(ids.indexOf(targetId), 0, dragged)
+    reorderColumns.mutate({ sheet, ids, actorId })
+  }
 
   const cellId = useCallback(
     (rowIndex: number, colIndex: number) =>
@@ -852,9 +904,30 @@ export function SheetGrid({
                     sorted === 'asc' ? 'ascending' : sorted === 'desc' ? 'descending' : undefined
                   }
                   data-active={isActive || undefined}
+                  data-dragging={draggingCol === def?.id || undefined}
                   onMouseDown={() => rowHandlers.onCellMouseDown(-1, colIndex)}
+                  draggable={editable && def ? true : undefined}
+                  onDragStart={
+                    editable && def
+                      ? (e) => {
+                          e.dataTransfer.effectAllowed = 'move'
+                          e.dataTransfer.setData('text/plain', def.label)
+                          setDraggingCol(def.id)
+                        }
+                      : undefined
+                  }
+                  onDragOver={editable && draggingCol ? (e) => e.preventDefault() : undefined}
+                  onDrop={
+                    editable && def && draggingCol
+                      ? (e) => {
+                          e.preventDefault()
+                          dropColumn(def.id)
+                        }
+                      : undefined
+                  }
+                  onDragEnd={() => setDraggingCol(null)}
                   className={cn(
-                    'relative flex items-center border-r border-grid-line bg-grid-header',
+                    'group/header relative flex items-center border-r border-grid-line bg-grid-header data-[dragging]:opacity-50',
                     // Labels start where the cells' content starts; start-aligned ones may use
                     // the right padding so "Last touch" fits its narrow default column.
                     def && columnAlign(def) === 'end' ? 'justify-end px-2.5' : 'pr-0 pl-2.5',
@@ -879,6 +952,52 @@ export function SheetGrid({
                       <ArrowDown aria-hidden className="size-3 shrink-0" />
                     ) : null}
                   </button>
+                  {editable && def ? (
+                    <>
+                      <Menu>
+                        <MenuTrigger asChild>
+                          <button
+                            type="button"
+                            tabIndex={-1}
+                            aria-label={`${def.label} column options`}
+                            className="mr-1 ml-auto grid size-5 shrink-0 place-items-center rounded-chip text-muted opacity-0 hover:bg-surface-hover hover:text-text group-hover/header:opacity-100 data-[state=open]:opacity-100"
+                          >
+                            <ChevronDown aria-hidden className="size-3" />
+                          </button>
+                        </MenuTrigger>
+                        <MenuContent align="start" className="w-48">
+                          <MenuItem
+                            disabled={def.system && def.key === 'name'}
+                            onSelect={() =>
+                              updateColumn.mutate({
+                                sheet,
+                                column: def,
+                                patch: { hidden: true },
+                                actorId,
+                              })
+                            }
+                          >
+                            <EyeOff aria-hidden />
+                            Hide column
+                          </MenuItem>
+                          {onManageColumns ? (
+                            <MenuItem onSelect={onManageColumns}>
+                              <Settings2 aria-hidden />
+                              Columns
+                            </MenuItem>
+                          ) : null}
+                        </MenuContent>
+                      </Menu>
+                      {/* Drag the edge to resize. */}
+                      <span
+                        aria-hidden="true"
+                        onPointerDown={(e) => startResize(e, def)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="absolute top-0 -right-[3px] z-10 h-full w-[6px] cursor-col-resize hover:bg-focus/40"
+                        data-testid="column-resize"
+                      />
+                    </>
+                  ) : null}
                 </div>
               )
             })}

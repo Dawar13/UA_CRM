@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { Database, Keyboard, MoreHorizontal, RotateCcw, Search, Trash2 } from 'lucide-react'
+import { Database, Keyboard, MoreHorizontal, RotateCcw, Search, Trash2, Users } from 'lucide-react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { toast } from 'sonner'
@@ -20,6 +20,7 @@ import {
 import { Tooltip } from '@/components/ui/Tooltip'
 import { useRepository } from '@/data/RepositoryContext'
 import type { Member } from '@/domain/types'
+import { TeamDialog } from '@/features/team/TeamDialog'
 import { isDevBuild } from '@/lib/env'
 import { AccountMenuItems, ChangePasswordDialog, OfflineNotice } from './AccountMenu'
 import { memberPath, sheetPath } from './navigation'
@@ -69,6 +70,7 @@ export function Header({ members, member }: { members: readonly Member[]; member
   const setShortcutsOpen = useUiStore((s) => s.setShortcutsOpen)
   const showTrash = useUiStore((s) => s.showTrash)
   const [passwordOpen, setPasswordOpen] = useState(false)
+  const [teamOpen, setTeamOpen] = useState(false)
 
   return (
     <header className="flex h-(--header-height) shrink-0 items-center gap-6 border-b border-border bg-bg px-5">
@@ -110,6 +112,10 @@ export function Header({ members, member }: { members: readonly Member[]; member
           </MenuTrigger>
           <MenuContent align="end" className="w-64">
             <AccountMenuItems members={members} onChangePassword={() => setPasswordOpen(true)} />
+            <MenuItem onSelect={() => setTeamOpen(true)}>
+              <Users aria-hidden className="size-4" />
+              Team
+            </MenuItem>
             <MenuItem onSelect={showTrash}>
               <Trash2 aria-hidden className="size-4" />
               Trash
@@ -129,6 +135,7 @@ export function Header({ members, member }: { members: readonly Member[]; member
           </MenuContent>
         </Menu>
         <ChangePasswordDialog open={passwordOpen} onOpenChange={setPasswordOpen} />
+        <TeamDialog open={teamOpen} onOpenChange={setTeamOpen} />
       </div>
     </header>
   )

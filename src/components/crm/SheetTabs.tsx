@@ -19,6 +19,8 @@ export interface SheetTabsProps {
   onValueChange: (id: string) => void
   /** Clicking, or pressing Enter or Space on, the tab that is already open (folds the front). */
   onActiveTabClick?: () => void
+  /** Drag a tab to a new place (your own tab only): the sheet ids in their new order. */
+  onReorder?: (ids: string[]) => void
   className?: string
 }
 
@@ -59,8 +61,20 @@ export function SheetTabs({
   value,
   onValueChange,
   onActiveTabClick,
+  onReorder,
   className,
 }: SheetTabsProps) {
+  const [dragging, setDragging] = useState<string | null>(null)
+  const [dropBefore, setDropBefore] = useState<string | null>(null)
+  const drop = (targetId: string | null) => {
+    if (!dragging || !onReorder) return
+    const ids = sheets.map((s) => s.id).filter((id) => id !== dragging)
+    const at = targetId === null ? ids.length : ids.indexOf(targetId)
+    ids.splice(at < 0 ? ids.length : at, 0, dragging)
+    setDragging(null)
+    setDropBefore(null)
+    if (ids.join() !== sheets.map((s) => s.id).join()) onReorder(ids)
+  }
   const scrollRef = useRef<HTMLDivElement>(null)
   const [fade, setFade] = useState({ left: false, right: false })
   // Which tab a pointer press started on, and whether it was already open then. Radix activates
@@ -148,6 +162,41 @@ export function SheetTabs({
                 onMouseDown={() => {
                   pressRef.current = { id: sheet.id, wasActive: active }
                 }}
+                draggable={onReorder ? true : undefined}
+                onDragStart={
+                  onReorder
+                    ? (event) => {
+                        event.dataTransfer.effectAllowed = 'move'
+                        event.dataTransfer.setData('text/plain', sheet.name)
+                        setDragging(sheet.id)
+                      }
+                    : undefined
+                }
+                onDragOver={
+                  onReorder && dragging
+                    ? (event) => {
+                        event.preventDefault()
+                        const box = event.currentTarget.getBoundingClientRect()
+                        const after = event.clientX > box.left + box.width / 2
+                        const next = after ? (sheets[index + 1]?.id ?? '__end') : sheet.id
+                        setDropBefore(next)
+                      }
+                    : undefined
+                }
+                onDrop={
+                  onReorder && dragging
+                    ? (event) => {
+                        event.preventDefault()
+                        drop(dropBefore === '__end' ? null : dropBefore)
+                      }
+                    : undefined
+                }
+                onDragEnd={() => {
+                  setDragging(null)
+                  setDropBefore(null)
+                }}
+                data-drop-before={dropBefore === sheet.id || undefined}
+                data-dragging={dragging === sheet.id || undefined}
                 onClick={(event) => onTabClick(sheet.id, event)}
                 style={{ ...colours, height }}
                 className={cn(
@@ -155,6 +204,8 @@ export function SheetTabs({
                   'transition-[height]',
                   TAB_MOTION,
                   'disabled:pointer-events-none disabled:opacity-50',
+                  'data-[dragging]:opacity-50',
+                  'data-[drop-before]:shadow-[-3px_0_0_var(--focus)]',
                 )}
               >
                 <span

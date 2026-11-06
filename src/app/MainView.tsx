@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Navigate, useParams, useSearchParams } from 'react-router'
 import { useEditGate } from '@/auth/useCan'
 import { EmptyState } from '@/components/ui/EmptyState'
@@ -8,6 +8,9 @@ import type { Member, Row, Sheet } from '@/domain/types'
 import { SheetGrid } from '@/features/grid/SheetGrid'
 import { ExpandedRow } from '@/features/row-detail/ExpandedRow'
 import { SheetSummary, SheetSummarySkeleton } from '@/features/sheet-summary/SheetSummary'
+import { ColumnsDialog } from '@/features/sheets/ColumnsDialog'
+import { NoSheets } from '@/features/sheets/NoSheets'
+import { StageEditorDialog } from '@/features/sheets/StageEditorDialog'
 import { Header } from './Header'
 import { NotFound } from './NotFound'
 import { pickSheet, rememberLocation, sheetPath } from './navigation'
@@ -90,6 +93,8 @@ function SheetContent({ member, sheet, index }: { member: Member; sheet: Sheet; 
   const summaryOpen = useUiStore((s) => s.summaryOpen)
   const setSummaryOpen = useUiStore((s) => s.setSummaryOpen)
   const gate = useEditGate(member)
+  const [stagesOpen, setStagesOpen] = useState(false)
+  const [columnsOpen, setColumnsOpen] = useState(false)
 
   useEffect(() => {
     if (!flashRowId) return
@@ -140,7 +145,19 @@ function SheetContent({ member, sheet, index }: { member: Member; sheet: Sheet; 
         open={summaryOpen}
         onOpenChange={setSummaryOpen}
         viewOnly={gate.viewOnly}
+        onEditStages={gate.editable ? () => setStagesOpen(true) : undefined}
       />
+      {gate.editable ? (
+        <StageEditorDialog
+          key={`${sheet.id}-${sheet.updatedAt}`}
+          sheet={sheet}
+          open={stagesOpen}
+          onOpenChange={setStagesOpen}
+        />
+      ) : null}
+      {gate.editable ? (
+        <ColumnsDialog sheet={sheet} open={columnsOpen} onOpenChange={setColumnsOpen} />
+      ) : null}
       {/* The grid scrolls inside whatever height the front leaves. */}
       <div className="relative min-h-0 flex-1">
         <div className="absolute inset-0">
@@ -169,6 +186,7 @@ function SheetContent({ member, sheet, index }: { member: Member; sheet: Sheet; 
                 renderExpanded={renderExpanded}
                 editable={gate.editable}
                 onRefuse={gate.refuse}
+                onManageColumns={gate.editable ? () => setColumnsOpen(true) : undefined}
               />
               {list.length === 0 ? (
                 <div className="pointer-events-none absolute inset-x-0 top-28 grid place-items-center p-8">
@@ -204,7 +222,11 @@ export function MainView() {
   if (sheetsPending) return <ShellSkeleton />
   if (!sheet) {
     const fallback = pickSheet(member.id, sheets ?? [])
-    return fallback ? <Navigate to={sheetPath(member.slug, fallback.slug)} replace /> : <NotFound />
+    return fallback ? (
+      <Navigate to={sheetPath(member.slug, fallback.slug)} replace />
+    ) : (
+      <MemberHome members={members} member={member} />
+    )
   }
   const list = sheets ?? []
   const index = Math.max(0, list.indexOf(sheet))
@@ -234,5 +256,26 @@ export function MemberRedirect() {
   if (isPending || (member && sheetsPending)) return <ShellSkeleton />
   if (!member) return <NotFound />
   const sheet = pickSheet(member.id, sheets ?? [])
-  return sheet ? <Navigate to={sheetPath(member.slug, sheet.slug)} replace /> : <NotFound />
+  return sheet ? (
+    <Navigate to={sheetPath(member.slug, sheet.slug)} replace />
+  ) : members ? (
+    <MemberHome members={members} member={member} />
+  ) : (
+    <NotFound />
+  )
+}
+
+/** A tab with no sheets yet: the header, and the way to start. */
+function MemberHome({ members, member }: { members: Member[]; member: Member }) {
+  useEffect(() => {
+    document.documentElement.dataset.appReady = 'true'
+  }, [])
+  return (
+    <div className="flex h-dvh flex-col bg-bg">
+      <Header members={members} member={member} />
+      <main className="grid min-h-0 flex-1 place-items-center">
+        <NoSheets member={member} />
+      </main>
+    </div>
+  )
 }

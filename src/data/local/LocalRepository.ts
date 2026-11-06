@@ -16,6 +16,11 @@ import {
   RowValidationError,
 } from '@/domain/rows'
 import {
+  convertColumn as domainConvertColumn,
+  editStages as domainEditStages,
+  type StageMoves,
+} from '@/domain/sheetEdits'
+import {
   addColumn as domainAddColumn,
   deleteColumn as domainDeleteColumn,
   reorderColumns as domainReorderColumns,
@@ -39,6 +44,7 @@ import {
 import { cleanTagName, pickTagColour, TagRuleError } from '@/domain/tags'
 import type {
   CalendarEvent,
+  ColumnDef,
   DomainContext,
   HistoryEntry,
   Id,
@@ -46,6 +52,7 @@ import type {
   Row,
   RowChange,
   Sheet,
+  StageDef,
   StageSnapshot,
   Tag,
   TemplateKey,
@@ -835,6 +842,55 @@ export class LocalRepository implements Repository {
       if (patch.stages !== undefined) sheet = renameStages(sheet, patch.stages, ctx.now)
       return this.putSheet(sheet)
     })
+  }
+
+  async editStages(
+    sheetId: Id,
+    stages: readonly StageDef[],
+    moves: StageMoves,
+    ctx: MutationContext,
+  ): Promise<Sheet> {
+    const actor = await this.actor(ctx)
+    const { db } = this
+    const sheet = await db.transaction('rw', db.sheets, db.rows, async () => {
+      const current = await this.liveSheet(sheetId)
+      assertCan(actor, 'manageStages', current)
+      const rows = await db.rows.where('sheetId').equals(sheetId).toArray()
+      const result = domainEditStages(current, stages, moves, rows, {
+        now: ctx.now,
+        newId: newId('c'),
+      })
+      await db.rows.bulkPut(result.rows.map((r) => ({ ...r, updatedBy: ctx.actorId })))
+      return this.putSheet(result.sheet)
+    })
+    this.searchIndex.clear()
+    return sheet
+  }
+
+  async convertColumn(
+    sheetId: Id,
+    columnId: Id,
+    type: ColumnDef['type'],
+    ctx: MutationContext,
+  ): Promise<Sheet> {
+    const actor = await this.actor(ctx)
+    const { db } = this
+    const sheet = await db.transaction('rw', db.sheets, db.rows, db.tags, async () => {
+      const current = await this.liveSheet(sheetId)
+      assertCan(actor, 'manageColumns', current)
+      const [rows, tags] = await Promise.all([
+        db.rows.where('sheetId').equals(sheetId).toArray(),
+        db.tags.toArray(),
+      ])
+      const result = domainConvertColumn(current, columnId, type, rows, {
+        now: ctx.now,
+        tagMap: new Map(tags.map((t) => [t.id, t])),
+      })
+      await db.rows.bulkPut(result.rows.map((r) => ({ ...r, updatedBy: ctx.actorId })))
+      return this.putSheet(result.sheet)
+    })
+    this.searchIndex.clear()
+    return sheet
   }
 
   async reorderSheets(memberId: Id, sheetIds: Id[], ctx: MutationContext): Promise<Sheet[]> {

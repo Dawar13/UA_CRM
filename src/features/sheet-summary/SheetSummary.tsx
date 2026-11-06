@@ -21,6 +21,8 @@ export interface SheetSummaryProps {
   onOpenChange: (open: boolean) => void
   /** Another member's tab: says so, quietly and always. */
   viewOnly?: boolean
+  /** Your own tab: the stage count opens the stage editor. */
+  onEditStages?: () => void
 }
 
 const RULE = 'border-[var(--folder-rule)]'
@@ -98,6 +100,7 @@ export function SheetSummary({
   open,
   onOpenChange,
   viewOnly = false,
+  onEditStages,
 }: SheetSummaryProps) {
   const now = useNow()
   const summary = useMemo(() => summariseSheet(sheet, rows, now), [sheet, rows, now])
@@ -157,7 +160,19 @@ export function SheetSummary({
             ) : (
               <>Owned by {member.name}</>
             )}{' '}
-            · {stagesText}
+            ·{' '}
+            {onEditStages ? (
+              <button
+                type="button"
+                onClick={onEditStages}
+                className="rounded-chip uppercase underline decoration-dotted underline-offset-2 hover:decoration-solid"
+                data-testid="edit-stages"
+              >
+                {sheet.stages.length > 0 ? stagesText : 'Add stages'}
+              </button>
+            ) : (
+              stagesText
+            )}
           </p>
           <FoldButton open onToggle={toggle} />
         </div>

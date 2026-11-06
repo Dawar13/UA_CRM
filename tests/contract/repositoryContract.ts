@@ -439,6 +439,56 @@ export function runRepositoryContract(
         expect(await dawar.getSheet(dawarCustomers.id)).toMatchObject({ name: 'Customers' })
       })
 
+      it('the owner edits stages; rows keep their stage or move where chosen', async () => {
+        const [identified, introAsked, firstCall, ...rest] = dawarCustomers.stages
+        if (!identified || !introAsked || !firstCall) throw new Error('stages')
+        // Remove First call (Rohan is there) and send its rows to Intro asked; add a stage.
+        const sheet = await dawar.editStages(
+          dawarCustomers.id,
+          [identified, introAsked, ...rest, { id: crypto.randomUUID(), name: 'Renewed' }],
+          { [firstCall.id]: introAsked.id },
+          ctx('dawar', 1),
+        )
+        expect(sheet.stages.map((s) => s.name)).toEqual([
+          'Identified',
+          'Intro asked',
+          'Plant visit',
+          'Pilot scoped',
+          'Pilot live',
+          'Paid',
+          'Renewed',
+        ])
+        const moved = await dhruv.getRow(rohan.id)
+        expect(moved?.stageIndex).toBe(1)
+        expect(moved?.stageDates[introAsked.id]).toBe('2026-11-05')
+        await expectDenied(
+          dhruv.editStages(dawarCustomers.id, [identified], {}, ctx('dhruv')),
+          'not-owner',
+        )
+      })
+
+      it('the owner changes a column type and values convert', async () => {
+        const sheet = await dawar.addColumn(
+          dawarCustomers.id,
+          { label: 'Budget', type: 'text' },
+          ctx('dawar', 1),
+        )
+        const budget = sheet.columns.find((c) => c.label === 'Budget')
+        await dawar.updateRow(rohan.id, { fields: { budget: '25L' } }, ctx('dawar', 2))
+        const converted = await dawar.convertColumn(
+          dawarCustomers.id,
+          budget?.id ?? '',
+          'currency',
+          ctx('dawar', 3),
+        )
+        expect(converted.columns.find((c) => c.id === budget?.id)?.type).toBe('currency')
+        expect((await dawar.getRow(rohan.id))?.fields.budget).toBe(2_500_000)
+        await expectDenied(
+          dhruv.convertColumn(dawarCustomers.id, budget?.id ?? '', 'text', ctx('dhruv')),
+          'not-owner',
+        )
+      })
+
       it('stages can be renamed in place', async () => {
         const stages = dawarCustomers.stages.map((s, i) =>
           i === 0 ? { ...s, name: 'Spotted' } : s,

@@ -1,9 +1,12 @@
 import { PanelRight } from 'lucide-react'
 import { useNavigate } from 'react-router'
+import { useActor } from '@/auth/AuthContext'
+import { useEditGate } from '@/auth/useCan'
 import { SheetTabs } from '@/components/crm/SheetTabs'
 import { IconButton } from '@/components/ui/IconButton'
-import { useRowCounts } from '@/data/hooks'
+import { useReorderSheets, useRowCounts } from '@/data/hooks'
 import type { Member, Sheet } from '@/domain/types'
+import { SheetMenu } from '@/features/sheets/SheetMenu'
 import { rememberLocation, sheetPath } from './navigation'
 import { useUiStore } from './uiStore'
 
@@ -25,6 +28,9 @@ export function SheetBar({
   const panelOpen = useUiStore((s) => s.panelOpen)
   const togglePanel = useUiStore((s) => s.togglePanel)
   const toggleSummary = useUiStore((s) => s.toggleSummary)
+  const gate = useEditGate(member)
+  const actor = useActor()
+  const reorder = useReorderSheets()
 
   return (
     <div className="flex h-[var(--sheet-bar-height)] shrink-0 items-stretch gap-3">
@@ -42,9 +48,21 @@ export function SheetBar({
             navigate(sheetPath(member.slug, next.slug))
           }}
           onActiveTabClick={toggleSummary}
+          onReorder={
+            gate.editable && actor
+              ? (ids) =>
+                  reorder.mutate({
+                    memberId: member.id,
+                    ids,
+                    before: sheets.map((s) => s.id),
+                    actorId: actor.id,
+                  })
+              : undefined
+          }
         />
       </nav>
-      <div className="flex items-center">
+      <div className="flex items-center gap-0.5">
+        {gate.editable ? <SheetMenu member={member} sheets={sheets} sheet={sheet} /> : null}
         <IconButton
           aria-label={panelOpen ? 'Hide side panel' : 'Show side panel'}
           aria-pressed={panelOpen}

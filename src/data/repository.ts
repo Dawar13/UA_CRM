@@ -11,6 +11,7 @@
  * its history entry atomically, and updates `row.lastTouchAt`.
  */
 import type { NewRowValues, RowPatch } from '@/domain/rows'
+import type { StageMoves } from '@/domain/sheetEdits'
 import type {
   CalendarEvent,
   ColumnDef,
@@ -22,6 +23,7 @@ import type {
   Member,
   Row,
   Sheet,
+  StageDef,
   StageSnapshot,
   Tag,
   TemplateKey,
@@ -211,6 +213,23 @@ export interface Repository {
   updateSheet(
     sheetId: Id,
     patch: Partial<Pick<Sheet, 'name' | 'stages'>>,
+    ctx: MutationContext,
+  ): Promise<Sheet>
+  /**
+   * Replaces the sheet's stages (add, rename, reorder, remove; the last is the win). Rows keep
+   * their stage by id; rows at a removed stage go where `moves` says (or to no stage).
+   */
+  editStages(
+    sheetId: Id,
+    stages: readonly StageDef[],
+    moves: StageMoves,
+    ctx: MutationContext,
+  ): Promise<Sheet>
+  /** Changes a custom column's type, converting values; those that do not convert are cleared. */
+  convertColumn(
+    sheetId: Id,
+    columnId: Id,
+    type: ColumnDef['type'],
     ctx: MutationContext,
   ): Promise<Sheet>
   /** The member's live sheets, in the order given. */

@@ -18,6 +18,11 @@ import {
   RowValidationError,
 } from '@/domain/rows'
 import {
+  convertColumn as domainConvertColumn,
+  editStages as domainEditStages,
+  type StageMoves,
+} from '@/domain/sheetEdits'
+import {
   addColumn as domainAddColumn,
   deleteColumn as domainDeleteColumn,
   reorderColumns as domainReorderColumns,
@@ -41,6 +46,7 @@ import {
 import { cleanTagName, pickTagColour, TagRuleError } from '@/domain/tags'
 import type {
   CalendarEvent,
+  ColumnDef,
   DomainContext,
   HistoryEntry,
   Id,
@@ -48,6 +54,7 @@ import type {
   Row,
   RowChange,
   Sheet,
+  StageDef,
   StageSnapshot,
   Tag,
   TemplateKey,
@@ -537,6 +544,56 @@ export class SupabaseRepository implements Repository {
     }
     if (patch.stages !== undefined) sheet = renameStages(sheet, patch.stages, ctx.now)
     return this.saveSheet(sheet)
+  }
+
+  /** Every row of a sheet, Trash included (the owner's sheet-wide changes). */
+  private async allRowsOf(sheetId: Id): Promise<Row[]> {
+    return parseRows(await this.rpc('api_sheet_rows_all', { p_sheet: sheetId }))
+  }
+
+  /** Saves a sheet and some of its rows in one transaction. */
+  private async saveSheetWithRows(sheet: Sheet, rows: readonly Row[], action: Action) {
+    return parseSheet(
+      await this.rpc(
+        'api_save_sheet',
+        { p_sheet: sheet, p_rows: rows.length > 0 ? rows.map((row) => ({ row })) : null },
+        action,
+      ),
+    )
+  }
+
+  async editStages(
+    sheetId: Id,
+    stages: readonly StageDef[],
+    moves: StageMoves,
+    ctx: MutationContext,
+  ): Promise<Sheet> {
+    const [actor, current] = await Promise.all([this.actor(), this.liveSheet(sheetId)])
+    assertCan(actor, 'manageStages', current)
+    const result = domainEditStages(current, stages, moves, await this.allRowsOf(sheetId), {
+      now: ctx.now,
+      newId: uuid,
+    })
+    return this.saveSheetWithRows(result.sheet, result.rows, 'manageStages')
+  }
+
+  async convertColumn(
+    sheetId: Id,
+    columnId: Id,
+    type: ColumnDef['type'],
+    ctx: MutationContext,
+  ): Promise<Sheet> {
+    const [actor, current, tags] = await Promise.all([
+      this.actor(),
+      this.liveSheet(sheetId),
+      this.listTags(),
+    ])
+    assertCan(actor, 'manageColumns', current)
+    const result = domainConvertColumn(current, columnId, type, await this.allRowsOf(sheetId), {
+      now: ctx.now,
+      tagMap: new Map(tags.map((t) => [t.id, t])),
+    })
+    return this.saveSheetWithRows(result.sheet, result.rows, 'manageColumns')
   }
 
   async reorderSheets(memberId: Id, sheetIds: Id[], ctx: MutationContext): Promise<Sheet[]> {
