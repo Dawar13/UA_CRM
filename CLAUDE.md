@@ -348,7 +348,7 @@ Versions are the latest stable on npm as of 5 Nov 2026. Several are new majors, 
 | Validation              | Zod 4                                                                                                                                                                                                                                                                   |
 | Local data              | Dexie 4 (IndexedDB), used in Phase 0, in tests, and as an offline cache later                                                                                                                                                                                           |
 | Backend (Phase 1)       | Supabase free tier (one project, D-035): Postgres, email and password sign-in for listed members (Google joins with Calendar in Phase 2), row-level security, Realtime, Storage, `pg_trgm`; supabase-js 2; Supabase CLI for the local stack, migrations and pgTAP tests |
-| Hosting (Phase 1)       | Vercel Hobby (D-032): static build; previews run on sample data; a manual production release (D-035)                                                                                                                                                                    |
+| Hosting (Phase 1)       | Vercel Hobby (D-032, D-046): builds from the repository on every push to `main` (`vercel.json`); production uses Supabase, previews run on sample data                                                                                                                  |
 | Parsing (Phase 1 and 2) | chrono-node 2, libphonenumber-js, date-fns 4, pdfjs-dist 6, `@paddleocr/paddleocr-js` 0.4 (pre-1.0, so expect API changes), tesseract.js 7                                                                                                                              |
 | Export (Phase 1)        | ExcelJS 4, jsPDF 4 + jspdf-autotable 5                                                                                                                                                                                                                                  |
 | Quality                 | Biome 2.6 (lint and format), Vitest 5 + Testing Library 16 + fake-indexeddb, Playwright 1.64 + @axe-core/playwright, GitHub Actions                                                                                                                                     |
@@ -412,9 +412,10 @@ ua-crm/
     contract/  e2e-live/         Phase 1 (the Supabase contract run is the integration layer)
   supabase/                      Phase 1: config, migrations/, tests/ (pgTAP)
   scripts/                       token generation, visual baselines; Phase 1: backup/ (dump,
-                                 restore check, Storage mirror and restore), release/ (Vercel output)
+                                 restore check, Storage mirror and restore)
   data/import/                   gitignored, real files for import
-  .github/workflows/             ci.yml, visual-baselines.yml; Phase 1: release.yml, backup.yml
+  .github/workflows/             ci.yml, visual-baselines.yml; Phase 1: backup.yml
+  vercel.json                    Phase 1: Vercel build settings, SPA fallback and headers
   playwright.live.config.ts      Phase 1: the live browser tests against Supabase
 ```
 

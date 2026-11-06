@@ -27,6 +27,9 @@ permissions:
 
 env:
   COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"
+  # The private repository for the dumps: <this account>/ua-crm-backups unless a
+  # BACKUP_REPOSITORY variable names another.
+  BACKUP_REPOSITORY: ${{ vars.BACKUP_REPOSITORY || format('{0}/ua-crm-backups', github.repository_owner) }}
 
 jobs:
   backup:
@@ -42,10 +45,9 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
           BACKUP_REPO_TOKEN: ${{ secrets.BACKUP_REPO_TOKEN }}
-          BACKUP_REPOSITORY: ${{ vars.BACKUP_REPOSITORY }}
         run: |
           missing=()
-          for name in SUPABASE_DB_URL SUPABASE_URL SUPABASE_SECRET_KEY BACKUP_REPO_TOKEN BACKUP_REPOSITORY; do
+          for name in SUPABASE_DB_URL SUPABASE_URL SUPABASE_SECRET_KEY BACKUP_REPO_TOKEN; do
             [ -n "${!name}" ] || missing+=("$name")
           done
           if [ ${#missing[@]} -gt 0 ]; then
@@ -65,7 +67,7 @@ jobs:
       - name: Check out the backup repository
         uses: actions/checkout@v7
         with:
-          repository: ${{ vars.BACKUP_REPOSITORY }}
+          repository: ${{ env.BACKUP_REPOSITORY }}
           token: ${{ secrets.BACKUP_REPO_TOKEN }}
           path: backup
           fetch-depth: 1

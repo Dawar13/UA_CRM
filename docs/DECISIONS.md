@@ -476,6 +476,8 @@ Container jobs first make sure git is installed (otherwise checkout falls back t
 
 ## D-041 · 6 Nov 2026 · Releases are built in GitHub Actions; Vercel only hosts
 
+**Superseded by D-046** (7 Nov 2026).
+
 **Context.** The toolchain is Node 26 and pnpm 12 (§4). Vercel's build image documents older Node majors, and a pnpm override there falls back to an old pnpm. Production releases are manual (D-035).
 
 **Decision.** The Release workflow (`.github/workflows/release.yml`, run by hand on `main`) refuses a commit whose CI has not passed, builds with the CI toolchain, assembles a Build Output API folder (`scripts/release/vercel-config.json`: SPA fallback except under `/assets/`, immutable asset caching, basic security headers) and deploys it with `vercel deploy --prebuilt`. A preview runs on sample data; production applies migrations first. The Vercel project has no Git connection. The Vercel CLI (Apache-2.0) is pinned at 65.3.1 and fetched with `pnpm dlx` inside the workflow only.
@@ -521,3 +523,16 @@ Container jobs first make sure git is installed (otherwise checkout falls back t
 - **Tests corrected, not loosened.** The performance smoke expected 2,001 grid rows; your own tab has had the "Add a contact" line since M1.3, so it is 2,002. The stage-editor test clicked the folder-front shortcut, which a folded front (short screens start folded) does not show; it now uses the sheet menu when the front is folded. The performance limits (first rows under 1.5 s, no long task over 200 ms) are unchanged.
 
 **Consequences.** On the development machine the performance smoke sits close to its limits (first rows 1.0 to 1.2 s in isolation, but up to 1.8 s while another process held two of its cores; scroll tasks 130 to 210 ms). CI's runner gives the reference result. If it fails there, the next steps are lighter grid cells (fewer class merges and elements per cell) and layout containment on rows.
+
+## D-046 · 7 Nov 2026 · Vercel builds from the repository; pushing to main is the release
+
+**Context.** The founders asked for less setup ("don't over-engineer"). D-041 built releases in GitHub Actions because Vercel's Node 26 support was unconfirmed, which cost a release workflow, a Vercel token and five more GitHub settings. Vercel's documentation now lists Node 26 as its default.
+
+**Decision.**
+
+- Vercel imports `Dawar13/UA_CRM` and builds it on every push to `main`. `vercel.json` pins pnpm 12.16.1 through `npx` (the version in `packageManager`), skips the `prepare` script (git hooks are for developers), keeps the SPA fallback outside `/assets/`, and sets caching and security headers.
+- Production gets three Vercel environment variables (`VITE_DATA`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`); branch previews get none, so they run on sample data.
+- Pushing is the manual release (D-035): the founders push by hand. Migrations are applied with `supabase db push --remote` before the code that needs them is pushed.
+- The release workflow, its Build Output config and the Vercel CLI pin are removed. The nightly backup is unchanged (the founders chose to keep the private backup repository); its repository name now defaults to `<owner>/ua-crm-backups`, so it needs four secrets and no variables.
+
+**Consequences.** Setup is: import the repository in Vercel with three variables, and for backups one private repository, one token and four secrets. CI no longer gates production; a push that fails CI is still deployed, so wait for CI before pushing behaviour changes, or roll back in Vercel.

@@ -1,26 +1,26 @@
 # Runbook
 
-How the live CRM is released, backed up and restored. Written for the founders; no step needs Docker or anything installed beyond what is named.
+How the live CRM is set up, released, backed up and restored. Written for the founders; no step needs Docker or anything installed beyond what is named.
 
-**Never paste a key, password or connection string into this repository, an issue, a chat or a screenshot.** The repository is public. Settings live in GitHub (Settings → Secrets and variables → Actions) and in Supabase.
+**Never paste a key, password or connection string into this repository, an issue, a chat or a screenshot.** The repository is public. Settings live in Vercel, in GitHub (Settings → Secrets and variables → Actions) and in Supabase.
 
 ---
 
 ## 1. What runs, and when
 
-| Workflow       | When                              | What it does                                                                                                                                                                                               |
+| What           | When                              | What it does                                                                                                                                                                                               |
 | -------------- | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Vercel         | Every push to `main`              | Builds the app from the repository and puts it live at the production URL (`vercel.json` holds the build settings)                                                                                         |
 | CI             | Every push to `main`              | Lint, types, unit and component tests, browser tests on sample data, and the database tests on a throwaway local Supabase (pgTAP, the repository contract, live browser tests with two invented members)   |
-| Release        | By hand, from the Actions tab     | **preview:** the app on sample data at a Vercel preview URL. **production:** database migrations, then the app at the production URL. Refuses a commit whose CI has not passed                             |
 | Nightly backup | 02:00 IST every night, or by hand | Dumps the database and mirrors the stored files into the private `ua-crm-backups` repository, keeps the newest 30 dumps, then restores the dump into a scratch database and checks every table's row count |
 
-A failed scheduled run emails whoever last changed the schedule line in `.github/workflows/backup.yml`. The daily dump also keeps the free Supabase project from pausing after a week without use.
+A failed scheduled backup emails whoever last changed the schedule line in `.github/workflows/backup.yml`. The daily dump also keeps the free Supabase project from pausing after a week without use.
 
 ---
 
 ## 2. One-time setup
 
-### 2.1 Supabase (already done: project `ua-crm`)
+### 2.1 Supabase (project `ua-crm`, already created)
 
 1. **Logins:** Authentication → Users → Add user → Create new user, with "Auto Confirm User" ticked, for each founder.
 2. **Team list:** SQL editor, with each person's login email in place of the placeholders. This runs once; after it, admins add members from the app (More → Team).
@@ -31,53 +31,44 @@ A failed scheduled run emails whoever last changed the schedule line in `.github
      ('Dhruv', '<Dhruv''s login email>', 'dhruv', 1, true, true);
    ```
 
-3. **URLs** (after the first production release): Authentication → URL Configuration → Site URL is the production URL; add `http://localhost:5173` under Redirect URLs.
+3. **URLs** (once Vercel gives you the production URL): Authentication → URL Configuration → Site URL is the production URL; add `http://localhost:5173` under Redirect URLs.
 
-### 2.2 The backup repository
+### 2.2 Vercel (about 3 minutes)
+
+1. Add New → Project → import `Dawar13/UA_CRM`. Keep the settings Vercel shows; `vercel.json` overrides what matters.
+2. Before deploying, open Environment Variables and add three, for **Production** only:
+   - `VITE_DATA` = `supabase`
+   - `VITE_SUPABASE_URL` = the Project URL (Supabase → Project Settings → Data API)
+   - `VITE_SUPABASE_PUBLISHABLE_KEY` = the publishable key (Supabase → Project Settings → API Keys)
+3. Deploy. Previews of other branches get no variables, so they run on sample data.
+
+### 2.3 Backups (about 5 minutes)
 
 1. On GitHub: New repository → `ua-crm-backups`, **Private**, tick "Add a README file" (the workflow cannot check out an empty repository).
 2. A token that can write only there: GitHub → Settings → Developer settings → Fine-grained tokens → Generate new token.
    - Resource owner: `Dawar13`. Repository access: Only select repositories → `ua-crm-backups`.
    - Permissions: Repository → Contents → Read and write (Metadata read-only comes with it).
    - Expiry: one year, with a calendar reminder to renew it.
+3. In this repository: Settings → Secrets and variables → Actions → New repository secret, four times:
 
-### 2.3 Vercel
+| Secret                | Where it comes from                                                                                                                                                                                                                                               |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SUPABASE_DB_URL`     | Supabase → Connect → **Session pooler** connection string (port 5432), with the database password in place of `[YOUR-PASSWORD]`. Characters such as `@ : / ? #` in the password must be percent-encoded. Not the direct connection: GitHub's runners have no IPv6 |
+| `SUPABASE_URL`        | Supabase → Project Settings → Data API → Project URL                                                                                                                                                                                                              |
+| `SUPABASE_SECRET_KEY` | Supabase → Project Settings → API Keys → Secret keys → New secret key, named `github-backup` so it can be revoked on its own                                                                                                                                      |
+| `BACKUP_REPO_TOKEN`   | The token from step 2                                                                                                                                                                                                                                             |
 
-The app is built in GitHub Actions with the same Node and pnpm as CI (D-036); Vercel only hosts the files.
-
-1. Create a project named `ua-crm` (Add New → Project; import `Dawar13/UA_CRM`), then Settings → Git → **Disconnect**, so Vercel does not try to build on every push. If one automatic build ran before the disconnect and failed, ignore it.
-2. Settings → General: copy the **Project ID**. Team settings → General: copy the **Team ID**.
-3. Account Settings → Tokens → Create, scoped to that team.
-
-### 2.4 GitHub settings for this repository
-
-Settings → Secrets and variables → Actions.
-
-| Name                       | Kind     | Where it comes from                                                                                                                                                                                                                                               | Used by         |
-| -------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- |
-| `SUPABASE_DB_URL`          | Secret   | Supabase → Connect → **Session pooler** connection string (port 5432), with the database password in place of `[YOUR-PASSWORD]`. Characters such as `@ : / ? #` in the password must be percent-encoded. Not the direct connection: GitHub's runners have no IPv6 | Backup, release |
-| `SUPABASE_URL`             | Secret   | Project Settings → Data API → Project URL                                                                                                                                                                                                                         | Backup, release |
-| `SUPABASE_PUBLISHABLE_KEY` | Secret   | Project Settings → API Keys → Publishable key                                                                                                                                                                                                                     | Release         |
-| `SUPABASE_SECRET_KEY`      | Secret   | Project Settings → API Keys → Secret keys → New secret key, named `github-backup` so it can be revoked on its own                                                                                                                                                 | Backup          |
-| `BACKUP_REPO_TOKEN`        | Secret   | The fine-grained token from 2.2                                                                                                                                                                                                                                   | Backup          |
-| `VERCEL_TOKEN`             | Secret   | The token from 2.3                                                                                                                                                                                                                                                | Release         |
-| `BACKUP_REPOSITORY`        | Variable | `Dawar13/ua-crm-backups`                                                                                                                                                                                                                                          | Backup          |
-| `VERCEL_ORG_ID`            | Variable | The Team ID from 2.3                                                                                                                                                                                                                                              | Release         |
-| `VERCEL_PROJECT_ID`        | Variable | The Project ID from 2.3                                                                                                                                                                                                                                           | Release         |
-
-Each workflow checks its settings first and names any that are missing.
+4. Actions → Nightly backup → Run workflow, once, to check it passes. It names any missing secret.
 
 ---
 
 ## 3. Releasing
 
-1. Push to `main` and wait for CI to pass.
-2. Actions → Release → Run workflow → `preview` to click through on sample data, or `production` to go live.
-3. The run's summary shows the URL.
+Pushing to `main` is the release: Vercel builds and goes live in a minute or two. Wait for CI to pass when a push changes behaviour.
 
-**Production order:** build, then migrations, then deploy. A failed build changes nothing. Migrations only ever add or adjust; they are never rolled back by hand.
+**Database changes** ship as migrations in `supabase/migrations/`. Apply them before pushing the code that needs them: `pnpm exec supabase db push --remote` (the CLI asks for the database password). Migrations only ever add or adjust.
 
-**Rolling back the app:** Vercel → Deployments → the previous production deployment → Instant Rollback. The database stays as it is; a fix to it is a new migration, released the same way.
+**Rolling back the app:** Vercel → Deployments → the previous production deployment → Instant Rollback. The database stays as it is; a fix to it is a new migration.
 
 ---
 
@@ -132,9 +123,9 @@ SUPABASE_URL=<new project URL> SUPABASE_SECRET_KEY=<new secret key> \
 
 ### 5.3 Pointing everything at the new project
 
-1. Update `SUPABASE_DB_URL`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` and `SUPABASE_SECRET_KEY` in GitHub (2.4), and the two values in your local `.env`.
+1. Update the three Supabase secrets in GitHub (2.3), the two Supabase variables in Vercel (2.2) and the two values in your local `.env`.
 2. Link the CLI: `pnpm exec supabase link --project-ref <new ref>`.
-3. Actions → Release → `production`.
+3. Vercel → Deployments → Redeploy the latest production deployment, so it picks up the new variables.
 4. Supabase → Authentication → URL Configuration, as in 2.1.
 5. Run the nightly backup by hand once and check it passes.
 
@@ -142,4 +133,4 @@ SUPABASE_URL=<new project URL> SUPABASE_SECRET_KEY=<new secret key> \
 
 ## 6. If a secret leaks
 
-Revoke it where it was made (Supabase API keys, the database password under Project Settings → Database, the GitHub token, the Vercel token), create a new one, and update it in GitHub (2.4). The publishable key is designed to be public; the database's row-level security is what protects the data.
+Revoke it where it was made (Supabase API keys, or the database password under Project Settings → Database, or the GitHub token), create a new one, and update it in GitHub (2.3). The publishable key is designed to be public; the database's row-level security is what protects the data.

@@ -6,7 +6,7 @@ coverage
 *.tsbuildinfo
 .vitest
 
-# Release output (built in the release workflow)
+# Vercel CLI link folder, if anyone links locally
 .vercel
 
 # Playwright

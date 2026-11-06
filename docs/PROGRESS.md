@@ -351,7 +351,7 @@ Four questions for the founders (plan §5): hosting provider, the private reposi
 - **General import** of .xlsx and .csv into your own sheet (sheet menu → Import from a file), with a mapping preview remembered per sheet and conversion warnings.
 - **Export** of the current view to Excel (warmth and tag colours) and PDF (A4 landscape), from any sheet including other members'; **Export everything** to one workbook with a tab per sheet.
 - **Nightly backup** (D-042): the database dump and the files into the private `ua-crm-backups` repository at 02:00 IST, keeping 30, with a restore check every night. `docs/RUNBOOK.md` covers setup, releases and restoring.
-- **Releases** (D-041): a manual workflow that builds in GitHub Actions and deploys to Vercel, preview on sample data or production after migrations.
+- **Releases** (D-046): Vercel builds from the repository on every push to `main` (`vercel.json`); production uses Supabase, previews run on sample data. A first version built releases in GitHub Actions (D-041); the founders asked for less setup, so it was removed.
 - **Live browser tests** (D-043) against Supabase: sign-in, view only, a forced write refused by the database, and Realtime. Running them against the hosted project found that a quick reload could drop a new row's save; adding a row is now faster and the browser asks before leaving mid-save (D-037).
 - **The founders' logo** is the brand mark and favicon (D-044).
 
@@ -379,17 +379,17 @@ Screenshots: `docs/screenshots/m1-*-light.png` and `-dark.png` (main, view only,
 
 ### Launch checklist (founders; steps in `docs/RUNBOOK.md`)
 
-1. Add both founders to the team list (§2.1). Both logins exist once Dhruv's is created.
-2. Create `ua-crm-backups`, the Vercel project and the GitHub settings (§2.2 to §2.4).
-3. Push, wait for CI, run **Visual baselines**, then **Release → production**.
-4. Each founder signs in on production, imports their rows from the old spreadsheet, and checks view only in the other's tab.
-5. Run **Nightly backup** by hand once and check it passes, restore check included.
+1. Create Dhruv's login and add both founders to the team list (§2.1).
+2. Push, then run **Visual baselines** and **CI** from the Actions tab.
+3. Import the repository in Vercel with three variables (§2.2); set the Site URL in Supabase.
+4. Create `ua-crm-backups`, its token and four secrets, then run **Nightly backup** once (§2.3).
+5. Each founder signs in on production, imports their rows from the old spreadsheet, and checks view only in the other's tab.
 6. Use it daily for a week, then retire the old spreadsheet (the Phase 1 exit).
 
 ### Known issues
 
 - **Visual baselines:** the new screens (Today, view only, three `/design` sections) and the changed ones (names without initials, the logo) need Linux baselines. After pushing: Actions → **Visual baselines** → Run workflow, then **CI** → Run workflow, then pull.
-- **Backup and release workflows** have not run yet: they need the settings above, and their dump and restore steps need Docker, which GitHub's runners have and this machine does not. Their scripts were checked locally where possible (the Storage mirror and restore against the real bucket, the row counter on a sample dump).
+- **The backup workflow** has not run yet: it needs the settings above, and its dump and restore steps need Docker, which GitHub's runners have and this machine does not. Its scripts were checked locally where possible (the Storage mirror and restore against the real bucket, the row counter on a sample dump).
 - **Region:** the Supabase project is in Tokyo, not Mumbai. Each round trip from India takes about 150 to 250 ms; edits are optimistic, so typing feels instant, but first loads are slower. Moving is a new Mumbai project plus the restore in `docs/RUNBOOK.md` §5, best done before real data goes in.
 - The build warns that the main chunk is over 1.5 MB (the import and export libraries among it); splitting it is in the backlog.
 - Locally, running every Playwright project with many workers can overload the machine; CI uses 2 workers and 1 retry. The warmth test that reloads right after W was flaky under that load and passes on retry.
