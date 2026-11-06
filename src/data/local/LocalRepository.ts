@@ -46,6 +46,7 @@ import type {
   CalendarEvent,
   ColumnDef,
   DomainContext,
+  FileRef,
   HistoryEntry,
   Id,
   Member,
@@ -63,12 +64,15 @@ import {
   type ColumnPatch,
   type DateRange,
   type DuplicateCandidate,
+  FileTooLargeError,
   type HistoryPatch,
   type ImportBatch,
+  MAX_FILE_BYTES,
   type MemberPatch,
   type MutationContext,
   type MutationResult,
   type NewColumnInput,
+  type NewFile,
   type NewHistoryInput,
   type NewRowInput,
   NotAvailableYet,
@@ -710,6 +714,54 @@ export class LocalRepository implements Repository {
     for (const id of rowIds) this.searchIndex.delete(id)
   }
 
+  // ---------- Phase 1: files ----------
+
+  async attachFile(rowId: Id, file: NewFile, ctx: MutationContext): Promise<FileRef> {
+    if (file.size > MAX_FILE_BYTES) throw new FileTooLargeError(file.name)
+    const actor = await this.actor(ctx)
+    // Local mode keeps the file in the row itself, as a data URL.
+    const url = await blobToDataUrl(file.data)
+    const { db } = this
+    return db.transaction('rw', db.rows, async () => {
+      const row = await this.liveRow(rowId)
+      assertCan(actor, 'manageFiles', row)
+      const ref: FileRef = {
+        id: newId('f')(),
+        name: file.name,
+        size: file.size,
+        mimeType: file.type || 'application/octet-stream',
+        url,
+      }
+      await db.rows.put({
+        ...row,
+        files: [...row.files, ref],
+        updatedAt: ctx.now.toISOString(),
+        updatedBy: ctx.actorId,
+      })
+      return ref
+    })
+  }
+
+  async removeFile(rowId: Id, fileId: Id, ctx: MutationContext): Promise<void> {
+    const actor = await this.actor(ctx)
+    const { db } = this
+    await db.transaction('rw', db.rows, async () => {
+      const row = await this.liveRow(rowId)
+      assertCan(actor, 'manageFiles', row)
+      if (!row.files.some((f) => f.id === fileId)) throw new NotFoundError('File', fileId)
+      await db.rows.put({
+        ...row,
+        files: row.files.filter((f) => f.id !== fileId),
+        updatedAt: ctx.now.toISOString(),
+        updatedBy: ctx.actorId,
+      })
+    })
+  }
+
+  async fileUrl(file: FileRef): Promise<string> {
+    return file.url
+  }
+
   // ---------- Phase 1: history ----------
 
   async addHistory(rowId: Id, entry: NewHistoryInput, ctx: MutationContext): Promise<HistoryEntry> {
@@ -1230,4 +1282,13 @@ function sameTagName(a: string, b: string): boolean {
 /** Rejects (rather than throws synchronously) so callers see a failed promise either way. */
 function notYet(method: string, milestone: string): Promise<never> {
   return Promise.reject(new NotAvailableYet(method, milestone))
+}
+
+async function blobToDataUrl(blob: Blob): Promise<string> {
+  const bytes = new Uint8Array(await blob.arrayBuffer())
+  let binary = ''
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000))
+  }
+  return `data:${blob.type || 'application/octet-stream'};base64,${btoa(binary)}`
 }

@@ -48,6 +48,7 @@ import type {
   CalendarEvent,
   ColumnDef,
   DomainContext,
+  FileRef,
   HistoryEntry,
   Id,
   Member,
@@ -65,12 +66,15 @@ import {
   type ColumnPatch,
   type DateRange,
   type DuplicateCandidate,
+  FileTooLargeError,
   type HistoryPatch,
   type ImportBatch,
+  MAX_FILE_BYTES,
   type MemberPatch,
   type MutationContext,
   type MutationResult,
   type NewColumnInput,
+  type NewFile,
   type NewHistoryInput,
   type NewRowInput,
   NotAvailableYet,
@@ -110,6 +114,9 @@ const AUTOMATIC_MESSAGE = 'Stage, warmth and created entries are written automat
 const ACTOR_TTL_MS = 30_000
 
 const DEFAULT_SEARCH_LIMIT = 50
+
+/** The private Storage bucket for row files (supabase/migrations). */
+const FILE_BUCKET = 'row-files'
 
 interface SavedRow {
   row: unknown
@@ -437,6 +444,57 @@ export class SupabaseRepository implements Repository {
     }
     await this.rpc('api_set_rows_deleted', { p_ids: ids, p_deleted_at: deletedAt }, 'deleteRow')
     this.onPrivateChange?.()
+  }
+
+  // ---------- Files (Storage bucket row-files: <owner>/<row>/<file id>) ----------
+
+  async attachFile(rowId: Id, file: NewFile, _ctx: MutationContext): Promise<FileRef> {
+    if (file.size > MAX_FILE_BYTES) throw new FileTooLargeError(file.name)
+    const [actor, row] = await Promise.all([this.actor(), this.liveRow(rowId)])
+    assertCan(actor, 'manageFiles', row)
+    const id = uuid()
+    const path = `${row.memberId}/${row.id}/${id}`
+    const uploaded = await this.client.storage
+      .from(FILE_BUCKET)
+      .upload(path, file.data, { contentType: file.type || 'application/octet-stream' })
+    if (uploaded.error) throw toDomainError(uploaded.error, 'manageFiles')
+    const inserted = await this.client.from('files').insert({
+      id,
+      row_id: row.id,
+      name: file.name,
+      size: file.size,
+      mime_type: file.type || 'application/octet-stream',
+      storage_path: path,
+    })
+    if (inserted.error) {
+      await this.client.storage.from(FILE_BUCKET).remove([path])
+      throw toDomainError(inserted.error, 'manageFiles')
+    }
+    return {
+      id,
+      name: file.name,
+      size: file.size,
+      mimeType: file.type || 'application/octet-stream',
+      url: path,
+    }
+  }
+
+  async removeFile(rowId: Id, fileId: Id, _ctx: MutationContext): Promise<void> {
+    const [actor, row] = await Promise.all([this.actor(), this.liveRow(rowId)])
+    assertCan(actor, 'manageFiles', row)
+    const file = row.files.find((f) => f.id === fileId)
+    if (!file) throw new NotFoundError('File', fileId)
+    this.check(await this.client.from('files').delete().eq('id', fileId), 'manageFiles')
+    const removed = await this.client.storage.from(FILE_BUCKET).remove([file.url])
+    if (removed.error) throw toDomainError(removed.error, 'manageFiles')
+  }
+
+  async fileUrl(file: FileRef): Promise<string> {
+    const { data, error } = await this.client.storage
+      .from(FILE_BUCKET)
+      .createSignedUrl(file.url, 60 * 10, { download: file.name })
+    if (error || !data) throw toDomainError(error ?? new Error('No link'), 'view')
+    return data.signedUrl
   }
 
   // ---------- History ----------

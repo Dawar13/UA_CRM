@@ -15,6 +15,7 @@ import type { StageMoves } from '@/domain/sheetEdits'
 import type {
   CalendarEvent,
   ColumnDef,
+  FileRef,
   HistoryEntry,
   HistoryKind,
   HistorySource,
@@ -120,6 +121,25 @@ export interface ImportBatch {
   history?: NewHistoryInput[][]
 }
 
+/** A file to attach to a row (10 MB at most). */
+export interface NewFile {
+  name: string
+  type: string
+  size: number
+  data: Blob
+}
+
+/** Files above this size are refused (the Storage bucket allows no more). */
+export const MAX_FILE_BYTES = 10 * 1024 * 1024
+
+/** A file that is too large to attach. */
+export class FileTooLargeError extends Error {
+  constructor(name: string) {
+    super(`${name} is larger than 10 MB`)
+    this.name = 'FileTooLargeError'
+  }
+}
+
 /** Something in the actor's Trash. Items older than 30 days are purged and not listed. */
 export interface TrashItem {
   kind: 'row' | 'sheet' | 'column'
@@ -198,6 +218,12 @@ export interface Repository {
   /** Moves rows to their owner's Trash. */
   deleteRows(rowIds: Id[], ctx: MutationContext): Promise<void>
   restoreRows(rowIds: Id[], ctx: MutationContext): Promise<void>
+
+  /** Attaches a file to a row (the owner only). Others can view and download it. */
+  attachFile(rowId: Id, file: NewFile, ctx: MutationContext): Promise<FileRef>
+  removeFile(rowId: Id, fileId: Id, ctx: MutationContext): Promise<void>
+  /** A link to open or download the file (short-lived for Storage). */
+  fileUrl(file: FileRef): Promise<string>
 
   /** Logs a touch on a row; last touch follows. */
   addHistory(rowId: Id, entry: NewHistoryInput, ctx: MutationContext): Promise<HistoryEntry>

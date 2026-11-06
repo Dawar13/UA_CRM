@@ -1,10 +1,12 @@
-import { PanelRight } from 'lucide-react'
+import { ListFilter, PanelRight, X } from 'lucide-react'
 import { useNavigate } from 'react-router'
 import { useActor } from '@/auth/AuthContext'
 import { useEditGate } from '@/auth/useCan'
 import { SheetTabs } from '@/components/crm/SheetTabs'
+import { TagChip } from '@/components/crm/TagChip'
 import { IconButton } from '@/components/ui/IconButton'
-import { useReorderSheets, useRowCounts } from '@/data/hooks'
+import { Menu, MenuContent, MenuItem, MenuLabel, MenuTrigger } from '@/components/ui/Menu'
+import { useReorderSheets, useRowCounts, useRows, useSheetTagCounts, useTagMap } from '@/data/hooks'
 import type { Member, Sheet } from '@/domain/types'
 import { SheetMenu } from '@/features/sheets/SheetMenu'
 import { rememberLocation, sheetPath } from './navigation'
@@ -31,6 +33,16 @@ export function SheetBar({
   const gate = useEditGate(member)
   const actor = useActor()
   const reorder = useReorderSheets()
+  const { data: rows } = useRows(sheet.id)
+  const tagCounts = useSheetTagCounts(rows)
+  const tagMap = useTagMap()
+  const filterTag = useUiStore((s) => s.tagFilters[sheet.id] ?? null)
+  const setTagFilter = useUiStore((s) => s.setTagFilter)
+  const filtered = filterTag ? tagMap.get(filterTag) : undefined
+  const usedTags = [...tagCounts.entries()]
+    .map(([id, count]) => ({ tag: tagMap.get(id), count }))
+    .filter((t): t is { tag: NonNullable<typeof t.tag>; count: number } => t.tag !== undefined)
+    .sort((a, b) => a.tag.name.localeCompare(b.tag.name))
 
   return (
     <div className="flex h-[var(--sheet-bar-height)] shrink-0 items-stretch gap-3">
@@ -62,6 +74,40 @@ export function SheetBar({
         />
       </nav>
       <div className="flex items-center gap-0.5">
+        {filtered ? (
+          <span
+            className="mr-1 inline-flex h-7 items-center gap-1 rounded-chip bg-surface-hover pr-0.5 pl-2 text-xs"
+            data-testid="tag-filter"
+          >
+            <TagChip name={filtered.name} colour={filtered.colour} />
+            <button
+              type="button"
+              aria-label={`Stop filtering by ${filtered.name}`}
+              onClick={() => setTagFilter(sheet.id, null)}
+              className="grid size-6 place-items-center rounded-chip text-muted hover:text-text"
+            >
+              <X aria-hidden className="size-3.5" />
+            </button>
+          </span>
+        ) : null}
+        {usedTags.length > 0 ? (
+          <Menu>
+            <MenuTrigger asChild>
+              <IconButton aria-label="Filter by tag" tooltip="Filter by tag">
+                <ListFilter className="size-4" />
+              </IconButton>
+            </MenuTrigger>
+            <MenuContent align="end" className="max-h-80 w-56 overflow-y-auto">
+              <MenuLabel>Show rows tagged</MenuLabel>
+              {usedTags.map(({ tag, count }) => (
+                <MenuItem key={tag.id} onSelect={() => setTagFilter(sheet.id, tag.id)}>
+                  <TagChip name={tag.name} colour={tag.colour} />
+                  <span className="ml-auto font-mono text-[11px] text-muted">{count}</span>
+                </MenuItem>
+              ))}
+            </MenuContent>
+          </Menu>
+        ) : null}
         {gate.editable ? <SheetMenu member={member} sheets={sheets} sheet={sheet} /> : null}
         <IconButton
           aria-label={panelOpen ? 'Hide side panel' : 'Show side panel'}

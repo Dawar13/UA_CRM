@@ -299,6 +299,38 @@ export function runRepositoryContract(
       })
     })
 
+    describe('files', () => {
+      it('the owner attaches and removes files; others can open them', async () => {
+        const data = new Blob(['UA pilot proposal'], { type: 'text/plain' })
+        const file = await dawar.attachFile(
+          rohan.id,
+          { name: 'proposal.txt', type: 'text/plain', size: data.size, data },
+          ctx('dawar', 1),
+        )
+        expect(file).toMatchObject({
+          name: 'proposal.txt',
+          size: data.size,
+          mimeType: 'text/plain',
+        })
+        const seen = await dhruv.getRow(rohan.id)
+        expect(seen?.files.map((f) => f.name)).toEqual(['proposal.txt'])
+        expect(await dhruv.fileUrl(seen?.files[0] ?? file)).toMatch(/^(data:|https?:)/)
+
+        await expectDenied(
+          dhruv.attachFile(
+            rohan.id,
+            { name: 'x.txt', type: 'text/plain', size: data.size, data },
+            ctx('dhruv'),
+          ),
+          'not-owner',
+        )
+        await expectDenied(dhruv.removeFile(rohan.id, file.id, ctx('dhruv')), 'not-owner')
+
+        await dawar.removeFile(rohan.id, file.id, ctx('dawar', 2))
+        expect((await dawar.getRow(rohan.id))?.files).toEqual([])
+      })
+    })
+
     describe('history', () => {
       it('the owner logs a touch and last touch follows it', async () => {
         const entry = await dawar.addHistory(

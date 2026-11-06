@@ -95,6 +95,7 @@ function SheetContent({ member, sheet, index }: { member: Member; sheet: Sheet; 
   const gate = useEditGate(member)
   const [stagesOpen, setStagesOpen] = useState(false)
   const [columnsOpen, setColumnsOpen] = useState(false)
+  const filterTag = useUiStore((s) => s.tagFilters[sheet.id] ?? null)
 
   useEffect(() => {
     if (!flashRowId) return
@@ -135,6 +136,7 @@ function SheetContent({ member, sheet, index }: { member: Member; sheet: Sheet; 
     )
   }
   const list = rows ?? []
+  const shown = filterTag ? list.filter((r) => r.tagIds.includes(filterTag)) : list
   return (
     <>
       <SheetSummary
@@ -178,7 +180,7 @@ function SheetContent({ member, sheet, index }: { member: Member; sheet: Sheet; 
               <SheetGrid
                 key={sheet.id}
                 sheet={sheet}
-                rows={list}
+                rows={shown}
                 member={member}
                 expandedRowId={expandedRowId}
                 onExpandedChange={onExpandedChange}

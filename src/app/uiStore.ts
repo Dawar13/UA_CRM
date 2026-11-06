@@ -19,6 +19,9 @@ interface UiState {
   shortcutsOpen: boolean
   /** A row briefly highlighted after a jump from search or a link chip. */
   flashRowId: string | null
+  /** The tag each sheet is filtered by, if any (for this session). */
+  tagFilters: Record<string, string | null>
+  setTagFilter: (sheetId: string, tagId: string | null) => void
   togglePanel: () => void
   setPanelOpen: (open: boolean) => void
   toggleSummary: () => void
@@ -59,6 +62,9 @@ export const useUiStore = create<UiState>((set, get) => ({
   paletteOpen: false,
   shortcutsOpen: false,
   flashRowId: null,
+  tagFilters: {},
+  setTagFilter: (sheetId, tagId) =>
+    set((s) => ({ tagFilters: { ...s.tagFilters, [sheetId]: tagId } })),
   togglePanel: () => get().setPanelOpen(!get().panelOpen),
   setPanelOpen: (open) => {
     writeStorage(storageKeys.panelOpen, String(open))

@@ -1,13 +1,13 @@
 import { Trash2 } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
-import { type ReactNode, useMemo } from 'react'
+import { type ReactNode, useMemo, useState } from 'react'
 import { useUiStore } from '@/app/uiStore'
 import { useActor } from '@/auth/AuthContext'
-import { DateText } from '@/components/crm/DateText'
 import { StageTracker, trackerTitleClassName } from '@/components/crm/StageTracker'
 import { WarmthChip, WarmthRadioGroup } from '@/components/crm/WarmthChip'
 import { Button } from '@/components/ui/Button'
 import {
+  useDeleteHistory,
   useDeleteRows,
   useHistory,
   useMarkLost,
@@ -25,6 +25,13 @@ import type { ColumnDef, Member, Row, Sheet } from '@/domain/types'
 import { isFuzzyDate, isLinkRef } from '@/features/grid/columnModel'
 import { cn } from '@/lib/cn'
 import { useNow } from '@/lib/useNow'
+import {
+  ContactButtons,
+  EditTouch,
+  FilesSection,
+  LogTouch,
+  NextActionField,
+} from './ContactSections'
 import { CopyToMySheet } from './CopyToMySheet'
 import { HistoryList } from './HistoryList'
 import { LinkChip } from './LinkChip'
@@ -97,6 +104,8 @@ export function ExpandedRow({
   const reopen = useReopen()
   const setWarmth = useSetWarmth()
   const deleteRows = useDeleteRows()
+  const deleteTouch = useDeleteHistory()
+  const [editingTouch, setEditingTouch] = useState<string | null>(null)
   const { data: history = [] } = useHistory(row.id)
   const { data: members = [] } = useMembers()
   const showHistory = useUiStore((s) => s.showHistory)
@@ -110,8 +119,6 @@ export function ExpandedRow({
   const samePerson = [...new Set([...(row.samePerson ?? []), ...linkedFrom])]
   const isMine = actor?.id === row.memberId
   const recent = history.slice(0, RECENT_HISTORY)
-  const next =
-    row.nextAction && (row.nextAction.text || row.nextAction.date) ? row.nextAction : null
 
   const fields: { id: string; label: string; value: ReactNode }[] = []
   for (const def of [...sheet.columns].sort((a, b) => a.position - b.position)) {
@@ -162,7 +169,9 @@ export function ExpandedRow({
       data-testid="expanded-row"
     >
       <div className="flex flex-col gap-6 px-6 pt-[22px] pb-[26px]">
-        <div className="-mb-2 flex justify-end empty:hidden">
+        <div className="-mb-2 flex items-center justify-between gap-3 empty:hidden">
+          <ContactButtons row={row} canLog={isMine && editable} />
+          <span className="flex-1" />
           {isMine ? (
             editable ? (
               <Button
@@ -210,20 +219,7 @@ export function ExpandedRow({
             </Section>
 
             <Section title="Next action">
-              {next ? (
-                <p className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-base text-text">
-                  {next.date ? (
-                    <DateText
-                      date={next.date}
-                      variant="due"
-                      className="font-mono text-xs font-medium"
-                    />
-                  ) : null}
-                  <span>{next.text}</span>
-                </p>
-              ) : (
-                <p className="text-[13.5px] text-muted">None set</p>
-              )}
+              <NextActionField row={row} sheet={sheet} editable={editable && isMine} />
             </Section>
 
             {row.notes ? (
@@ -231,6 +227,12 @@ export function ExpandedRow({
                 <p className="max-w-prose whitespace-pre-line text-base leading-[var(--line-height-long)] text-text">
                   {row.notes}
                 </p>
+              </Section>
+            ) : null}
+
+            {row.files.length > 0 || (editable && isMine) ? (
+              <Section title="Files">
+                <FilesSection row={row} editable={editable && isMine} />
               </Section>
             ) : null}
 
@@ -253,10 +255,33 @@ export function ExpandedRow({
                 <span className="font-mono text-2xs text-muted tabular-nums">{history.length}</span>
               ) : null}
             </div>
+            {editable && isMine ? (
+              <div className="mt-2">
+                <LogTouch row={row} />
+              </div>
+            ) : null}
             {recent.length > 0 ? (
-              <HistoryList entries={recent} members={memberMap} className="mt-2" />
+              <HistoryList
+                entries={recent}
+                members={memberMap}
+                className="mt-2"
+                onEdit={editable && isMine ? (entry) => setEditingTouch(entry.id) : undefined}
+                onDelete={
+                  editable && isMine
+                    ? (entry) => deleteTouch.mutate({ row, entry, actorId })
+                    : undefined
+                }
+                editingId={editingTouch}
+                renderEditor={(entry) => (
+                  <EditTouch row={row} entry={entry} onDone={() => setEditingTouch(null)} />
+                )}
+              />
             ) : (
-              <p className="mt-2 text-sm text-muted">No touches logged yet.</p>
+              <p className="mt-2 text-sm text-muted">
+                {editable && isMine
+                  ? 'No touches yet. Log the first one above.'
+                  : 'No touches logged yet.'}
+              </p>
             )}
             {history.length > RECENT_HISTORY ? (
               <div className="mt-2">

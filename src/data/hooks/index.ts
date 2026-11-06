@@ -1,3 +1,14 @@
+export {
+  useAddHistory,
+  useAttachFile,
+  useDeleteHistory,
+  useDeleteTag,
+  useOpenFile,
+  useRemoveFile,
+  useSheetTagCounts,
+  useUpdateHistory,
+  useUpdateTag,
+} from './contact'
 export { queryKeys, rowMutationKey } from './keys'
 export {
   type CopyRowVariables,
