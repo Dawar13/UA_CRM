@@ -2,16 +2,21 @@
  * The Repository is the only door to data. Components never import Dexie or Supabase; they
  * call hooks in `data/hooks/`, and the hooks call a Repository.
  *
- * Phase 0 ships `LocalRepository` (Dexie on IndexedDB). Phase 1 adds `SupabaseRepository`
- * behind the same interface, so the UI does not change.
+ * `LocalRepository` (Dexie on IndexedDB) serves local development and tests; `SupabaseRepository`
+ * serves staging and production. Both refuse writes outside the actor's own tab with the same
+ * `can()` the UI uses (Supabase through row-level security as well), and one contract suite runs
+ * against both.
  *
  * Stage, warmth and history changes are one operation: each mutation writes the row and appends
  * its history entry atomically, and updates `row.lastTouchAt`.
  */
+import type { NewRowValues, RowPatch } from '@/domain/rows'
 import type {
   CalendarEvent,
   ColumnDef,
   HistoryEntry,
+  HistoryKind,
+  HistorySource,
   Id,
   IsoDateTime,
   Member,
@@ -23,7 +28,7 @@ import type {
   Warmth,
 } from '@/domain/types'
 
-/** Who is acting and when. In Phase 0 the open member tab is the actor (no sign-in yet). */
+/** Who is acting and when: the signed-in member. Writes to another member's tab are refused. */
 export interface MutationContext {
   actorId: Id
   now: Date
@@ -67,11 +72,39 @@ export interface DateRange {
   to: IsoDateTime
 }
 
-/** Phase 1 inputs, declared now so the contract is settled. */
+/** A new row in a sheet. */
 export interface NewRowInput {
   sheetId: Id
-  values: Partial<Omit<Row, 'id' | 'sheetId' | 'memberId' | 'createdAt' | 'updatedAt'>>
+  values: NewRowValues
 }
+
+/** A touch logged by hand (or, from Phase 2, by the calendar). The actor is the member. */
+export interface NewHistoryInput {
+  kind: Exclude<HistoryKind, 'stage' | 'warmth' | 'created'>
+  /** UTC instant it happened. */
+  at: IsoDateTime
+  fuzzyDate?: HistoryEntry['fuzzyDate']
+  text: string
+  source?: Exclude<HistorySource, 'system'>
+}
+export type HistoryPatch = Partial<Pick<HistoryEntry, 'kind' | 'at' | 'fuzzyDate' | 'text'>>
+
+export interface NewColumnInput {
+  label: string
+  type: ColumnDef['type']
+  options?: readonly string[]
+  width?: number
+}
+export type ColumnPatch = Partial<
+  Pick<ColumnDef, 'label' | 'type' | 'options' | 'width' | 'hidden'>
+>
+
+export interface MemberPatch {
+  name?: string
+  active?: boolean
+  isAdmin?: boolean
+}
+
 export interface DuplicateCandidate {
   row: Row
   level: 'hard' | 'soft'
@@ -79,15 +112,22 @@ export interface DuplicateCandidate {
 }
 export interface ImportBatch {
   sheetId: Id
-  rows: NewRowInput['values'][]
-  history?: Omit<HistoryEntry, 'id' | 'rowId'>[][]
+  rows: NewRowValues[]
+  history?: NewHistoryInput[][]
 }
+
+/** Something in the actor's Trash. Items older than 30 days are purged and not listed. */
 export interface TrashItem {
-  kind: 'row' | 'sheet'
+  kind: 'row' | 'sheet' | 'column'
   id: Id
+  /** The sheet a row or column belongs to (the sheet itself for a sheet). */
+  sheetId: Id
   label: string
   deletedAt: IsoDateTime
 }
+
+/** How long deleted rows, columns and sheets stay in Trash. */
+export const TRASH_DAYS = 30
 
 export interface Repository {
   // ---------- Phase 0: reads ----------
@@ -138,40 +178,43 @@ export interface Repository {
   /** Adds (or replaces) a 2,000-row Customers sheet for the first member. Dev and test hook. */
   loadPerfSheet(): Promise<Sheet>
 
-  // ---------- Phase 1 (throw NotImplementedInPhase0; not reachable from the UI) ----------
-  createRow(input: NewRowInput, ctx: MutationContext): Promise<Row>
-  updateRow(rowId: Id, patch: NewRowInput['values'], ctx: MutationContext): Promise<Row>
+  // ---------- Phase 1: every write checks ownership (PermissionDenied) ----------
+  /** Adds a row with its "Added to <sheet>" history entry, at the end of the sheet. */
+  createRow(input: NewRowInput, ctx: MutationContext): Promise<MutationResult>
+  /** A cell edit. Stage and warmth have their own operations. */
+  updateRow(rowId: Id, patch: RowPatch, ctx: MutationContext): Promise<Row>
+  /** Moves rows to their owner's Trash. */
   deleteRows(rowIds: Id[], ctx: MutationContext): Promise<void>
   restoreRows(rowIds: Id[], ctx: MutationContext): Promise<void>
-  addHistory(
-    rowId: Id,
-    entry: Omit<HistoryEntry, 'id' | 'rowId'>,
-    ctx: MutationContext,
-  ): Promise<HistoryEntry>
+
+  /** Logs a touch on a row; last touch follows. */
+  addHistory(rowId: Id, entry: NewHistoryInput, ctx: MutationContext): Promise<HistoryEntry>
+  updateHistory(historyId: Id, patch: HistoryPatch, ctx: MutationContext): Promise<HistoryEntry>
+  deleteHistory(historyId: Id, ctx: MutationContext): Promise<void>
+
   createSheet(
     memberId: Id,
     input: { name: string; template: TemplateKey },
     ctx: MutationContext,
   ): Promise<Sheet>
+  /** Renames the sheet, or renames its stages (adding and removing stages comes with M1.4). */
   updateSheet(
     sheetId: Id,
     patch: Partial<Pick<Sheet, 'name' | 'stages'>>,
     ctx: MutationContext,
   ): Promise<Sheet>
+  /** The member's live sheets, in the order given. */
+  reorderSheets(memberId: Id, sheetIds: Id[], ctx: MutationContext): Promise<Sheet[]>
   deleteSheet(sheetId: Id, ctx: MutationContext): Promise<void>
-  addColumn(
-    sheetId: Id,
-    column: Omit<ColumnDef, 'id' | 'position'>,
-    ctx: MutationContext,
-  ): Promise<Sheet>
-  updateColumn(
-    sheetId: Id,
-    columnId: Id,
-    patch: Partial<ColumnDef>,
-    ctx: MutationContext,
-  ): Promise<Sheet>
+  restoreSheet(sheetId: Id, ctx: MutationContext): Promise<Sheet>
+
+  addColumn(sheetId: Id, column: NewColumnInput, ctx: MutationContext): Promise<Sheet>
+  updateColumn(sheetId: Id, columnId: Id, patch: ColumnPatch, ctx: MutationContext): Promise<Sheet>
   deleteColumn(sheetId: Id, columnId: Id, ctx: MutationContext): Promise<Sheet>
+  restoreColumn(sheetId: Id, columnId: Id, ctx: MutationContext): Promise<Sheet>
   reorderColumns(sheetId: Id, columnIds: Id[], ctx: MutationContext): Promise<Sheet>
+
+  /** Creates a tag, or returns the existing one with the same name (any case). */
   createTag(
     input: Pick<Tag, 'name'> & Partial<Pick<Tag, 'colour'>>,
     ctx: MutationContext,
@@ -181,18 +224,37 @@ export interface Repository {
     patch: Partial<Pick<Tag, 'name' | 'colour'>>,
     ctx: MutationContext,
   ): Promise<Tag>
+  /** Deletes a tag and takes it off the creator's rows. */
   deleteTag(tagId: Id, ctx: MutationContext): Promise<void>
+
+  /** Admins only. The new member is active and not an admin. */
   createMember(input: Pick<Member, 'name' | 'email'>, ctx: MutationContext): Promise<Member>
-  findDuplicates(values: NewRowInput['values']): Promise<DuplicateCandidate[]>
+  updateMember(memberId: Id, patch: MemberPatch, ctx: MutationContext): Promise<Member>
+
+  /** The actor's own Trash, newest first. Nobody sees another member's Trash. */
+  listTrash(ctx: MutationContext): Promise<TrashItem[]>
+
+  // ---------- Later in Phase 1 (both repositories gain them together, with contract tests) ----------
+  /** M1.6, with the dedupe scorer. */
+  findDuplicates(values: NewRowValues): Promise<DuplicateCandidate[]>
+  /** M1.6. */
   markNotDuplicate(rowIdA: Id, rowIdB: Id, ctx: MutationContext): Promise<void>
+  /** M1.8, with the importer. */
   importRows(batch: ImportBatch, ctx: MutationContext): Promise<Row[]>
-  listTrash(): Promise<TrashItem[]>
 }
 
-/** Thrown by Phase 1 methods in Phase 0. Never reachable from the UI. */
-export class NotImplementedInPhase0 extends Error {
-  constructor(method: string) {
-    super(`${method} arrives in Phase 1 and is not available in Phase 0.`)
-    this.name = 'NotImplementedInPhase0'
+/** Thrown by a method whose milestone has not landed yet. Never reachable from the UI. */
+export class NotAvailableYet extends Error {
+  constructor(method: string, milestone: string) {
+    super(`${method} arrives in ${milestone}.`)
+    this.name = 'NotAvailableYet'
+  }
+}
+
+/** A write refused because its target does not exist or is in Trash. */
+export class NotFoundError extends Error {
+  constructor(what: string, id: Id) {
+    super(`${what} ${id} does not exist or is in Trash.`)
+    this.name = 'NotFoundError'
   }
 }

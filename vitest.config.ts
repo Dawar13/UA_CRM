@@ -20,6 +20,16 @@ export default mergeConfig(
         {
           extends: true,
           test: {
+            // One Repository suite, run against every implementation (tests/contract/repositoryContract.ts).
+            name: 'contract',
+            include: ['tests/contract/**/*.test.ts'],
+            environment: 'node',
+            setupFiles: ['tests/setup/unit.ts'],
+          },
+        },
+        {
+          extends: true,
+          test: {
             name: 'component',
             include: ['tests/component/**/*.test.tsx'],
             environment: 'jsdom',

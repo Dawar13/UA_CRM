@@ -1,18 +1,43 @@
 /**
- * Repository over Dexie (IndexedDB). Phase 0 implements reads, the stage and warmth mutations,
- * search and the sample-data hooks. Phase 1 methods throw NotImplementedInPhase0.
+ * Repository over Dexie (IndexedDB), for local development and tests. Every write checks the
+ * actor with the same `can()` the UI uses, so a permission leak in the UI fails in local mode
+ * too. Methods of later milestones throw NotAvailableYet.
  */
 import { Dexie } from 'dexie'
 import { formatPhone, normaliseName, searchTokens } from '@/domain/identity'
+import { cleanMemberEmail, cleanMemberName, MemberRuleError } from '@/domain/members'
+import { type Actor, assertCan } from '@/domain/permissions'
+import {
+  type NewRowValues,
+  newRow,
+  patchRow,
+  type RowPatch,
+  RowValidationError,
+} from '@/domain/rows'
+import {
+  addColumn as domainAddColumn,
+  deleteColumn as domainDeleteColumn,
+  reorderColumns as domainReorderColumns,
+  restoreColumn as domainRestoreColumn,
+  updateColumn as domainUpdateColumn,
+  newSheet,
+  renameSheet,
+  renameStages,
+  reorderByIds,
+  SheetRuleError,
+  slugify,
+  uniqueSlug,
+  valuesThatNoLongerFit,
+} from '@/domain/sheets'
 import {
   markLost as domainMarkLost,
   reopen as domainReopen,
   restoreStage as domainRestoreStage,
   moveToStage,
 } from '@/domain/stages'
+import { cleanTagName, pickTagColour, TagRuleError } from '@/domain/tags'
 import type {
   CalendarEvent,
-  ColumnDef,
   DomainContext,
   HistoryEntry,
   Id,
@@ -27,17 +52,24 @@ import type {
 } from '@/domain/types'
 import { setWarmth } from '@/domain/warmth'
 import {
+  type ColumnPatch,
   type DateRange,
   type DuplicateCandidate,
+  type HistoryPatch,
   type ImportBatch,
+  type MemberPatch,
   type MutationContext,
   type MutationResult,
+  type NewColumnInput,
+  type NewHistoryInput,
   type NewRowInput,
-  NotImplementedInPhase0,
+  NotAvailableYet,
+  NotFoundError,
   type Repository,
   type RowLocation,
   type SearchField,
   type SearchResult,
+  TRASH_DAYS,
   type TrashItem,
 } from '../repository'
 import { UaCrmDb } from './db'
@@ -154,6 +186,8 @@ export class LocalRepository implements Repository {
   }
 
   async listRows(sheetId: Id): Promise<Row[]> {
+    // A sheet in Trash takes its rows with it.
+    if (!(await this.getSheet(sheetId))) return []
     const rows = await this.db.rows
       .where('[sheetId+position]')
       .between([sheetId, Dexie.minKey], [sheetId, Dexie.maxKey])
@@ -163,7 +197,9 @@ export class LocalRepository implements Repository {
 
   async getRow(rowId: Id): Promise<Row | undefined> {
     const row = await this.db.rows.get(rowId)
-    return row && row.deletedAt === null ? row : undefined
+    if (!row || row.deletedAt !== null) return undefined
+    // A row in a sheet that is in Trash counts as deleted.
+    return (await this.getSheet(row.sheetId)) ? row : undefined
   }
 
   async getRowLocation(rowId: Id): Promise<RowLocation | undefined> {
@@ -306,16 +342,18 @@ export class LocalRepository implements Repository {
   }
 
   async listMemberRows(memberId: Id): Promise<Row[]> {
-    const rows = await this.db.rows.where('memberId').equals(memberId).toArray()
-    return rows.filter((r) => r.deletedAt === null)
+    const [rows, sheets] = await Promise.all([
+      this.db.rows.where('memberId').equals(memberId).toArray(),
+      this.listSheets(memberId),
+    ])
+    const live = new Set(sheets.map((s) => s.id))
+    return rows.filter((r) => r.deletedAt === null && live.has(r.sheetId))
   }
 
   async listMemberHistory(memberId: Id, range: DateRange): Promise<HistoryEntry[]> {
     const from = new Date(range.from).toISOString()
     const to = new Date(range.to).toISOString()
-    const ids = new Set(
-      (await this.db.rows.where('memberId').equals(memberId).primaryKeys()) as Id[],
-    )
+    const ids = new Set((await this.listMemberRows(memberId)).map((r) => r.id))
     // One bulk read of the index range, filtered in memory: a cursor filter would hold the
     // history store for every entry and make row writes queue behind it.
     const entries = await this.db.history.where('at').between(from, to, true, false).toArray()
@@ -352,8 +390,8 @@ export class LocalRepository implements Repository {
   }
 
   /**
-   * Loads the row and its sheet, applies the domain change, then writes the row and appends the
-   * history entry in one transaction. History instants stay strictly increasing per row, so
+   * Loads the row and its sheet, checks the actor owns them, applies the domain change, then
+   * writes the row and appends the history entry in one transaction. History instants stay strictly increasing per row, so
    * newest-first order is stable even when the clock is frozen (Playwright) and an undo lands
    * in the same millisecond as the change it reverts.
    */
@@ -362,10 +400,12 @@ export class LocalRepository implements Repository {
     ctx: MutationContext,
     change: (row: Row, sheet: Sheet, dctx: DomainContext) => RowChange,
   ): Promise<MutationResult> {
+    const actor = await this.actor(ctx)
     const { db } = this
     const result = await db.transaction('rw', db.rows, db.sheets, db.history, async () => {
       const row = await db.rows.get(rowId)
       if (!row || row.deletedAt !== null) throw new RowNotFoundError(rowId)
+      assertCan(actor, 'editRow', row)
       const sheet = await db.sheets.get(row.sheetId)
       if (!sheet || sheet.deletedAt !== null) {
         throw new Error(`Sheet ${row.sheetId} of row ${rowId} does not exist or has been deleted.`)
@@ -524,99 +564,586 @@ export class LocalRepository implements Repository {
     return fields
   }
 
-  // ---------- Phase 1 ----------
+  // ---------- Ownership ----------
 
-  createRow(_input: NewRowInput, _ctx: MutationContext): Promise<Row> {
-    return notInPhase0('createRow')
+  /** The acting member, read fresh so a deactivation takes effect at once. */
+  private async actor(ctx: Pick<MutationContext, 'actorId'>): Promise<Actor | null> {
+    const member = await this.db.members.get(ctx.actorId)
+    return member ? { id: member.id, isAdmin: member.isAdmin, active: member.active } : null
   }
-  updateRow(_rowId: Id, _patch: NewRowInput['values'], _ctx: MutationContext): Promise<Row> {
-    return notInPhase0('updateRow')
+
+  private domainContext(ctx: MutationContext, prefix = 'h'): DomainContext {
+    return { now: ctx.now, actorId: ctx.actorId, newId: newId(prefix) }
   }
-  deleteRows(_rowIds: Id[], _ctx: MutationContext): Promise<void> {
-    return notInPhase0('deleteRows')
+
+  private async liveSheet(sheetId: Id): Promise<Sheet> {
+    const sheet = await this.db.sheets.get(sheetId)
+    if (!sheet || sheet.deletedAt !== null) throw new NotFoundError('Sheet', sheetId)
+    return sheet
   }
-  restoreRows(_rowIds: Id[], _ctx: MutationContext): Promise<void> {
-    return notInPhase0('restoreRows')
+
+  private async liveRow(rowId: Id): Promise<Row> {
+    const row = await this.db.rows.get(rowId)
+    if (!row || row.deletedAt !== null) throw new RowNotFoundError(rowId)
+    return row
   }
-  addHistory(
-    _rowId: Id,
-    _entry: Omit<HistoryEntry, 'id' | 'rowId'>,
-    _ctx: MutationContext,
+
+  /** The newest history instant of a row, or null; what the database keeps in last_touch_at. */
+  private async newestHistoryAt(rowId: Id): Promise<string | null> {
+    const latest = await this.db.history
+      .where('[rowId+at]')
+      .between([rowId, Dexie.minKey], [rowId, Dexie.maxKey])
+      .last()
+    return latest?.at ?? null
+  }
+
+  private async putSheet(sheet: Sheet): Promise<Sheet> {
+    await this.db.sheets.put(sheet)
+    return sheet
+  }
+
+  // ---------- Phase 1: rows ----------
+
+  async createRow(input: NewRowInput, ctx: MutationContext): Promise<MutationResult> {
+    const actor = await this.actor(ctx)
+    const { db } = this
+    const result = await db.transaction('rw', db.rows, db.sheets, db.history, async () => {
+      const sheet = await this.liveSheet(input.sheetId)
+      assertCan(actor, 'addRow', sheet)
+      const last = await db.rows
+        .where('[sheetId+position]')
+        .between([sheet.id, Dexie.minKey], [sheet.id, Dexie.maxKey])
+        .last()
+      const change = newRow(
+        sheet,
+        input.values,
+        { id: newId('r')(), position: last ? last.position + 1 : 0 },
+        this.domainContext(ctx),
+      )
+      await db.rows.add(change.row)
+      await db.history.add(change.history)
+      return change
+    })
+    return result
+  }
+
+  async updateRow(rowId: Id, patch: RowPatch, ctx: MutationContext): Promise<Row> {
+    const actor = await this.actor(ctx)
+    const { db } = this
+    const row = await db.transaction('rw', db.rows, db.sheets, async () => {
+      const current = await this.liveRow(rowId)
+      assertCan(actor, 'editRow', current)
+      const sheet = await this.liveSheet(current.sheetId)
+      const next = patchRow(current, sheet, patch, this.domainContext(ctx))
+      await db.rows.put(next)
+      return next
+    })
+    this.searchIndex.delete(rowId)
+    return row
+  }
+
+  async deleteRows(rowIds: Id[], ctx: MutationContext): Promise<void> {
+    await this.setRowsDeleted(rowIds, ctx, ctx.now.toISOString())
+  }
+
+  async restoreRows(rowIds: Id[], ctx: MutationContext): Promise<void> {
+    await this.setRowsDeleted(rowIds, ctx, null)
+  }
+
+  /** Trash or restore rows, all or none. */
+  private async setRowsDeleted(
+    rowIds: Id[],
+    ctx: MutationContext,
+    deletedAt: string | null,
+  ): Promise<void> {
+    const actor = await this.actor(ctx)
+    const { db } = this
+    await db.transaction('rw', db.rows, async () => {
+      const rows = await db.rows.bulkGet([...new Set(rowIds)])
+      const next: Row[] = []
+      for (const [i, row] of rows.entries()) {
+        const id = rowIds[i] ?? ''
+        // Deleting needs a live row; restoring needs one in Trash.
+        if (!row || (deletedAt === null) === (row.deletedAt === null)) {
+          throw new NotFoundError(deletedAt === null ? 'Row in Trash' : 'Row', id)
+        }
+        assertCan(actor, 'deleteRow', row)
+        next.push({ ...row, deletedAt, updatedAt: ctx.now.toISOString(), updatedBy: ctx.actorId })
+      }
+      await db.rows.bulkPut(next)
+    })
+    for (const id of rowIds) this.searchIndex.delete(id)
+  }
+
+  // ---------- Phase 1: history ----------
+
+  async addHistory(rowId: Id, entry: NewHistoryInput, ctx: MutationContext): Promise<HistoryEntry> {
+    const actor = await this.actor(ctx)
+    const { db } = this
+    return db.transaction('rw', db.rows, db.history, async () => {
+      const row = await this.liveRow(rowId)
+      assertCan(actor, 'addHistory', row)
+      const history: HistoryEntry = {
+        id: newId('h')(),
+        rowId,
+        kind: entry.kind,
+        source: entry.source ?? 'manual',
+        at: new Date(entry.at).toISOString(),
+        fuzzyDate: entry.fuzzyDate ?? null,
+        text: entry.text.trim(),
+        memberId: ctx.actorId,
+      }
+      await db.history.add(history)
+      await db.rows.put({
+        ...row,
+        lastTouchAt: laterIso(row.lastTouchAt, history.at),
+        updatedAt: ctx.now.toISOString(),
+        updatedBy: ctx.actorId,
+      })
+      return history
+    })
+  }
+
+  async updateHistory(
+    historyId: Id,
+    patch: HistoryPatch,
+    ctx: MutationContext,
   ): Promise<HistoryEntry> {
-    return notInPhase0('addHistory')
+    const actor = await this.actor(ctx)
+    const { db } = this
+    return db.transaction('rw', db.rows, db.history, async () => {
+      const { entry, row } = await this.editableHistory(historyId, actor, 'editHistory')
+      const next: HistoryEntry = {
+        ...entry,
+        ...(patch.kind !== undefined ? { kind: patch.kind } : {}),
+        ...(patch.at !== undefined ? { at: new Date(patch.at).toISOString() } : {}),
+        ...(patch.fuzzyDate !== undefined ? { fuzzyDate: patch.fuzzyDate } : {}),
+        ...(patch.text !== undefined ? { text: patch.text.trim() } : {}),
+      }
+      if (AUTOMATIC_KINDS.has(next.kind)) {
+        throw new RowValidationError([
+          { key: 'kind', message: 'Stage, warmth and created entries are written automatically' },
+        ])
+      }
+      await db.history.put(next)
+      await this.refreshLastTouch(row, ctx)
+      return next
+    })
   }
-  createSheet(
-    _memberId: Id,
-    _input: { name: string; template: TemplateKey },
-    _ctx: MutationContext,
+
+  async deleteHistory(historyId: Id, ctx: MutationContext): Promise<void> {
+    const actor = await this.actor(ctx)
+    const { db } = this
+    await db.transaction('rw', db.rows, db.history, async () => {
+      const { row } = await this.editableHistory(historyId, actor, 'editHistory')
+      await db.history.delete(historyId)
+      await this.refreshLastTouch(row, ctx)
+    })
+  }
+
+  /** A hand-logged entry on a live row the actor owns. Automatic entries are kept as they are. */
+  private async editableHistory(
+    historyId: Id,
+    actor: Actor | null,
+    action: 'editHistory',
+  ): Promise<{ entry: HistoryEntry; row: Row }> {
+    const entry = await this.db.history.get(historyId)
+    if (!entry) throw new NotFoundError('History entry', historyId)
+    const row = await this.liveRow(entry.rowId)
+    assertCan(actor, action, row)
+    if (entry.source === 'system' || AUTOMATIC_KINDS.has(entry.kind)) {
+      throw new RowValidationError([
+        { key: 'kind', message: 'Stage, warmth and created entries are written automatically' },
+      ])
+    }
+    return { entry, row }
+  }
+
+  private async refreshLastTouch(row: Row, ctx: MutationContext): Promise<void> {
+    await this.db.rows.put({
+      ...row,
+      lastTouchAt: await this.newestHistoryAt(row.id),
+      updatedAt: ctx.now.toISOString(),
+      updatedBy: ctx.actorId,
+    })
+  }
+
+  // ---------- Phase 1: sheets ----------
+
+  async createSheet(
+    memberId: Id,
+    input: { name: string; template: TemplateKey },
+    ctx: MutationContext,
   ): Promise<Sheet> {
-    return notInPhase0('createSheet')
+    const actor = await this.actor(ctx)
+    assertCan(actor, 'manageSheet', { memberId })
+    const { db } = this
+    return db.transaction('rw', db.sheets, async () => {
+      const existing = await this.listSheets(memberId)
+      const sheet = newSheet(
+        memberId,
+        input,
+        existing,
+        { sheetId: newId('s')(), newId: newId('c') },
+        ctx.now,
+      )
+      return this.putSheet(sheet)
+    })
   }
-  updateSheet(
-    _sheetId: Id,
-    _patch: Partial<Pick<Sheet, 'name' | 'stages'>>,
-    _ctx: MutationContext,
+
+  async updateSheet(
+    sheetId: Id,
+    patch: Partial<Pick<Sheet, 'name' | 'stages'>>,
+    ctx: MutationContext,
   ): Promise<Sheet> {
-    return notInPhase0('updateSheet')
+    const actor = await this.actor(ctx)
+    const { db } = this
+    return db.transaction('rw', db.sheets, async () => {
+      let sheet = await this.liveSheet(sheetId)
+      assertCan(actor, 'manageSheet', sheet)
+      if (patch.name !== undefined) {
+        sheet = renameSheet(sheet, patch.name, await this.listSheets(sheet.memberId), ctx.now)
+      }
+      if (patch.stages !== undefined) sheet = renameStages(sheet, patch.stages, ctx.now)
+      return this.putSheet(sheet)
+    })
   }
-  deleteSheet(_sheetId: Id, _ctx: MutationContext): Promise<void> {
-    return notInPhase0('deleteSheet')
+
+  async reorderSheets(memberId: Id, sheetIds: Id[], ctx: MutationContext): Promise<Sheet[]> {
+    const actor = await this.actor(ctx)
+    assertCan(actor, 'manageSheet', { memberId })
+    const { db } = this
+    return db.transaction('rw', db.sheets, async () => {
+      const at = ctx.now.toISOString()
+      const sheets = reorderByIds(await this.listSheets(memberId), sheetIds).map((s) => ({
+        ...s,
+        updatedAt: at,
+      }))
+      await db.sheets.bulkPut(sheets)
+      return sheets
+    })
   }
-  addColumn(
-    _sheetId: Id,
-    _column: Omit<ColumnDef, 'id' | 'position'>,
-    _ctx: MutationContext,
+
+  async deleteSheet(sheetId: Id, ctx: MutationContext): Promise<void> {
+    const actor = await this.actor(ctx)
+    const { db } = this
+    await db.transaction('rw', db.sheets, async () => {
+      const sheet = await this.liveSheet(sheetId)
+      assertCan(actor, 'manageSheet', sheet)
+      const at = ctx.now.toISOString()
+      await db.sheets.put({ ...sheet, deletedAt: at, updatedAt: at })
+    })
+    this.searchIndex.clear()
+  }
+
+  async restoreSheet(sheetId: Id, ctx: MutationContext): Promise<Sheet> {
+    const actor = await this.actor(ctx)
+    const { db } = this
+    const restored = await db.transaction('rw', db.sheets, async () => {
+      const sheet = await db.sheets.get(sheetId)
+      if (!sheet || sheet.deletedAt === null) throw new NotFoundError('Sheet in Trash', sheetId)
+      assertCan(actor, 'manageSheet', sheet)
+      const live = await this.listSheets(sheet.memberId)
+      return this.putSheet({
+        ...sheet,
+        // Another sheet may have taken the name meanwhile.
+        slug: uniqueSlug(
+          sheet.slug,
+          live.map((s) => s.slug),
+        ),
+        position: live.reduce((max, s) => Math.max(max, s.position + 1), 0),
+        deletedAt: null,
+        updatedAt: ctx.now.toISOString(),
+      })
+    })
+    this.searchIndex.clear()
+    return restored
+  }
+
+  // ---------- Phase 1: columns ----------
+
+  /** Loads a live sheet the actor owns, applies `change` and saves it. */
+  private async changeColumns(
+    sheetId: Id,
+    ctx: MutationContext,
+    change: (sheet: Sheet) => Sheet | Promise<Sheet>,
   ): Promise<Sheet> {
-    return notInPhase0('addColumn')
+    const actor = await this.actor(ctx)
+    const { db } = this
+    return db.transaction('rw', db.sheets, db.rows, async () => {
+      const sheet = await this.liveSheet(sheetId)
+      assertCan(actor, 'manageColumns', sheet)
+      return this.putSheet(await change(sheet))
+    })
   }
+
+  addColumn(sheetId: Id, column: NewColumnInput, ctx: MutationContext): Promise<Sheet> {
+    return this.changeColumns(sheetId, ctx, (sheet) =>
+      domainAddColumn(sheet, column, newId('c')(), ctx.now),
+    )
+  }
+
   updateColumn(
-    _sheetId: Id,
-    _columnId: Id,
-    _patch: Partial<ColumnDef>,
-    _ctx: MutationContext,
+    sheetId: Id,
+    columnId: Id,
+    patch: ColumnPatch,
+    ctx: MutationContext,
   ): Promise<Sheet> {
-    return notInPhase0('updateColumn')
+    return this.changeColumns(sheetId, ctx, async (sheet) => {
+      const next = domainUpdateColumn(sheet, columnId, patch, ctx.now)
+      if (patch.type !== undefined || patch.options !== undefined) {
+        const rows = await this.db.rows.where('sheetId').equals(sheetId).toArray()
+        const misfits = valuesThatNoLongerFit(next, columnId, rows)
+        if (misfits > 0) {
+          throw new SheetRuleError(
+            misfits === 1
+              ? '1 row has a value that would not fit'
+              : `${misfits} rows have values that would not fit`,
+          )
+        }
+      }
+      return next
+    })
   }
-  deleteColumn(_sheetId: Id, _columnId: Id, _ctx: MutationContext): Promise<Sheet> {
-    return notInPhase0('deleteColumn')
+
+  deleteColumn(sheetId: Id, columnId: Id, ctx: MutationContext): Promise<Sheet> {
+    return this.changeColumns(sheetId, ctx, (sheet) => domainDeleteColumn(sheet, columnId, ctx.now))
   }
-  reorderColumns(_sheetId: Id, _columnIds: Id[], _ctx: MutationContext): Promise<Sheet> {
-    return notInPhase0('reorderColumns')
+
+  restoreColumn(sheetId: Id, columnId: Id, ctx: MutationContext): Promise<Sheet> {
+    return this.changeColumns(sheetId, ctx, (sheet) =>
+      domainRestoreColumn(sheet, columnId, ctx.now),
+    )
   }
-  createTag(
-    _input: Pick<Tag, 'name'> & Partial<Pick<Tag, 'colour'>>,
-    _ctx: MutationContext,
+
+  reorderColumns(sheetId: Id, columnIds: Id[], ctx: MutationContext): Promise<Sheet> {
+    return this.changeColumns(sheetId, ctx, (sheet) =>
+      domainReorderColumns(sheet, columnIds, ctx.now),
+    )
+  }
+
+  // ---------- Phase 1: tags ----------
+
+  async createTag(
+    input: Pick<Tag, 'name'> & Partial<Pick<Tag, 'colour'>>,
+    ctx: MutationContext,
   ): Promise<Tag> {
-    return notInPhase0('createTag')
+    const actor = await this.actor(ctx)
+    assertCan(actor, 'createTag')
+    const name = cleanTagName(input.name)
+    const { db } = this
+    const tag = await db.transaction('rw', db.tags, async () => {
+      const tags = await db.tags.toArray()
+      const same = tags.find((t) => sameTagName(t.name, name))
+      if (same) return same
+      const created: Tag = {
+        id: newId('t')(),
+        name,
+        colour: input.colour ?? pickTagColour(tags),
+        createdBy: ctx.actorId,
+        createdAt: ctx.now.toISOString(),
+      }
+      await db.tags.add(created)
+      return created
+    })
+    this.tagCache = null
+    return tag
   }
-  updateTag(
-    _tagId: Id,
-    _patch: Partial<Pick<Tag, 'name' | 'colour'>>,
-    _ctx: MutationContext,
+
+  async updateTag(
+    tagId: Id,
+    patch: Partial<Pick<Tag, 'name' | 'colour'>>,
+    ctx: MutationContext,
   ): Promise<Tag> {
-    return notInPhase0('updateTag')
+    const actor = await this.actor(ctx)
+    const { db } = this
+    const tag = await db.transaction('rw', db.tags, db.rows, db.members, async () => {
+      const current = await this.tagWithUsage(tagId, actor, 'editTag')
+      const next: Tag = { ...current }
+      if (patch.name !== undefined) {
+        next.name = cleanTagName(patch.name)
+        const clash = (await db.tags.toArray()).find(
+          (t) => t.id !== tagId && sameTagName(t.name, next.name),
+        )
+        if (clash) throw new TagRuleError(`There is already a tag called ${clash.name}`)
+      }
+      if (patch.colour !== undefined) next.colour = patch.colour
+      await db.tags.put(next)
+      return next
+    })
+    this.tagCache = null
+    this.searchIndex.clear()
+    return tag
   }
-  deleteTag(_tagId: Id, _ctx: MutationContext): Promise<void> {
-    return notInPhase0('deleteTag')
+
+  async deleteTag(tagId: Id, ctx: MutationContext): Promise<void> {
+    const actor = await this.actor(ctx)
+    const { db } = this
+    await db.transaction('rw', db.tags, db.rows, db.members, async () => {
+      await this.tagWithUsage(tagId, actor, 'deleteTag')
+      // Only the creator's rows can use it now; take it off them, Trash included.
+      const rows = (await db.rows.toArray()).filter((r) => r.tagIds.includes(tagId))
+      await db.rows.bulkPut(
+        rows.map((r) => ({
+          ...r,
+          tagIds: r.tagIds.filter((id) => id !== tagId),
+          updatedAt: ctx.now.toISOString(),
+          updatedBy: ctx.actorId,
+        })),
+      )
+      await db.tags.delete(tagId)
+    })
+    this.tagCache = null
+    this.searchIndex.clear()
   }
-  createMember(_input: Pick<Member, 'name' | 'email'>, _ctx: MutationContext): Promise<Member> {
-    return notInPhase0('createMember')
+
+  /** The tag, after checking the actor created it and nobody else's rows (Trash included) use it. */
+  private async tagWithUsage(
+    tagId: Id,
+    actor: Actor | null,
+    action: 'editTag' | 'deleteTag',
+  ): Promise<Tag> {
+    const tag = await this.db.tags.get(tagId)
+    if (!tag) throw new NotFoundError('Tag', tagId)
+    const [rows, members] = await Promise.all([this.db.rows.toArray(), this.db.members.toArray()])
+    const nameOf = new Map(members.map((m) => [m.id, m.name]))
+    const usedBy = rows
+      .filter((r) => r.tagIds.includes(tagId))
+      .map((r) => ({ memberId: r.memberId, name: nameOf.get(r.memberId) ?? 'another member' }))
+    assertCan(actor, action, { createdBy: tag.createdBy, usedBy })
+    return tag
   }
-  findDuplicates(_values: NewRowInput['values']): Promise<DuplicateCandidate[]> {
-    return notInPhase0('findDuplicates')
+
+  // ---------- Phase 1: members ----------
+
+  async createMember(input: Pick<Member, 'name' | 'email'>, ctx: MutationContext): Promise<Member> {
+    const actor = await this.actor(ctx)
+    assertCan(actor, 'addMember')
+    const name = cleanMemberName(input.name)
+    const email = cleanMemberEmail(input.email)
+    const { db } = this
+    return db.transaction('rw', db.members, async () => {
+      const members = await db.members.toArray()
+      if (members.some((m) => m.email.toLowerCase() === email)) {
+        throw new MemberRuleError('That email address is already on the team')
+      }
+      const member: Member = {
+        id: newId('m')(),
+        slug: uniqueSlug(
+          slugify(name),
+          members.map((m) => m.slug),
+        ),
+        name,
+        email,
+        position: members.reduce((max, m) => Math.max(max, m.position + 1), 0),
+        isAdmin: false,
+        active: true,
+        createdAt: ctx.now.toISOString(),
+      }
+      await db.members.add(member)
+      return member
+    })
+  }
+
+  async updateMember(memberId: Id, patch: MemberPatch, ctx: MutationContext): Promise<Member> {
+    const actor = await this.actor(ctx)
+    const { db } = this
+    return db.transaction('rw', db.members, async () => {
+      const member = await db.members.get(memberId)
+      if (!member) throw new NotFoundError('Member', memberId)
+      const next: Member = { ...member }
+      if (patch.name !== undefined) {
+        assertCan(actor, 'renameMember', { memberId })
+        next.name = cleanMemberName(patch.name)
+      }
+      if (patch.active !== undefined && patch.active !== member.active) {
+        assertCan(actor, 'setMemberActive', { memberId })
+        next.active = patch.active
+      }
+      if (patch.isAdmin !== undefined && patch.isAdmin !== member.isAdmin) {
+        assertCan(actor, 'setMemberAdmin', { memberId })
+        next.isAdmin = patch.isAdmin
+      }
+      await db.members.put(next)
+      return next
+    })
+  }
+
+  // ---------- Phase 1: Trash ----------
+
+  async listTrash(ctx: MutationContext): Promise<TrashItem[]> {
+    const actor = await this.actor(ctx)
+    assertCan(actor, 'viewTrash', { memberId: ctx.actorId })
+    const since = new Date(ctx.now.getTime() - TRASH_DAYS * DAY_MS).toISOString()
+    const [sheets, rows] = await Promise.all([
+      this.db.sheets.where('memberId').equals(ctx.actorId).toArray(),
+      this.db.rows.where('memberId').equals(ctx.actorId).toArray(),
+    ])
+    const recent = (deletedAt: string | null | undefined): deletedAt is string =>
+      typeof deletedAt === 'string' && deletedAt >= since
+    const items: TrashItem[] = []
+    for (const sheet of sheets) {
+      if (recent(sheet.deletedAt)) {
+        items.push({
+          kind: 'sheet',
+          id: sheet.id,
+          sheetId: sheet.id,
+          label: sheet.name,
+          deletedAt: sheet.deletedAt,
+        })
+        continue
+      }
+      if (sheet.deletedAt !== null) continue
+      for (const column of sheet.columns) {
+        if (recent(column.deletedAt)) {
+          items.push({
+            kind: 'column',
+            id: column.id,
+            sheetId: sheet.id,
+            label: column.label,
+            deletedAt: column.deletedAt,
+          })
+        }
+      }
+    }
+    for (const row of rows) {
+      if (recent(row.deletedAt)) {
+        items.push({
+          kind: 'row',
+          id: row.id,
+          sheetId: row.sheetId,
+          label: row.name,
+          deletedAt: row.deletedAt,
+        })
+      }
+    }
+    return items.sort((a, b) => b.deletedAt.localeCompare(a.deletedAt) || a.id.localeCompare(b.id))
+  }
+
+  // ---------- Later in Phase 1 ----------
+
+  findDuplicates(_values: NewRowValues): Promise<DuplicateCandidate[]> {
+    return notYet('findDuplicates', 'M1.6')
   }
   markNotDuplicate(_rowIdA: Id, _rowIdB: Id, _ctx: MutationContext): Promise<void> {
-    return notInPhase0('markNotDuplicate')
+    return notYet('markNotDuplicate', 'M1.6')
   }
   importRows(_batch: ImportBatch, _ctx: MutationContext): Promise<Row[]> {
-    return notInPhase0('importRows')
-  }
-  listTrash(): Promise<TrashItem[]> {
-    return notInPhase0('listTrash')
+    return notYet('importRows', 'M1.8')
   }
 }
 
+const DAY_MS = 86_400_000
+
+/** History kinds written by the app itself; never edited or deleted by hand. */
+const AUTOMATIC_KINDS = new Set<HistoryEntry['kind']>(['stage', 'warmth', 'created'])
+
+/** Tag names are unique ignoring case, as in the database (lower(name)). */
+function sameTagName(a: string, b: string): boolean {
+  return a.toLowerCase() === b.toLowerCase()
+}
+
 /** Rejects (rather than throws synchronously) so callers see a failed promise either way. */
-function notInPhase0(method: string): Promise<never> {
-  return Promise.reject(new NotImplementedInPhase0(method))
+function notYet(method: string, milestone: string): Promise<never> {
+  return Promise.reject(new NotAvailableYet(method, milestone))
 }

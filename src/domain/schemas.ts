@@ -85,6 +85,8 @@ export const columnDefSchema = z.object({
   width: z.number().int().positive(),
   hidden: z.boolean(),
   position: z.number().int().nonnegative(),
+  /** Set while the column is in Trash. Its values stay in `row.fields` so a restore loses nothing. */
+  deletedAt: isoDateTimeSchema.nullable().optional(),
 })
 
 export const stageDefSchema = z.object({

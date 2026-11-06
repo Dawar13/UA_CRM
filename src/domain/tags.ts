@@ -27,6 +27,21 @@ export function pickTagColour(existing: readonly Pick<Tag, 'colour'>[]): TagColo
   return best
 }
 
+/** A tag change that cannot be made. Sentence case, ready to show. */
+export class TagRuleError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'TagRuleError'
+  }
+}
+
+/** A tag name as stored: trimmed, single spaces, without a leading "#". Throws when empty. */
+export function cleanTagName(name: string): string {
+  const clean = name.trim().replace(/^#+/, '').replace(/\s+/g, ' ')
+  if (clean === '') throw new TagRuleError('A tag needs a name')
+  return clean
+}
+
 /** Hex for a palette colour ("indigo" → "#6366F1"). Unknown names fall back to slate. */
 export function tagColourHex(colour: TagColour): string {
   const found = tagPalette.find((t) => t.name === colour)

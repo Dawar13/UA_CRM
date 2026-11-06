@@ -3,7 +3,7 @@ import { UaCrmDb } from '@/data/local/db'
 import { LocalRepository, RowNotFoundError } from '@/data/local/LocalRepository'
 import { PERF_ROW_COUNT, PERF_SHEET_SLUG } from '@/data/local/perfSheet'
 import { buildSeed, istInstant, SEED_VERSION, seedIds } from '@/data/local/seed'
-import { NotImplementedInPhase0, type Repository } from '@/data/repository'
+import { NotAvailableYet, type Repository } from '@/data/repository'
 import { validateRowFields } from '@/domain/fields'
 import { rowSchema } from '@/domain/schemas'
 import { snapshotStage } from '@/domain/stages'
@@ -524,61 +524,23 @@ describe('perf sheet', () => {
   })
 })
 
-describe('Phase 1 methods', () => {
-  it('throw NotImplementedInPhase0', async () => {
+describe('methods of later milestones', () => {
+  // The Phase 1 writes are covered by the contract suite (tests/contract); these three arrive
+  // with the dedupe scorer (M1.6) and the importer (M1.8).
+  it('throw NotAvailableYet, naming the milestone', async () => {
     const r: Repository = repo
-    const calls: [string, () => Promise<unknown>][] = [
-      ['createRow', () => r.createRow({ sheetId: 's', values: {} }, ctx)],
-      ['updateRow', () => r.updateRow('r', {}, ctx)],
-      ['deleteRows', () => r.deleteRows(['r'], ctx)],
-      ['restoreRows', () => r.restoreRows(['r'], ctx)],
-      [
-        'addHistory',
-        () =>
-          r.addHistory(
-            'r',
-            {
-              kind: 'note',
-              source: 'manual',
-              at: NOW.toISOString(),
-              fuzzyDate: null,
-              text: 'x',
-              memberId: DAWAR,
-            },
-            ctx,
-          ),
-      ],
-      ['createSheet', () => r.createSheet(DAWAR, { name: 'x', template: 'blank' }, ctx)],
-      ['updateSheet', () => r.updateSheet('s', { name: 'x' }, ctx)],
-      ['deleteSheet', () => r.deleteSheet('s', ctx)],
-      [
-        'addColumn',
-        () =>
-          r.addColumn(
-            's',
-            { key: 'k', label: 'K', type: 'text', system: false, width: 100, hidden: false },
-            ctx,
-          ),
-      ],
-      ['updateColumn', () => r.updateColumn('s', 'c', {}, ctx)],
-      ['deleteColumn', () => r.deleteColumn('s', 'c', ctx)],
-      ['reorderColumns', () => r.reorderColumns('s', [], ctx)],
-      ['createTag', () => r.createTag({ name: 'x' }, ctx)],
-      ['updateTag', () => r.updateTag('t', { name: 'x' }, ctx)],
-      ['deleteTag', () => r.deleteTag('t', ctx)],
-      ['createMember', () => r.createMember({ name: 'x', email: 'x@y.example' }, ctx)],
-      ['findDuplicates', () => r.findDuplicates({})],
-      ['markNotDuplicate', () => r.markNotDuplicate('a', 'b', ctx)],
-      ['importRows', () => r.importRows({ sheetId: 's', rows: [] }, ctx)],
-      ['listTrash', () => r.listTrash()],
+    const calls: [string, string, () => Promise<unknown>][] = [
+      ['findDuplicates', 'M1.6', () => r.findDuplicates({})],
+      ['markNotDuplicate', 'M1.6', () => r.markNotDuplicate('a', 'b', ctx)],
+      ['importRows', 'M1.8', () => r.importRows({ sheetId: 's', rows: [] }, ctx)],
     ]
-    for (const [name, call] of calls) {
+    for (const [name, milestone, call] of calls) {
       const error = await call().then(
         () => null,
         (e: unknown) => e,
       )
-      expect(error, name).toBeInstanceOf(NotImplementedInPhase0)
-      expect((error as Error).message, name).toContain(name)
+      expect(error, name).toBeInstanceOf(NotAvailableYet)
+      expect((error as Error).message, name).toBe(`${name} arrives in ${milestone}.`)
     }
   })
 })

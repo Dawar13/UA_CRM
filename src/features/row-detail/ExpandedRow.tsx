@@ -93,7 +93,7 @@ export function ExpandedRow({ row, sheet, member }: { row: Row; sheet: Sheet; me
 
   const fields: { id: string; label: string; value: ReactNode }[] = []
   for (const def of [...sheet.columns].sort((a, b) => a.position - b.position)) {
-    if (def.system) continue
+    if (def.system || def.deletedAt) continue
     const value = fieldValue(def, row.fields[def.key], now)
     if (value !== null) fields.push({ id: def.id, label: def.label, value })
   }

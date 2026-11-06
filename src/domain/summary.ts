@@ -78,7 +78,7 @@ function person(row: Row, now: Date): SummaryPerson {
 function visibleCustom(sheet: Sheet, type: ColumnDef['type']): ColumnDef | undefined {
   return [...sheet.columns]
     .sort((a, b) => a.position - b.position)
-    .find((c) => !c.system && !c.hidden && c.type === type)
+    .find((c) => !c.system && !c.hidden && !c.deletedAt && c.type === type)
 }
 
 function amount(row: Row, column: ColumnDef): number {

@@ -17,7 +17,7 @@ export type SortValue = string | number | undefined
 /** Visible columns in position order. Stage is dropped when the sheet has no stages. */
 export function visibleColumns(sheet: Sheet): ColumnDef[] {
   return sheet.columns
-    .filter((c) => !c.hidden)
+    .filter((c) => !c.hidden && !c.deletedAt)
     .filter((c) => c.type !== 'stage' || sheet.stages.length > 0)
     .sort((a, b) => a.position - b.position)
 }
