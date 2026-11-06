@@ -43,6 +43,38 @@ for (const theme of ['light', 'dark'] as const) {
       expect(await seriousViolations(page)).toEqual([])
     })
 
+    test('Today', async ({ page }) => {
+      await gotoApp(page, '/today', { waitForReady: true })
+      await expect(page.getByTestId('today-overdue')).toBeVisible()
+      expect(await seriousViolations(page)).toEqual([])
+    })
+
+    test("another member's tab, view only", async ({ page }) => {
+      await gotoApp(page, '/m/dhruv/customers', { waitForReady: true })
+      await expect(page.getByTestId('view-only-note')).toBeVisible()
+      expect(await seriousViolations(page)).toEqual([])
+    })
+
+    test('quick add with its preview and a duplicate', async ({ page }) => {
+      await gotoApp(page, '/m/dawar/customers', { waitForReady: true })
+      await page.getByTestId('sheet-grid').focus()
+      await page.keyboard.press('/')
+      const box = page.getByLabel('Quick add')
+      await box.fill('Rohan Mehta / Plant Head @ Hosur Precision Forge\n+91 98450 12345 #warm')
+      await box.press('Enter')
+      await expect(page.getByTestId('quick-add-preview')).toBeVisible()
+      await expect(page.getByTestId('duplicate').first()).toBeVisible()
+      expect(await seriousViolations(page)).toEqual([])
+    })
+
+    test('Trash', async ({ page }) => {
+      await gotoApp(page, '/m/dawar/customers', { waitForReady: true })
+      await page.getByRole('button', { name: 'More' }).click()
+      await page.getByRole('menuitem', { name: 'Trash' }).click()
+      await expect(page.getByTestId('trash-panel')).toBeVisible()
+      expect(await seriousViolations(page)).toEqual([])
+    })
+
     test('design showcase', async ({ page }) => {
       await gotoApp(page, '/design')
       // /design is a large lazy chunk behind the first-launch seed; allow for a slow first load.

@@ -11,6 +11,7 @@ import {
   TagsSection,
   WarmthSection,
 } from './CrmSections'
+import { DuplicatesSection, HistorySection, ViewOnlySection } from './Phase1Sections'
 import {
   BrandSection,
   ButtonsSection,
@@ -40,6 +41,9 @@ const index = [
   ['dates', 'Dates'],
   ['tabs', 'Tabs'],
   ['empty', 'Empty states'],
+  ['view-only', 'View only'],
+  ['history', 'History'],
+  ['duplicates', 'Duplicate check'],
 ] as const
 
 /**
@@ -114,6 +118,9 @@ export function DesignPage() {
         <DatesSection />
         <TabsSection />
         <EmptySection />
+        <ViewOnlySection />
+        <HistorySection />
+        <DuplicatesSection />
       </main>
     </div>
   )

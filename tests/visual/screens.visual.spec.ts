@@ -38,6 +38,9 @@ const designSections = [
   'design-dates',
   'design-tabs',
   'design-empty',
+  'design-view-only',
+  'design-history',
+  'design-duplicates',
 ]
 
 for (const theme of ['light', 'dark'] as const) {
@@ -58,6 +61,22 @@ for (const theme of ['light', 'dark'] as const) {
       await expect(page.getByTestId('expanded-row')).toBeVisible()
       await settled(page)
       await expect(page).toHaveScreenshot(`expanded-${theme}.png`)
+    })
+
+    test('Today', async ({ page }, testInfo) => {
+      test.skip(testInfo.project.name !== 'desktop', 'Desktop only')
+      await gotoApp(page, '/today', { waitForReady: true })
+      await expect(page.getByTestId('today-overdue')).toBeVisible()
+      await settled(page)
+      await expect(page).toHaveScreenshot(`today-${theme}.png`)
+    })
+
+    test("another member's tab, view only", async ({ page }, testInfo) => {
+      test.skip(testInfo.project.name !== 'desktop', 'Desktop only')
+      await gotoApp(page, '/m/dhruv/customers', { waitForReady: true })
+      await expect(page.getByTestId('view-only-note')).toBeVisible()
+      await settled(page)
+      await expect(page).toHaveScreenshot(`view-only-${theme}.png`)
     })
 
     test('command palette with results', async ({ page }, testInfo) => {
