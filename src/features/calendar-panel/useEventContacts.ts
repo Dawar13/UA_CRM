@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useRepository } from '@/data/RepositoryContext'
 import type { RowLocation } from '@/data/repository'
-import { matchEventToRows } from '@/domain/calendar'
+import { matchEventToRows } from '@/domain/calendar/events'
 import type { CalendarEvent } from '@/domain/types'
 import { useAfterIdle } from './useAfterIdle'
 

@@ -2,8 +2,8 @@
  * Calendar matching. Phase 0: attendee email, exact only (case-insensitive, trimmed).
  * Name and title matching is Phase 2. Pure.
  */
-import { istDateOf } from './dates'
-import type { CalendarEvent, IsoDate, Row } from './types'
+import { istDateOf } from '../dates'
+import type { CalendarEvent, IsoDate, Row } from '../types'
 
 function emailKey(email: string): string {
   return email.trim().toLowerCase()

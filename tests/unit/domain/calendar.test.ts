@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { groupEventsByDay, matchEventToRows } from '@/domain/calendar'
+import { groupEventsByDay, matchEventToRows } from '@/domain/calendar/events'
 import type { CalendarEvent } from '@/domain/types'
 import { makeRow } from './_fixtures'
 

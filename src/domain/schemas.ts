@@ -207,6 +207,18 @@ export const rowSchema = z.object({
   cellColours: z
     .record(z.string(), z.enum(tagColourNames as [TagColour, ...TagColour[]]))
     .optional(),
+  /**
+   * The Google Calendar event made for the next action (Phase 2, C5): its id, its time of day in
+   * IST ("16:00", or null for all-day), and whether it is still in Google. Set by the server only.
+   */
+  nextActionEvent: z
+    .object({
+      id: z.string(),
+      time: z.string().nullable(),
+      state: z.enum(['linked', 'removed_in_google']),
+    })
+    .nullable()
+    .optional(),
   /** A height set by dragging the row's edge, in pixels (36 to 240); null or missing is the default. */
   height: z.number().int().min(36).max(240).nullable().optional(),
 

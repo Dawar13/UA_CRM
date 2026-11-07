@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildSeed, istInstant, SEED_VERSION, seedIds } from '@/data/local/seed'
-import { matchEventToRows } from '@/domain/calendar'
+import { matchEventToRows } from '@/domain/calendar/events'
 import { formatFuzzyDate, isOverdue, isToday, istDateOf } from '@/domain/dates'
 import { validateRowFields } from '@/domain/fields'
 import { normaliseEmail, normalisePhone } from '@/domain/identity'

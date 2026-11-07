@@ -297,7 +297,10 @@ select throws_like($$ select count(*) from public.rows $$, '%permission denied%'
 reset role;
 
 select is(
-  (select count(*) from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public'),
+  (select count(*) from pg_publication_tables
+   where pubname = 'supabase_realtime' and schemaname = 'public'
+     and tablename in ('members', 'sheets', 'columns', 'stages', 'rows', 'tags', 'row_tags',
+       'history', 'row_links', 'files')),
   10::bigint,
   'Every shared table is published to Realtime'
 );

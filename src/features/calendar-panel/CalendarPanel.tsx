@@ -5,7 +5,7 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { useCalendarEvents } from '@/data/hooks'
 import type { RowLocation } from '@/data/repository'
-import { groupEventsByDay } from '@/domain/calendar'
+import { groupEventsByDay } from '@/domain/calendar/events'
 import {
   addDaysIso,
   formatDate,
