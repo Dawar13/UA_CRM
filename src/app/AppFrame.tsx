@@ -4,6 +4,7 @@ import { Navigate, Outlet, useNavigate, useParams } from 'react-router'
 import { AuthContext, useActor } from '@/auth/AuthContext'
 import { useMembers } from '@/data/hooks'
 import { useRepository } from '@/data/RepositoryContext'
+import { useCalendarAutoSync, useCalendarReturn } from '@/features/calendar/useCalendar'
 import { CommandPalette } from '@/features/command-palette/CommandPalette'
 import { DuplicateReviewDialog } from '@/features/quick-add/DuplicateReview'
 import { testHooksEnabled } from '@/lib/env'
@@ -60,6 +61,13 @@ function TestHooks() {
   return null
 }
 
+/** Google Calendar in the background: the return from Google's consent screen, and syncing. */
+function CalendarEffects() {
+  useCalendarReturn()
+  useCalendarAutoSync()
+  return null
+}
+
 /** Wraps every app route: global shortcuts, the command palette and the shortcut sheet. */
 export function AppFrame() {
   useGlobalShortcuts()
@@ -72,6 +80,7 @@ export function AppFrame() {
       <CommandPalette currentMember={currentMember} />
       <ShortcutSheet />
       <DuplicateReviewDialog />
+      <CalendarEffects />
       <TestHooks />
     </>
   )

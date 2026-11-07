@@ -12,6 +12,7 @@ import {
   WarmthSection,
 } from './CrmSections'
 import { DuplicatesSection, HistorySection, ViewOnlySection } from './Phase1Sections'
+import { CalendarSection } from './Phase2Sections'
 import {
   BrandSection,
   ButtonsSection,
@@ -44,6 +45,7 @@ const index = [
   ['view-only', 'View only'],
   ['history', 'History'],
   ['duplicates', 'Duplicate check'],
+  ['calendar', 'Calendar'],
 ] as const
 
 /**
@@ -121,6 +123,7 @@ export function DesignPage() {
         <ViewOnlySection />
         <HistorySection />
         <DuplicatesSection />
+        <CalendarSection />
       </main>
     </div>
   )

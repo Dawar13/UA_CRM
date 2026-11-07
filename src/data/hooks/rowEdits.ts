@@ -89,6 +89,7 @@ export function useUpdateRow() {
   const save = async (rowId: Id, patch: RowPatch, actorId: Id) => {
     const updated = await repo.updateRow(rowId, patch, ctxOf(actorId))
     writeRow(qc, updated)
+    if ('nextAction' in patch) void qc.invalidateQueries({ queryKey: ['events', updated.memberId] })
     return updated
   }
   return useMutation({

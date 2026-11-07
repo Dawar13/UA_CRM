@@ -15,7 +15,7 @@ import { useNavigate } from 'react-router'
 import { toast } from 'sonner'
 import { useActor } from '@/auth/AuthContext'
 import { BrandLockup } from '@/components/crm/BrandLockup'
-import { MemberTabs, TODAY_TAB } from '@/components/crm/MemberTabs'
+import { CALENDAR_TAB, MemberTabs, TODAY_TAB } from '@/components/crm/MemberTabs'
 import { ThemeSegmented, ThemeToggle } from '@/components/crm/ThemeToggle'
 import { IconButton } from '@/components/ui/IconButton'
 import { Kbd } from '@/components/ui/Kbd'
@@ -31,6 +31,7 @@ import {
 import { Tooltip } from '@/components/ui/Tooltip'
 import { useRepository } from '@/data/RepositoryContext'
 import type { Member } from '@/domain/types'
+import { CalendarMenuItems, DisconnectCalendarDialog } from '@/features/calendar/CalendarMenu'
 import { useExportEverything } from '@/features/import-export/ExportMenu'
 import { FoundersImportDialog } from '@/features/import-export/ImportDialogs'
 import { TagsDialog } from '@/features/tags/TagsDialog'
@@ -82,12 +83,16 @@ export function Header({
   members,
   member,
   today = false,
+  view,
 }: {
   members: readonly Member[]
   member: Member
   /** The Today view is open. */
   today?: boolean
+  /** The Today or Calendar view is open (instead of a member's tab). */
+  view?: 'today' | 'calendar'
 }) {
+  const open = view ?? (today ? 'today' : null)
   const navigate = useNavigate()
   const setPaletteOpen = useUiStore((s) => s.setPaletteOpen)
   const setShortcutsOpen = useUiStore((s) => s.setShortcutsOpen)
@@ -96,6 +101,7 @@ export function Header({
   const [teamOpen, setTeamOpen] = useState(false)
   const [tagsOpen, setTagsOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
+  const [disconnectOpen, setDisconnectOpen] = useState(false)
   const exportEverything = useExportEverything()
   const actor = useActor()
   const me = members.find((m) => m.id === actor?.id)
@@ -106,11 +112,16 @@ export function Header({
       <nav aria-label="Members" className="flex min-w-0 items-center">
         <MemberTabs
           members={members.map((m) => ({ id: m.id, name: m.name }))}
-          value={today ? TODAY_TAB : member.id}
+          value={open === 'today' ? TODAY_TAB : open === 'calendar' ? CALENDAR_TAB : member.id}
           withToday
+          withCalendar={me !== undefined}
           onValueChange={(id) => {
             if (id === TODAY_TAB) {
               navigate('/today')
+              return
+            }
+            if (id === CALENDAR_TAB) {
+              navigate('/calendar')
               return
             }
             const next = members.find((m) => m.id === id)
@@ -145,6 +156,7 @@ export function Header({
           </MenuTrigger>
           <MenuContent align="end" className="w-64">
             <AccountMenuItems members={members} onChangePassword={() => setPasswordOpen(true)} />
+            {me ? <CalendarMenuItems onDisconnect={() => setDisconnectOpen(true)} /> : null}
             <MenuItem
               onSelect={() => setTeamOpen(true)}
               icon={<Users aria-hidden className="size-4" />}
@@ -194,6 +206,7 @@ export function Header({
         <ChangePasswordDialog open={passwordOpen} onOpenChange={setPasswordOpen} />
         <TeamDialog open={teamOpen} onOpenChange={setTeamOpen} />
         <TagsDialog open={tagsOpen} onOpenChange={setTagsOpen} />
+        <DisconnectCalendarDialog open={disconnectOpen} onOpenChange={setDisconnectOpen} />
         {me ? (
           <FoundersImportDialog member={me} open={importOpen} onOpenChange={setImportOpen} />
         ) : null}

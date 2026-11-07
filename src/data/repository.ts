@@ -20,6 +20,7 @@ import type {
   HistoryKind,
   HistorySource,
   Id,
+  IsoDate,
   IsoDateTime,
   Member,
   Row,
@@ -162,6 +163,57 @@ export interface TrashItem {
 
 /** How long deleted rows, columns and sheets stay in Trash. */
 export const TRASH_DAYS = 30
+
+// ---------- Phase 2: Google Calendar (D-050) ----------
+
+/** The signed-in member's own calendar connection. Another member's calendar is private. */
+export interface CalendarConnection {
+  state: 'not_connected' | 'active' | 'needs_reconnect'
+  /** The Google account connected. */
+  googleEmail: string | null
+  connectedAt: IsoDateTime | null
+  lastSyncedAt: IsoDateTime | null
+  /** The last sync failed (Google unreachable or busy); what is shown is from `lastSyncedAt`. */
+  lastErrorCode: string | null
+}
+
+export const NOT_CONNECTED: CalendarConnection = {
+  state: 'not_connected',
+  googleEmail: null,
+  connectedAt: null,
+  lastSyncedAt: null,
+  lastErrorCode: null,
+}
+
+export type CalendarSyncReason = 'open' | 'interval' | 'manual'
+
+/** "Add to calendar" on a next action: an exact day, a time of day in IST or all day. */
+export interface NextActionEventInput {
+  /** The day; omitted, the next action's own (exact) date. */
+  date?: IsoDate
+  /** "16:00", or null for all day. */
+  time: string | null
+  /** Invite the contact (Google emails them). Off by default. */
+  invite: boolean
+}
+
+/** A member's answer to "Possibly <name>?" on an event: yes (or always, for a series), or no. */
+export interface EventLink {
+  googleEventId: string | null
+  recurringEventId: string | null
+  rowId: Id
+  kind: 'confirmed' | 'dismissed'
+}
+
+/** A calendar action refused: not connected, needs reconnecting, a fuzzy date, no email, ... */
+export class CalendarError extends Error {
+  readonly code: string
+  constructor(code: string) {
+    super(`Calendar: ${code}`)
+    this.name = 'CalendarError'
+    this.code = code
+  }
+}
 
 export interface Repository {
   // ---------- Phase 0: reads ----------
@@ -312,6 +364,20 @@ export interface Repository {
    * touches (`batch.history[i]` for `batch.rows[i]`). All or none.
    */
   importRows(batch: ImportBatch, ctx: MutationContext): Promise<Row[]>
+
+  // ---------- Phase 2: Google Calendar, the actor's own only ----------
+  getCalendarConnection(ctx: MutationContext): Promise<CalendarConnection>
+  /** Where to send the member for Google's consent; they come back to `returnPath`. */
+  connectCalendar(returnPath: string, ctx: MutationContext): Promise<string>
+  syncCalendar(reason: CalendarSyncReason, ctx: MutationContext): Promise<CalendarConnection>
+  /** Stops sync, revokes Google's access and deletes the stored calendar. History stays. */
+  disconnectCalendar(ctx: MutationContext): Promise<void>
+  /** Creates or updates the event for the row's next action. */
+  saveNextActionEvent(rowId: Id, input: NextActionEventInput, ctx: MutationContext): Promise<void>
+  removeNextActionEvent(rowId: Id, ctx: MutationContext): Promise<void>
+  listEventLinks(ctx: MutationContext): Promise<EventLink[]>
+  /** Confirms or dismisses a suggested contact for an event (or a whole series). */
+  linkEvent(link: EventLink, ctx: MutationContext): Promise<void>
 }
 
 /** Thrown by a method whose milestone has not landed yet. Never reachable from the UI. */

@@ -1,7 +1,10 @@
-import { MapPin } from 'lucide-react'
+import { Check, MapPin, Maximize2, X } from 'lucide-react'
 import { useId, useMemo } from 'react'
+import { useNavigate } from 'react-router'
 import { useJumpToRow } from '@/app/navigation'
+import { useActor } from '@/auth/AuthContext'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { IconButton } from '@/components/ui/IconButton'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { useCalendarEvents } from '@/data/hooks'
 import type { RowLocation } from '@/data/repository'
@@ -16,11 +19,18 @@ import {
   todayIst,
 } from '@/domain/dates'
 import type { CalendarEvent, IsoDate, Member } from '@/domain/types'
+import {
+  ConnectCalendarCard,
+  PrivateCalendar,
+  ReconnectBanner,
+  SyncStatus,
+} from '@/features/calendar/CalendarStatus'
+import { useCalendarConnection, useLinkEvent } from '@/features/calendar/useCalendar'
 import { cn } from '@/lib/cn'
 import { useNow } from '@/lib/useNow'
 import { ActivityField } from './ActivityField'
 import { ClearWeekArt } from './ClearWeekArt'
-import { useEventContacts } from './useEventContacts'
+import { eventKey, useEventContacts } from './useEventContacts'
 
 /** The panel shows today and the six days after it. */
 export const PANEL_DAYS = 7
@@ -132,18 +142,81 @@ function ContactChip({ location }: { location: RowLocation }) {
   )
 }
 
-function EventItem({ event, contacts }: { event: CalendarEvent; contacts: RowLocation[] }) {
+/**
+ * "Rohan Mehta?": the title names one of your contacts but no guest matched. Yes links the event
+ * to the row (its meeting then logs there); no keeps it from being suggested again.
+ */
+export function SuggestionChip({
+  event,
+  location,
+}: {
+  event: CalendarEvent
+  location: RowLocation
+}) {
+  const link = useLinkEvent()
+  const answer = (kind: 'confirmed' | 'dismissed') =>
+    link.mutate({
+      googleEventId: eventKey(event),
+      recurringEventId: null,
+      rowId: location.row.id,
+      kind,
+    })
+  const name = location.row.name
+  return (
+    <span
+      className="inline-flex h-7 max-w-full items-center gap-1 rounded-control border border-dashed border-border-strong/70 pr-0.5 pl-2 text-xs text-secondary"
+      data-testid="event-suggestion"
+    >
+      <span className="truncate">{name}?</span>
+      <IconButton
+        aria-label={`Yes, ${name}`}
+        tooltip={`Yes, ${name}`}
+        size="sm"
+        className="size-6"
+        onClick={() => answer('confirmed')}
+        disabled={link.isPending}
+      >
+        <Check className="size-3.5" />
+      </IconButton>
+      <IconButton
+        aria-label={`Not ${name}`}
+        tooltip={`Not ${name}`}
+        size="sm"
+        className="size-6"
+        onClick={() => answer('dismissed')}
+        disabled={link.isPending}
+      >
+        <X className="size-3.5" />
+      </IconButton>
+    </span>
+  )
+}
+
+/** "11:30 am", or "All day". */
+export function eventTimeLabel(event: CalendarEvent): string {
+  return event.allDay ? 'All day' : formatTime(event.start)
+}
+
+function EventItem({
+  event,
+  contacts,
+  suggestion,
+}: {
+  event: CalendarEvent
+  contacts: RowLocation[]
+  suggestion: RowLocation | undefined
+}) {
   return (
     <li
       className="grid grid-cols-[62px_minmax(0,1fr)] gap-x-2 rounded-card border border-border bg-surface-raised px-3 py-2.5 shadow-card"
       data-testid="calendar-event"
     >
       <span className="pt-px font-mono text-xs whitespace-nowrap text-secondary tabular-nums">
-        {formatTime(event.start)}
+        {eventTimeLabel(event)}
       </span>
       <span className="flex min-w-0 flex-col items-start gap-1.5">
         <span className="text-[13.5px] font-semibold tracking-[-0.005em] text-text">
-          {event.title}
+          {event.title || 'Busy'}
         </span>
         {event.location ? (
           <span className="flex max-w-full items-center gap-1 text-xs text-muted">
@@ -151,11 +224,12 @@ function EventItem({ event, contacts }: { event: CalendarEvent; contacts: RowLoc
             <span className="truncate">{event.location}</span>
           </span>
         ) : null}
-        {contacts.length > 0 ? (
+        {contacts.length > 0 || suggestion ? (
           <span className="flex max-w-full flex-wrap gap-1.5">
             {contacts.map((c) => (
               <ContactChip key={c.row.id} location={c} />
             ))}
+            {suggestion ? <SuggestionChip event={event} location={suggestion} /> : null}
           </span>
         ) : null}
       </span>
@@ -173,10 +247,8 @@ function PanelSkeleton() {
   )
 }
 
-export function CalendarPanel({ member }: { member: Member }) {
-  const now = useNow()
+function Agenda({ memberId, now }: { memberId: string; now: Date }) {
   const today = todayIst(now)
-  const lastDay = addDaysIso(today, PANEL_DAYS - 1)
   const range = useMemo(
     () => ({
       from: istInstant(today).toISOString(),
@@ -184,8 +256,8 @@ export function CalendarPanel({ member }: { member: Member }) {
     }),
     [today],
   )
-  const { data: events, isPending } = useCalendarEvents(member.id, range)
-  const { data: contacts } = useEventContacts(events)
+  const { data: events, isPending } = useCalendarEvents(memberId, range)
+  const { data: matches } = useEventContacts(events)
   const days = useMemo(() => groupEventsByDay(events ?? []), [events])
   const strip = useMemo(() => {
     const counts = new Map(days.map((d) => [d.date, d.events.length]))
@@ -196,10 +268,79 @@ export function CalendarPanel({ member }: { member: Member }) {
   }, [days, today])
 
   return (
+    <>
+      <div className="overflow-hidden rounded-[12px] border border-border bg-surface-raised shadow-card">
+        {isPending ? (
+          <div className="px-3 pt-3 pb-2.5" aria-hidden="true">
+            <Skeleton className="h-[58px] w-full" />
+          </div>
+        ) : (
+          <WeekStrip days={strip} now={now} />
+        )}
+        <div className="border-t border-border">
+          <ActivityField memberId={memberId} />
+        </div>
+      </div>
+
+      {isPending ? (
+        <PanelSkeleton />
+      ) : days.length === 0 ? (
+        <EmptyState
+          art={<ClearWeekArt today={today} now={now} />}
+          title="A clear week"
+          description="No meetings in the next seven days."
+          className="py-6"
+        />
+      ) : (
+        days.map((day) => {
+          const label = agendaDayLabel(day.date, now)
+          return (
+            <section key={day.date} aria-label={label} className="flex flex-col gap-2">
+              <h3 className={cn(capsClassName, 'text-[10.5px] tracking-[0.08em] text-secondary')}>
+                {label}
+              </h3>
+              <ol className="flex flex-col gap-2">
+                {day.events.map((event) => (
+                  <EventItem
+                    key={event.id}
+                    event={event}
+                    contacts={matches?.contacts.get(event.id) ?? []}
+                    suggestion={matches?.suggestions.get(event.id)}
+                  />
+                ))}
+              </ol>
+            </section>
+          )
+        })
+      )}
+    </>
+  )
+}
+
+/** The 30-day field alone, for a tab whose calendar is not shown. */
+function ActivityOnly({ memberId }: { memberId: string }) {
+  return (
+    <div className="overflow-hidden rounded-[12px] border border-border bg-surface-raised shadow-card">
+      <ActivityField memberId={memberId} />
+    </div>
+  )
+}
+
+export function CalendarPanel({ member }: { member: Member }) {
+  const now = useNow()
+  const navigate = useNavigate()
+  const actor = useActor()
+  const today = todayIst(now)
+  const lastDay = addDaysIso(today, PANEL_DAYS - 1)
+  const own = actor?.id === member.id
+  const { data: connection } = useCalendarConnection()
+  const state = own ? (connection?.state ?? 'loading') : 'private'
+
+  return (
     <section aria-labelledby="calendar-panel-title" className="flex min-h-0 flex-1 flex-col">
       <div className="min-h-0 flex-1 overflow-y-auto" data-testid="calendar-panel">
         <div className="flex flex-col gap-[18px] px-[18px] pt-[18px] pb-8">
-          <header className="flex items-baseline justify-between gap-3">
+          <header className="flex items-center justify-between gap-3">
             <h2
               id="calendar-panel-title"
               tabIndex={-1}
@@ -207,55 +348,43 @@ export function CalendarPanel({ member }: { member: Member }) {
             >
               This week
             </h2>
-            <span className="font-mono text-[11.5px] text-muted tabular-nums">
-              {weekRangeLabel(today, lastDay, now)}
+            <span className="flex items-center gap-1">
+              <span className="font-mono text-[11.5px] text-muted tabular-nums">
+                {weekRangeLabel(today, lastDay, now)}
+              </span>
+              {state === 'active' || state === 'needs_reconnect' ? (
+                <IconButton
+                  aria-label="Open the calendar"
+                  tooltip="Open the calendar"
+                  size="sm"
+                  onClick={() => navigate('/calendar')}
+                >
+                  <Maximize2 />
+                </IconButton>
+              ) : null}
             </span>
           </header>
 
-          <div className="overflow-hidden rounded-[12px] border border-border bg-surface-raised shadow-card">
-            {isPending ? (
-              <div className="px-3 pt-3 pb-2.5" aria-hidden="true">
-                <Skeleton className="h-[58px] w-full" />
-              </div>
-            ) : (
-              <WeekStrip days={strip} now={now} />
-            )}
-            <div className="border-t border-border">
-              <ActivityField memberId={member.id} />
-            </div>
-          </div>
-
-          {isPending ? (
+          {state === 'private' ? (
+            <>
+              <ActivityOnly memberId={member.id} />
+              <PrivateCalendar member={member} />
+            </>
+          ) : state === 'loading' ? (
             <PanelSkeleton />
-          ) : days.length === 0 ? (
-            <EmptyState
-              art={<ClearWeekArt today={today} now={now} />}
-              title="A clear week"
-              description="No meetings in the next seven days."
-              className="py-6"
-            />
+          ) : state === 'not_connected' ? (
+            <>
+              <ActivityOnly memberId={member.id} />
+              <ConnectCalendarCard />
+            </>
           ) : (
-            days.map((day) => {
-              const label = agendaDayLabel(day.date, now)
-              return (
-                <section key={day.date} aria-label={label} className="flex flex-col gap-2">
-                  <h3
-                    className={cn(capsClassName, 'text-[10.5px] tracking-[0.08em] text-secondary')}
-                  >
-                    {label}
-                  </h3>
-                  <ol className="flex flex-col gap-2">
-                    {day.events.map((event) => (
-                      <EventItem
-                        key={event.id}
-                        event={event}
-                        contacts={contacts?.get(event.id) ?? []}
-                      />
-                    ))}
-                  </ol>
-                </section>
-              )
-            })
+            <>
+              {state === 'needs_reconnect' ? <ReconnectBanner /> : null}
+              {connection && state === 'active' ? (
+                <SyncStatus connection={connection} now={now} />
+              ) : null}
+              <Agenda memberId={member.id} now={now} />
+            </>
           )}
         </div>
       </div>

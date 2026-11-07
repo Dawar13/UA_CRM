@@ -13,6 +13,7 @@ How the live CRM is set up, released, backed up and restored. Written for the fo
 | Vercel         | Every push to `main`              | Builds the app from the repository and puts it live at the production URL (`vercel.json` holds the build settings)                                                                                         |
 | CI             | Every push to `main`              | Lint, types, unit and component tests, browser tests on sample data, and the database tests on a throwaway local Supabase (pgTAP, the repository contract, live browser tests with two invented members)   |
 | Nightly backup | 02:00 IST every night, or by hand | Dumps the database and mirrors the stored files into the private `ua-crm-backups` repository, keeps the newest 30 dumps, then restores the dump into a scratch database and checks every table's row count |
+| Calendar job   | 06:00 IST every day               | Syncs every connected Google Calendar and renews Google's push channels (§7)                                                                                                                               |
 
 A failed scheduled backup emails whoever last changed the schedule line in `.github/workflows/backup.yml`. The daily dump also keeps the free Supabase project from pausing after a week without use.
 
@@ -133,4 +134,79 @@ SUPABASE_URL=<new project URL> SUPABASE_SECRET_KEY=<new secret key> \
 
 ## 6. If a secret leaks
 
-Revoke it where it was made (Supabase API keys, or the database password under Project Settings → Database, or the GitHub token), create a new one, and update it in GitHub (2.3). The publishable key is designed to be public; the database's row-level security is what protects the data.
+Revoke it where it was made (Supabase API keys, or the database password under Project Settings → Database, or the GitHub token), create a new one, and update it in GitHub (2.3). For the calendar: a leaked Google client secret is reset under Google Auth Platform → Clients; a leaked `CALENDAR_TOKEN_KEY` follows §7.5 step 3; a leaked `CRON_SECRET` is simply replaced in Vercel. Then redeploy. The publishable key is designed to be public; the database's row-level security is what protects the data.
+
+---
+
+## 7. Google Calendar
+
+Each member connects their own Google Calendar from the side panel (or ⋯ → Connect Google Calendar). Sign-in stays email and password. How it works: `docs/DECISIONS.md` D-050 to D-052.
+
+### 7.1 Google Cloud (once, about 10 minutes)
+
+1. Go to console.cloud.google.com, sign in with the founders' Google account, and create a project named **UA Internal CRM**.
+2. **APIs and services → Library →** search "Google Calendar API" → **Enable**.
+3. **Google Auth Platform → Branding:** app name **UA Internal CRM**, your support email, and your email as developer contact. **Audience:** External. **Data access → Add or remove scopes:** `openid`, `.../auth/userinfo.email` and `https://www.googleapis.com/auth/calendar.events.owned` (paste it under "Manually add scopes").
+4. **Audience → Publish app**, so the app is "In production". Do not submit it for verification. Testing mode would end every connection after 7 days; production without verification only shows each member a warning once, and allows up to 100 Google accounts.
+5. **Clients → Create client →** Web application, named "UA Internal CRM". Authorised redirect URIs, both:
+   - `https://<your production domain>/api/calendar/callback`
+   - `http://localhost:5173/api/calendar/callback`
+6. Copy the client ID and the client secret straight into Vercel (7.2). Do not save them anywhere else.
+
+### 7.2 Vercel variables (Settings → Environment Variables, Production only)
+
+Generate the two random values on your own computer, in PowerShell:
+
+```powershell
+node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+```
+
+Run it twice: once for `CALENDAR_TOKEN_KEY`, once for `CRON_SECRET`.
+
+| Name                         | Value                                                                 | Sensitive |
+| ---------------------------- | --------------------------------------------------------------------- | --------- |
+| `GOOGLE_CLIENT_ID`           | From 7.1                                                              | No        |
+| `GOOGLE_CLIENT_SECRET`       | From 7.1                                                              | Yes       |
+| `CALENDAR_TOKEN_KEY`         | The first random value                                                | Yes       |
+| `CALENDAR_TOKEN_KEY_VERSION` | `1` (optional; 1 is the default)                                      | No        |
+| `CRON_SECRET`                | The second random value (Vercel sends it to the daily job)            | Yes       |
+| `APP_BASE_URL`               | `https://<your production domain>`, no slash at the end               | No        |
+| `SUPABASE_URL`               | The same value as `VITE_SUPABASE_URL`                                 | No        |
+| `SUPABASE_PUBLISHABLE_KEY`   | The same value as `VITE_SUPABASE_PUBLISHABLE_KEY`                     | No        |
+| `SUPABASE_SECRET_KEY`        | Supabase → Project Settings → API Keys → a secret key (`sb_secret_…`) | Yes       |
+
+None of these may start with `VITE_`: that would put them in the browser. Then **Deployments → Redeploy** the latest production deployment.
+
+### 7.3 Database
+
+Apply the migrations before pushing the code that needs them. In PowerShell, in the repository folder:
+
+```powershell
+.\node_modules\.bin\supabase.cmd db push --remote
+```
+
+It lists `20261107150000_cell_format.sql` and `20261108090000_calendar.sql`; confirm with `y`.
+
+### 7.4 First connection, and what to check
+
+1. Open the production app, sign in, open the side panel (Ctrl+.) and choose **Connect Google Calendar**.
+2. Google says it has not verified the app: **Advanced → Go to UA Internal CRM**, then allow calendar access.
+3. You come back to the CRM with "Google Calendar connected", and the panel shows this week.
+
+Then check these, and tell Claude what you saw:
+
+- **Invitations.** An event someone else invited you to shows in the panel. If invitations are missing, add the variable `GOOGLE_CALENDAR_SCOPE` = `https://www.googleapis.com/auth/calendar.events`, add that scope in 7.1 step 3, redeploy, then ⋯ → Disconnect calendar and connect again.
+- **Live updates.** In Supabase → SQL editor, run `select status, last_result ->> 'channel' as push, channel_expires_at from calendar_connections;`. `open` means Google sends changes straight away. Anything else (for example `push_unauthorized`) means Google refused the address; the calendar still refreshes every 15 minutes and when the app opens.
+- **Meetings.** Create a short event in Google Calendar with a contact's email as a guest. It appears in the panel with the contact's name (within a minute when push is on). After it ends and the next sync runs, the contact's history shows a Meeting entry.
+- **Next actions.** On one of your rows with an exact next-action day, choose **Add to calendar**. The event appears in Google Calendar. Move it to another day in Google: the next action follows, with a note in its history.
+
+### 7.5 Rotating the token key
+
+1. Generate a new key (7.2). In Vercel set `CALENDAR_TOKEN_KEYS_PREVIOUS` to `1:<the old key>` (add `,2:<key>` and so on for later rotations), `CALENDAR_TOKEN_KEY` to the new key and `CALENDAR_TOKEN_KEY_VERSION` to `2`. Redeploy.
+2. Existing connections keep working through the previous key; new connections use the new one. When every member has reconnected once, the old key can be dropped from the list.
+3. If a key has leaked, drop it at once instead. Members whose tokens it sealed see "Google access ended" and reconnect.
+
+### 7.6 Limits and restores
+
+- Everything stays on free tiers: Google's Calendar API quota is far above two members' use, and Vercel Hobby allows the one daily job and these functions.
+- A database restore (§5) brings the calendar tables back with the tokens still sealed; the same `CALENDAR_TOKEN_KEY` opens them. If the production address changes, update `APP_BASE_URL` and the redirect URI in 7.1, and each member disconnects and connects again so Google's push uses the new address.

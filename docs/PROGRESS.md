@@ -407,3 +407,50 @@ Phase 1 is built. It ends when both founders have used it for a week and retired
 - **Sign-in fixes:** a malformed email in the team list no longer blanks the app; the runbook's snippet warns to replace its placeholders.
 - **Stage tracker:** in an expanded row, stages passed are pencil hatching in their own blue (lightest first, deepening along the bar), the current stage is solid with its ring, and skipped stages are faint grey hatching. Try it: open Karthik Subramanian's row.
 - **Cell formatting:** right-click a cell for a fill colour (eight light hues, or No fill; several selected rows at once), wrap a column's text from its menu (rows grow to fit), and drag a row's bottom edge to make it taller (double-click to reset). Try it: right-click Rohan Mehta's Company cell.
+
+## Phase 2 · Part 1 · Google Calendar
+
+**Done** (D-050 to D-052)
+
+- **The server** (`api/`): connect, the OAuth callback, sync, disconnect, next-action events, Google's push webhook and a daily job, as Vercel functions. Refresh tokens are sealed with AES-256-GCM and never reach the browser; logs carry ids, counts and codes only.
+- **The database** (`20261108090000_calendar.sql`): connections, sealed tokens, one-time OAuth states, synced events and suggestion answers, each readable by its own member only (tokens and states by nobody); calendar history only through owner-checked functions.
+- **Sync:** from 5 Nov 2026, 60 days ahead, on open, every 15 minutes, on Sync now, live through Google's push, and daily. Ended meetings with your contacts log themselves in their history, once, in your own rows only.
+- **On screen:** the side panel's states (connect, synced, a failed sync, access ended, another member's calendar is private); the Calendar page (`/calendar`), a week like Google Calendar's with contacts on events, from the Calendar item after Today, the panel's expand button or the ⋯ menu; Today's meetings on Today; a meeting mark beside a contact's name in the grid and Next meeting in the expanded row; "Rohan Mehta?" suggestions with yes and no.
+- **Next actions in the calendar:** Add to calendar (exact day, all day or a time, the contact invited only when asked); CRM edits move or remove the event, with Undo; moves in Google come back with a note; a deletion in Google offers Add again.
+- **Sample mode** behaves the same without Google, so previews and the browser tests cover every flow.
+
+**Try this (sample data: `pnpm dev`, or a preview)**
+
+1. Open the side panel (Ctrl+.): this week's sample meetings, "Synced …" and Sync now. Choose the expand button: the week page. Press → and ← to move a week.
+2. Open Rohan Mehta's row: Next meeting shows today's call. Under Next action choose **Add to calendar**, untick All day, set 4:00 pm, Add. The panel shows "Send ROI note · Rohan Mehta" tomorrow. Change the next action to "mon Send ROI note": the event moves to Monday. **Remove**, then Undo.
+3. Switch to Dhruv's tab: "Dhruv's calendar is private". ⋯ → Act as Dhruv: now his week shows.
+4. ⋯ → Disconnect calendar → Disconnect: the panel offers Connect Google Calendar. Connect: in sample mode it comes straight back.
+5. Today: Today's meetings sit above the next actions.
+
+**On production** the founders follow `docs/RUNBOOK.md` §7: the Google Cloud project, eight Vercel variables, the migrations, then the first connection and its checks (invitations, live updates, meetings logging, next actions).
+
+**Results (local, Windows 11, 7 Nov 2026)**
+
+| Layer                                         | Result                                                                                                                                      |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Lint and typecheck                            | Clean                                                                                                                                       |
+| Unit, contract, component and server (Vitest) | 1,092 passed in 63 files; 2 skipped locally (the Supabase repository contract and the Supabase calendar store, which run in CI)             |
+| Server (part of the above)                    | 46: OAuth, PKCE, scope and refresh-token checks, windowed sync, backoff, locks, meetings, next actions, push, the daily job, logs, refusals |
+| Coverage                                      | 71% of lines overall (threshold 70%); `src/domain` above 90%; the server library 87 to 100%, except the Supabase store (CI only)            |
+| Database policies                             | 30 calendar checks on PGlite (policies, functions, refusals); the full pgTAP run is in CI                                                   |
+| End to end and accessibility                  | 240 on desktop, narrow and WebKit: 233 passed in the full run; the 7 that timed out under this machine's load passed when rerun             |
+| Visual and performance                        | Visual skipped on Windows by design (new baselines needed); performance left to CI (D-045)                                                  |
+
+Screenshots: `docs/screenshots/p2-*-light.png` and `-dark.png` (the week page, the panel, Add to calendar, another member's calendar, the menu, Today).
+
+**Known issues**
+
+- **Not yet run against Google or Vercel.** No Google Cloud project exists yet, so the OAuth flow, push and the functions' deployment are checked with a fake Google and an in-memory store, and the Supabase store runs against the local stack in CI only. The founders' first connection (RUNBOOK §7.4) is the real test; the first thing to confirm is that the deployment built the functions (`/api/calendar/sync` answers 401 when called without signing in, not 404).
+- **Two questions for that first connection:** whether `calendar.events.owned` returns invitations from others, and whether Google accepts the production address for push without verifying the domain. Both have a fallback (a scope setting; polling every 15 minutes).
+- **Visual baselines:** the header's new Calendar item, the panel's sync line and the `/design` Calendar section need new Linux baselines (Actions → Visual baselines, then CI).
+- The hosted database needs `20261107150000_cell_format.sql` and `20261108090000_calendar.sql` (RUNBOOK §7.3) before this code is pushed. If the code arrives first, the calendar simply reads as not connected, and connecting fails until the migration and the variables are in place.
+- Coverage is 71% of lines overall (threshold 70%): the Supabase store and the functions' wiring are covered only by the CI run against local Supabase, which coverage does not count.
+
+**Next**
+
+Part 1 ends with the founders' first connections and a week of use. Part 2 (PDF and photo import) is not started.

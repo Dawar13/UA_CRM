@@ -7,11 +7,15 @@ export interface MemberTabsProps {
   onValueChange: (id: string) => void
   /** A "Today" item first (value TODAY_TAB): the signed-in member's day. */
   withToday?: boolean
+  /** A "Calendar" item after Today (value CALENDAR_TAB): the signed-in member's week. */
+  withCalendar?: boolean
   className?: string
 }
 
 /** The value of the Today item in the member switch. */
 export const TODAY_TAB = '__today'
+/** The value of the Calendar item in the member switch. */
+export const CALENDAR_TAB = '__calendar'
 
 /**
  * The member switch in the header: a segmented control. Each member is a tab; arrow keys move
@@ -23,9 +27,14 @@ export function MemberTabs({
   value,
   onValueChange,
   withToday = false,
+  withCalendar = false,
   className,
 }: MemberTabsProps) {
-  const items = withToday ? [{ id: TODAY_TAB, name: 'Today' }, ...members] : members
+  const items = [
+    ...(withToday ? [{ id: TODAY_TAB, name: 'Today' }] : []),
+    ...(withCalendar ? [{ id: CALENDAR_TAB, name: 'Calendar' }] : []),
+    ...members,
+  ]
   return (
     <Tabs.Root
       value={value}

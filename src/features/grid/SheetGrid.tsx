@@ -76,6 +76,7 @@ import { type NewRowValues, ROW_HEIGHT_MAX, ROW_HEIGHT_MIN, type RowPatch } from
 import { nextStageIndex, previousStageIndex } from '@/domain/stages'
 import type { ColumnDef, Member, Row, Sheet, Warmth } from '@/domain/types'
 import { nextWarmth } from '@/domain/warmth'
+import { useUpcomingMeetings } from '@/features/calendar/useUpcomingMeetings'
 import { reviewNewRows } from '@/features/quick-add/DuplicateReview'
 import { cn } from '@/lib/cn'
 import { isModKey } from '@/lib/platform'
@@ -557,6 +558,7 @@ export function SheetGrid({
     [lastRow, colCount, scrollActiveIntoView],
   )
 
+  const meetings = useUpcomingMeetings(member.id, rows)
   const cellCtx = useMemo<CellContext>(
     () => ({
       sheet,
@@ -564,8 +566,9 @@ export function SheetGrid({
       onWarmthChange: editable
         ? (row: Row, warmth: Warmth | null) => setWarmth({ row, warmth, actorId })
         : undefined,
+      meetings,
     }),
-    [sheet, tagMap, setWarmth, actorId, editable],
+    [sheet, tagMap, setWarmth, actorId, editable, meetings],
   )
 
   const toggleExpand = useCallback(

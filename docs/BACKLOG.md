@@ -25,6 +25,15 @@ From `CLAUDE.md` §8.
 | Encrypted backups         | Dumps sit unencrypted in the private backup repository (D-042); a passphrase kept by the founders would add a second lock              |
 | Transfer sheet ownership  | From `CLAUDE.md` §2.14                                                                                                                 |
 
+## Calendar follow-ups (Phase 2 part 1)
+
+| Item                      | Notes                                                                                                      |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| Other calendars           | Only the primary calendar syncs; a member could choose shared or team calendars too                        |
+| Link to a contact by hand | An event nobody matched (no guest email, no suggestion) could be linked from a contact search              |
+| Always this contact       | Links are stored for a whole series as well, but "Yes" links one event; a recurring meeting asks each time |
+| Edit events in the CRM    | The week page reads and links; moving or renaming events stays in Google Calendar                          |
+
 ## Founder feedback
 
 Nothing yet. Feedback from each phase review is added here.

@@ -56,11 +56,15 @@ import type {
   Warmth,
 } from '@/domain/types'
 import { setWarmth } from '@/domain/warmth'
+import { NextActionFollowUps } from '../calendarFollowUps'
 import {
+  type CalendarConnection,
+  type CalendarSyncReason,
   type ColumnPatch,
   type DateRange,
   type DuplicateCandidate,
   type DuplicateQuery,
+  type EventLink,
   FileTooLargeError,
   type HistoryPatch,
   type ImportBatch,
@@ -72,12 +76,15 @@ import {
   type NewFile,
   type NewHistoryInput,
   type NewRowInput,
+  type NextActionEventInput,
+  NOT_CONNECTED,
   NotFoundError,
   type Repository,
   type RowLocation,
   type SearchResult,
   type TrashItem,
 } from '../repository'
+import { calendarApi, toCalendarEvent, toConnection } from './calendar'
 import { type RemoteErrorLike, toDomainError } from './errors'
 import {
   type HistoryRecord,
@@ -123,6 +130,14 @@ export class SupabaseRepository implements Repository {
   /** Called after a change other members cannot see arrive by themselves (moves to Trash). */
   onPrivateChange: (() => void) | null = null
   private actorCache: { at: number; actor: Promise<Actor | null> } | null = null
+  /** CRM edits to a next action reach its Google event (Phase 2, C5); Realtime brings it back. */
+  private readonly followUps = new NextActionFollowUps(async (rowId, followUp) => {
+    await calendarApi(
+      this.client,
+      'next-action-event',
+      followUp.op === 'save' ? { rowId, op: 'save', time: followUp.time } : { rowId, op: 'remove' },
+    )
+  })
 
   constructor(client: SupabaseClient) {
     this.client = client
@@ -269,9 +284,21 @@ export class SupabaseRepository implements Repository {
     )
   }
 
-  /** Calendars connect in Phase 2. */
-  async listCalendarEvents(_memberId: Id, _range: DateRange): Promise<CalendarEvent[]> {
-    return []
+  /** The member's own Google events (Phase 2); declined and cancelled ones are left out. */
+  async listCalendarEvents(memberId: Id, range: DateRange): Promise<CalendarEvent[]> {
+    // Policies return the member's own calendar only: another member's is private (empty).
+    const result = await this.client
+      .from('calendar_events')
+      .select('*')
+      .eq('member_id', memberId)
+      .neq('status', 'cancelled')
+      .lt('start_at', new Date(range.to).toISOString())
+      .gt('end_at', new Date(range.from).toISOString())
+      .order('start_at')
+      .limit(1000)
+    return (this.check(result, 'view') ?? [])
+      .map(toCalendarEvent)
+      .filter((e) => e.selfResponse !== 'declined')
   }
 
   async listMemberRows(memberId: Id): Promise<Row[]> {
@@ -381,7 +408,9 @@ export class SupabaseRepository implements Repository {
     if (!location) throw new NotFoundError('Row', rowId)
     assertCan(actor, 'editRow', location.row)
     const next = patchRow(location.row, location.sheet, patch, this.domainContext(ctx, actor))
-    return (await this.saveRow(next, null, 'editRow')).row
+    const saved = (await this.saveRow(next, null, 'editRow')).row
+    if ('nextAction' in patch) void this.followUps.after(location.row, saved)
+    return saved
   }
 
   async copyRow(
@@ -965,6 +994,108 @@ export class SupabaseRepository implements Repository {
       )
     }
     return saved
+  }
+
+  // ---------- Phase 2: Google Calendar (the actor's own) ----------
+
+  async getCalendarConnection(ctx: MutationContext): Promise<CalendarConnection> {
+    const result = await this.client
+      .from('calendar_connections')
+      .select('status, google_email, connected_at, last_synced_at, last_error_code')
+      .eq('member_id', ctx.actorId)
+      .maybeSingle()
+    // Before the calendar migration is applied the table is missing: nothing is connected.
+    if (result.error && ['PGRST205', '42P01'].includes(result.error.code ?? '')) {
+      return NOT_CONNECTED
+    }
+    return toConnection(this.check(result, 'view'))
+  }
+
+  async connectCalendar(returnPath: string, _ctx: MutationContext): Promise<string> {
+    const { url } = await calendarApi(this.client, 'connect', { returnPath })
+    return String(url)
+  }
+
+  async syncCalendar(
+    reason: CalendarSyncReason,
+    ctx: MutationContext,
+  ): Promise<CalendarConnection> {
+    await calendarApi(this.client, 'sync', { reason })
+    return this.getCalendarConnection(ctx)
+  }
+
+  async disconnectCalendar(_ctx: MutationContext): Promise<void> {
+    await calendarApi(this.client, 'disconnect')
+  }
+
+  async saveNextActionEvent(
+    rowId: Id,
+    input: NextActionEventInput,
+    ctx: MutationContext,
+  ): Promise<void> {
+    await this.ownRow(rowId, ctx)
+    this.followUps.forget(rowId)
+    await calendarApi(this.client, 'next-action-event', {
+      rowId,
+      op: 'save',
+      ...(input.date ? { date: input.date } : {}),
+      time: input.time,
+      invite: input.invite,
+    })
+  }
+
+  async removeNextActionEvent(rowId: Id, ctx: MutationContext): Promise<void> {
+    await this.ownRow(rowId, ctx)
+    this.followUps.forget(rowId)
+    await calendarApi(this.client, 'next-action-event', { rowId, op: 'remove' })
+  }
+
+  async listEventLinks(ctx: MutationContext): Promise<EventLink[]> {
+    const result = await this.client
+      .from('calendar_event_links')
+      .select('google_event_id, recurring_event_id, row_id, kind')
+      .eq('member_id', ctx.actorId)
+    return (this.check(result, 'view') ?? []).map((l) => ({
+      googleEventId: (l.google_event_id as string | null) ?? null,
+      recurringEventId: (l.recurring_event_id as string | null) ?? null,
+      rowId: String(l.row_id),
+      kind: l.kind as EventLink['kind'],
+    }))
+  }
+
+  async linkEvent(link: EventLink, ctx: MutationContext): Promise<void> {
+    await this.ownRow(link.rowId, ctx)
+    const target = link.googleEventId
+      ? { column: 'google_event_id', value: link.googleEventId }
+      : { column: 'recurring_event_id', value: link.recurringEventId ?? '' }
+    // One answer per event (or series) and row: a new answer replaces the old one.
+    this.check(
+      await this.client
+        .from('calendar_event_links')
+        .delete()
+        .eq('member_id', ctx.actorId)
+        .eq('row_id', link.rowId)
+        .eq(target.column, target.value),
+      'editRow',
+    )
+    this.check(
+      await this.client.from('calendar_event_links').insert({
+        member_id: ctx.actorId,
+        google_event_id: link.googleEventId,
+        recurring_event_id: link.googleEventId ? null : link.recurringEventId,
+        row_id: link.rowId,
+        kind: link.kind,
+      }),
+      'editRow',
+    )
+  }
+
+  /** The actor's own live row, or a refusal (another member's row is never changed). */
+  private async ownRow(rowId: Id, _ctx: MutationContext): Promise<Row> {
+    const [actor, location] = await Promise.all([this.actor(), this.getRowLocation(rowId)])
+    if (!location) throw new NotFoundError('Row', rowId)
+    assertCan(actor, 'editRow', location.row)
+    return location.row
   }
 }
 

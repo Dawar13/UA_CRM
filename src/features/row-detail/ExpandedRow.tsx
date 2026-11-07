@@ -22,6 +22,7 @@ import { formatCurrency, formatNumber, pluralise } from '@/domain/format'
 import { formatPhone } from '@/domain/identity'
 import { stageView } from '@/domain/stages'
 import type { ColumnDef, Member, Row, Sheet } from '@/domain/types'
+import { NextActionCalendar, UpcomingMeeting } from '@/features/calendar/NextActionCalendar'
 import { isFuzzyDate, isLinkRef } from '@/features/grid/columnModel'
 import { cn } from '@/lib/cn'
 import { useNow } from '@/lib/useNow'
@@ -220,7 +221,10 @@ export function ExpandedRow({
 
             <Section title="Next action">
               <NextActionField row={row} sheet={sheet} editable={editable && isMine} />
+              {editable && isMine ? <NextActionCalendar row={row} /> : null}
             </Section>
+
+            <UpcomingMeeting row={row} />
 
             {row.notes ? (
               <Section title="Notes" className="gap-1.5">

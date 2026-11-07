@@ -120,6 +120,7 @@ async function followNextActions(
   memberId: string,
   accessToken: string,
   fetched: ReadonlyMap<string, StoredEvent>,
+  previous: ReadonlyMap<string, StoredEvent>,
   counts: SyncCounts,
 ): Promise<void> {
   const now = deps.now()
@@ -136,10 +137,18 @@ async function followNextActions(
       if (await deps.store.markRemoved(memberId, row.id, ref.id)) counts.markedRemoved++
       continue
     }
+    // Only a move made in Google counts: if Google still has the event where it was at the last
+    // sync, a different CRM date is a CRM edit, and the CRM is right.
+    const before = previous.get(ref.id)
+    const place = placementOf(event)
+    if (before) {
+      const was = placementOf(before)
+      if (was.date === place.date && was.time === place.time) continue
+    }
     // Only a new day moves the next action (it holds a date; the event keeps its own time).
     const moved = movedTo(event, row.id, row.nextAction?.date ?? null)
     if (!moved) continue
-    const time = placementOf(event).time
+    const time = place.time
     const note = movedNote(moved, now)
     if (
       await deps.store.moveNextAction(
@@ -184,12 +193,13 @@ export async function syncMember(
     const raw = await listEvents(deps.google, accessToken, window)
     const events = raw.map((e) => normaliseEvent(e, selfEmails))
     counts.fetched = events.length
+    const stored = await deps.store.listEvents(memberId)
     await deps.store.upsertEvents(memberId, events)
     counts.stored = events.length
 
     // Stored events in the window that Google no longer returns are gone (or moved out of it).
     const seen = new Set(events.map((e) => e.googleEventId))
-    const stale = (await deps.store.listEvents(memberId)).filter(
+    const stale = stored.filter(
       (e) =>
         e.startAt >= window.timeMin && e.startAt < window.timeMax && !seen.has(e.googleEventId),
     )
@@ -225,6 +235,7 @@ export async function syncMember(
       memberId,
       accessToken,
       new Map(events.map((e) => [e.googleEventId, e])),
+      new Map(stored.map((e) => [e.googleEventId, e])),
       counts,
     )
 

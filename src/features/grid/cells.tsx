@@ -1,4 +1,4 @@
-import { Check, Paperclip } from 'lucide-react'
+import { CalendarClock, Check, Paperclip } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { DateText } from '@/components/crm/DateText'
 import { StageDots } from '@/components/crm/StageDots'
@@ -6,11 +6,20 @@ import { TagList } from '@/components/crm/TagChip'
 import { WarmthChip } from '@/components/crm/WarmthChip'
 import { Pill } from '@/components/ui/Pill'
 import { useRow } from '@/data/hooks'
-import { formatFuzzyDate } from '@/domain/dates'
+import { formatDate, formatFuzzyDate, formatTime } from '@/domain/dates'
 import { formatCurrency, formatNumber } from '@/domain/format'
 import { formatPhone } from '@/domain/identity'
 import { stageView } from '@/domain/stages'
-import type { ColumnDef, FuzzyDate, LinkRef, Row, Sheet, Tag, Warmth } from '@/domain/types'
+import type {
+  CalendarEvent,
+  ColumnDef,
+  FuzzyDate,
+  LinkRef,
+  Row,
+  Sheet,
+  Tag,
+  Warmth,
+} from '@/domain/types'
 import { useNow } from '@/lib/useNow'
 import { isFuzzyDate, isLinkRef } from './columnModel'
 
@@ -31,6 +40,8 @@ export interface CellContext {
   tagMap: ReadonlyMap<string, Tag>
   /** Absent in another member's tab: the warmth chip is display only there. */
   onWarmthChange?: (row: Row, warmth: Warmth | null) => void
+  /** Own rows with a meeting in the next week (Phase 2): marked beside the name. */
+  meetings?: ReadonlyMap<string, CalendarEvent>
 }
 
 function Truncate({ children, className }: { children: ReactNode; className?: string }) {
@@ -64,19 +75,44 @@ function NextActionCell({ row }: { row: Row }) {
   )
 }
 
-/** One line, like a spreadsheet: just the name. Company and Title have their own columns. */
-function NameCell({ row }: { row: Row }) {
+/** A meeting coming up with this contact: "Thu 4:00 pm" in a small sky mark. */
+function MeetingMark({ event }: { event: CalendarEvent }) {
+  const now = useNow()
+  const day = formatDate(event.start, now, { weekday: true })
+  const when = event.allDay ? day : `${day}, ${formatTime(event.start)}`
   return (
+    <span
+      className="inline-flex h-5 shrink-0 items-center gap-1 rounded-chip bg-link/10 px-1.5 font-mono text-[11px] font-medium text-link tabular-nums"
+      title={`Meeting ${when}: ${event.title || 'Busy'}`}
+      data-testid="row-meeting"
+    >
+      <CalendarClock aria-hidden className="size-3" />
+      {day.split(' ')[0]}
+      <span className="sr-only">{`, meeting ${when}`}</span>
+    </span>
+  )
+}
+
+/** One line, like a spreadsheet: just the name (and a mark when a meeting is coming up). */
+function NameCell({ row, meeting }: { row: Row; meeting?: CalendarEvent }) {
+  const name = (
     <Truncate className="text-[13.5px] leading-[1.3] font-[550] tracking-[-0.005em] text-text">
       {row.name}
     </Truncate>
+  )
+  if (!meeting) return name
+  return (
+    <span className="flex w-full min-w-0 items-center gap-2">
+      {name}
+      <MeetingMark event={meeting} />
+    </span>
   )
 }
 
 function SystemCell({ def, row, ctx }: { def: ColumnDef; row: Row; ctx: CellContext }) {
   switch (def.key) {
     case 'name':
-      return <NameCell row={row} />
+      return <NameCell row={row} meeting={ctx.meetings?.get(row.id)} />
     case 'company':
     case 'title':
     case 'email':

@@ -1,7 +1,7 @@
 /**
  * Today (CLAUDE.md §2.9), for the signed-in member: overdue next actions, those due today, and
- * the rows added this week. Each section folds; each item opens its row in place, with the same
- * details as in the grid. Meetings and stale relationships arrive in Phase 2.
+ * the rows added this week, with today's meetings first (Phase 2). Each section folds; each item
+ * opens its row in place, with the same details as in the grid.
  */
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
@@ -18,6 +18,7 @@ import { formatDayHeading, todayIst } from '@/domain/dates'
 import { formatNumber } from '@/domain/format'
 import { todayItems } from '@/domain/today'
 import type { Member, Row, Sheet } from '@/domain/types'
+import { TodayMeetings } from '@/features/calendar/TodayMeetings'
 import { ExpandedRow } from '@/features/row-detail/ExpandedRow'
 import { cn } from '@/lib/cn'
 import { useNow } from '@/lib/useNow'
@@ -173,6 +174,9 @@ export function TodayView() {
             <p className="font-mono text-xs font-medium tracking-[0.06em] text-muted uppercase">
               {formatDayHeading(todayIst(now), now)} · {member.name}
             </p>
+          </div>
+          <div className="mb-4 max-w-[1100px] empty:hidden">
+            <TodayMeetings />
           </div>
           {rowsPending ? null : total === 0 ? (
             <div className="grid flex-1 place-items-center">

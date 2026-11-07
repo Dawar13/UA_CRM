@@ -18,6 +18,10 @@ const TABLES = [
   'history',
   'row_links',
   'files',
+  // Phase 2: the member's own calendar (policies send each member only theirs).
+  'calendar_connections',
+  'calendar_events',
+  'calendar_event_links',
 ] as const
 
 /** Changes within this window are refreshed together. */

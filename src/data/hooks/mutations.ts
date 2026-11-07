@@ -117,6 +117,8 @@ export function invalidateRow(qc: QueryClient, row: Row): Promise<unknown> {
     qc.invalidateQueries({ queryKey: queryKeys.memberRows(row.memberId) }),
     qc.invalidateQueries({ queryKey: ['memberHistory', row.memberId] }),
     qc.invalidateQueries({ queryKey: ['search'] }),
+    // A next action's calendar event follows its edits (Phase 2).
+    qc.invalidateQueries({ queryKey: ['events', row.memberId] }),
   ])
 }
 

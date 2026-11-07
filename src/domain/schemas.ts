@@ -287,6 +287,10 @@ export const historyEntrySchema = z.object({
 export const calendarAttendeeSchema = z.object({
   email: z.string(),
   name: z.string().optional(),
+  /** Google's answer for this guest (Phase 2). */
+  responseStatus: z.enum(['accepted', 'declined', 'tentative', 'needsAction']).optional(),
+  /** The member themselves. */
+  self: z.boolean().optional(),
 })
 
 export const calendarEventSchema = z.object({
@@ -300,4 +304,13 @@ export const calendarEventSchema = z.object({
   location: z.string().optional(),
   source: z.enum(['sample', 'google']),
   externalId: z.string().optional(),
+  /** Phase 2, from Google. All-day events run from IST midnight to the IST midnight after. */
+  allDay: z.boolean().optional(),
+  htmlLink: z.string().optional(),
+  /** The series an instance belongs to, for "always this contact" links. */
+  recurringEventId: z.string().nullable().optional(),
+  /** The member's own answer; declined events are not shown. */
+  selfResponse: z.enum(['accepted', 'declined', 'tentative', 'needsAction']).nullable().optional(),
+  /** Set on events the CRM made for a next action. */
+  uaRowId: z.string().nullable().optional(),
 })

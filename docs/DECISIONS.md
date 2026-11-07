@@ -571,3 +571,41 @@ Container jobs first make sure git is installed (otherwise checkout falls back t
 - Another member's tab has no format menu and no row handles (view only).
 
 **Consequences.** The hosted database needs the migration (`supabase db push`) for formatting to be kept. The grid's row heights are measured (they already were, for the expanded row), so performance at 2,000 rows is unchanged when nothing is formatted.
+
+## D-050 · 7 Nov 2026 · Google Calendar: its own connection, synced on the server
+
+**Context.** Phase 2 part 1. The founders kept email sign-in and wanted their real Google Calendar in the CRM, live, with an expanded view.
+
+**Decision.**
+
+- **Connecting is separate from signing in.** "Connect Google Calendar" (side panel or the ⋯ menu) runs its own OAuth: authorization code with PKCE and a one-time state that expires in 10 minutes, by redirect, never a popup. Scopes `openid email https://www.googleapis.com/auth/calendar.events.owned`, with `access_type=offline`, `prompt=consent` and `login_hint`. The callback refuses a token without the calendar scope or without a refresh token, and reads the Google email from the `id_token`. If the founders' check shows invitations missing, `GOOGLE_CALENDAR_SCOPE` switches to `calendar.events` without a code change.
+- **A small server.** Vercel functions in `api/` (connect, callback, sync, disconnect, next-action-event, webhook, and the daily job), Web-standard handlers. Google is called with `fetch`; no `googleapis` package. Every handler takes the member from their own Supabase token, never from the request.
+- **Tokens never reach the browser.** Refresh tokens are sealed with AES-256-GCM under a versioned key (`CALENDAR_TOKEN_KEY`, `CALENDAR_TOKEN_KEY_VERSION`; older keys stay readable through `CALENDAR_TOKEN_KEYS_PREVIOUS`) in `calendar_secrets`, which no client role can read. Logs carry ids, counts and error codes only: no titles, emails or names.
+- **Database** (`20261108090000_calendar.sql`): `calendar_connections`, `calendar_events` and `calendar_event_links` (each member reads only their own), `calendar_secrets` and `oauth_states` (no client access). Calendar history is written only by definer functions the server's key may call, which check the row's owner and write one entry per event and row. Rows gain the next action's event id, time and state.
+- **Sync.** The primary calendar, series expanded. The first sync covers 5 Nov 2026 00:00 IST to 60 days ahead; later ones start 14 days back (or one day before the last sync after a gap), never before 5 Nov; events that ended over 30 days ago are dropped. One sync per member at a time (a 90-second lock); Google's rate limits and server errors are retried with backoff; a revoked token asks the member to reconnect; any other failure keeps the last good data and says so. Triggers: opening the app when the last sync is over 5 minutes old, every 15 minutes while it is visible, Sync now (repeats within a minute return the last result), Google push (D-051) and a daily job at 00:30 UTC.
+- **Meetings log themselves.** An ended event that is not cancelled, declined or a CRM next action, and whose guest email matches one of the member's own rows (or a suggestion they confirmed), becomes a Meeting entry in that row's history, once.
+- **Next actions in the calendar.** Add to calendar needs an exact day: all day, or a time for 30 minutes; the contact is invited only when asked (`sendUpdates=all` then, `none` otherwise). Later CRM edits update the event, a fuzzy or cleared date removes it, and Undo brings it back. A move made in Google sets the CRM date with a system note, but only when Google changed the event since the last sync, so a CRM edit is never undone by a sync that crosses it. An event deleted in Google leaves the next action marked "Removed in Google Calendar" with Add again.
+- **Sample mode** (previews and browser tests) has no Google: its calendars start connected with the sample events, Connect comes straight back, and next-action events are written locally by the same rules.
+
+**Consequences.** The founders create a Google Cloud project and eight Vercel variables (`docs/RUNBOOK.md` §7); with the app "In production" but unverified, each member sees Google's warning once and at most 100 accounts can connect. The hosted database needs the migration before the code is pushed. No new dependencies. TypeScript 7 has no JavaScript compiler API; Vercel's Node builder (`@vercel/node` 30) carries its own TypeScript 5.9 and esbuild for `api/`, so the functions should build as they are, and the first deployment confirms it. Relative imports in `api/` and the calendar domain files it uses end in `.js`, as Node's ESM needs. Locally, `pnpm dev` serves `/api` through a small Vite plugin from the same files.
+
+## D-051 · 7 Nov 2026 · Live updates through Google's push notifications
+
+**Context.** The founders wanted changes in Google Calendar to show without waiting for the 15-minute poll.
+
+**Decision.** On connecting, the server opens a watch channel on the member's primary calendar for 7 days, addressed to `/api/calendar/webhook`, with a random token stored only as its SHA-256. The webhook checks the channel and the token (constant time), answers Google's opening "sync" message without work, and otherwise syncs that member; Realtime then refreshes their open app. The daily job renews channels with under 2 days left, so one missed run costs nothing. If Google refuses the address, the code is kept in the connection's last result and polling carries on. Development on localhost never asks for push.
+
+**Consequences.** On Vercel Hobby the daily job is the only cron, which the 2-day margin covers. Whether Google accepts the production address without domain verification is part of the founders' first check (`docs/RUNBOOK.md` §7.4).
+
+## D-052 · 7 Nov 2026 · The calendar page, and calendars private to their member
+
+**Context.** The founders asked for an expanded calendar like Google Calendar's week view; the brief makes each calendar private.
+
+**Decision.**
+
+- **`/calendar`** shows the signed-in member's week, Monday to Sunday in IST: an hour is 48px and the morning is in view, overlapping events sit side by side, all-day events have their own row, today is shaded with a line at the current time, each event's contacts jump to their rows, and its title opens it in Google Calendar. Left and right arrows (or the buttons) move a week; the week is in the address. It reads and links only; changing events stays in Google Calendar. It opens from a Calendar item after Today in the member switch, the side panel's expand button and the ⋯ menu.
+- **Private calendars.** Another member's tab says "Dhruv's calendar is private" where the week would be; their 30-day activity stays. This holds in sample mode too, so the browser test that read Dhruv's week as Dawar now signs in as Dhruv.
+- **Suggestions.** When no guest matches, a title naming exactly one of your own contacts (a full name, or a company of four or more letters) shows "Rohan Mehta?" with yes and no. Yes links the event to the row, so its meeting is logged there; no keeps it from being suggested again.
+- **Today** lists today's meetings first; an expanded row shows the next meeting with that contact.
+
+**Consequences.** The header gains an item, so visual baselines change, as does `/design` (a Calendar section).

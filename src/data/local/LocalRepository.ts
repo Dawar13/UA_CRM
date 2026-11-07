@@ -4,6 +4,7 @@
  * too. Methods of later milestones throw NotAvailableYet.
  */
 import { Dexie } from 'dexie'
+import { addDaysIso, istInstant } from '@/domain/dates'
 import { findDuplicateMatches, pairKey } from '@/domain/dedupe/score'
 import { formatPhone, normaliseName, searchTokens } from '@/domain/identity'
 import { cleanMemberEmail, cleanMemberName, MemberRuleError } from '@/domain/members'
@@ -54,11 +55,16 @@ import type {
   Warmth,
 } from '@/domain/types'
 import { setWarmth } from '@/domain/warmth'
+import { NextActionFollowUps } from '../calendarFollowUps'
 import {
+  type CalendarConnection,
+  CalendarError,
+  type CalendarSyncReason,
   type ColumnPatch,
   type DateRange,
   type DuplicateCandidate,
   type DuplicateQuery,
+  type EventLink,
   FileTooLargeError,
   type HistoryPatch,
   type ImportBatch,
@@ -70,6 +76,8 @@ import {
   type NewFile,
   type NewHistoryInput,
   type NewRowInput,
+  type NextActionEventInput,
+  NOT_CONNECTED,
   NotFoundError,
   type Repository,
   type RowLocation,
@@ -162,7 +170,20 @@ function emailTokens(email: string): string[] {
   return [...tokens]
 }
 
+const calendarKey = (memberId: Id) => `calendar:${memberId}`
+/** When the sample calendars count as connected (the sync start, 5 Nov 2026 IST). */
+const SAMPLE_CONNECTED_AT = '2026-11-05T03:30:00.000Z'
+
 export class LocalRepository implements Repository {
+  /** CRM edits to a next action move its sample event the way the server moves a Google one. */
+  private readonly followUps = new NextActionFollowUps(async (rowId, followUp) => {
+    const row = await this.db.rows.get(rowId)
+    if (!row) return
+    const ctx = { actorId: row.memberId, now: new Date() }
+    if (followUp.op === 'remove') await this.removeSampleEvent(row)
+    else await this.writeSampleEvent(row, { time: followUp.time, invite: false }, ctx)
+  })
+
   readonly db: UaCrmDb
   private seeding: Promise<void> | null = null
   private tagCache: Promise<Tag[]> | null = null
@@ -338,6 +359,7 @@ export class LocalRepository implements Repository {
   }
 
   async listCalendarEvents(memberId: Id, range: DateRange): Promise<CalendarEvent[]> {
+    if ((await this.calendarOf(memberId)).state === 'not_connected') return []
     const from = new Date(range.from).toISOString()
     const to = new Date(range.to).toISOString()
     return this.db.calendarEvents
@@ -528,6 +550,19 @@ export class LocalRepository implements Repository {
     await db.rows.bulkPut(seed.rows)
     await db.history.bulkPut(seed.history)
     await db.calendarEvents.bulkPut(seed.calendarEvents)
+    // The sample members' calendars start connected, with the sample events.
+    await db.meta.bulkPut(
+      seed.members.map((m) => ({
+        key: calendarKey(m.id),
+        value: {
+          state: 'active',
+          googleEmail: m.email,
+          connectedAt: SAMPLE_CONNECTED_AT,
+          lastSyncedAt: null,
+          lastErrorCode: null,
+        } satisfies CalendarConnection,
+      })),
+    )
     await db.meta.put({ key: 'seedVersion', value: SEED_VERSION })
   }
 
@@ -642,10 +677,13 @@ export class LocalRepository implements Repository {
       const sheet = await this.liveSheet(current.sheetId)
       const next = patchRow(current, sheet, patch, this.domainContext(ctx))
       await db.rows.put(next)
-      return next
+      return { before: current, next }
     })
     this.searchIndex.delete(rowId)
-    return row
+    if (!('nextAction' in patch)) return row.next
+    // The sample calendar is local, so the event follows before the edit resolves.
+    await this.followUps.after(row.before, row.next)
+    return (await db.rows.get(rowId)) ?? row.next
   }
 
   async copyRow(
@@ -1329,6 +1367,156 @@ export class LocalRepository implements Repository {
     })
     this.searchIndex.clear()
     return rows
+  }
+
+  // ---------- Phase 2: the sample calendar (no Google in local mode) ----------
+
+  private async calendarOf(memberId: Id): Promise<CalendarConnection> {
+    const record = await this.db.meta.get(calendarKey(memberId))
+    return (record?.value as CalendarConnection | undefined) ?? NOT_CONNECTED
+  }
+
+  private async setCalendar(memberId: Id, value: CalendarConnection): Promise<void> {
+    await this.db.meta.put({ key: calendarKey(memberId), value })
+  }
+
+  async getCalendarConnection(ctx: MutationContext): Promise<CalendarConnection> {
+    return this.calendarOf(ctx.actorId)
+  }
+
+  async connectCalendar(returnPath: string, ctx: MutationContext): Promise<string> {
+    const member = await this.db.members.get(ctx.actorId)
+    if (!member?.active) throw new CalendarError('unauthorized')
+    await this.setCalendar(member.id, {
+      state: 'active',
+      googleEmail: member.email,
+      connectedAt: ctx.now.toISOString(),
+      lastSyncedAt: ctx.now.toISOString(),
+      lastErrorCode: null,
+    })
+    return `${returnPath}${returnPath.includes('?') ? '&' : '?'}calendar=connected`
+  }
+
+  async syncCalendar(
+    _reason: CalendarSyncReason,
+    ctx: MutationContext,
+  ): Promise<CalendarConnection> {
+    const current = await this.calendarOf(ctx.actorId)
+    if (current.state !== 'active') return current
+    const next = { ...current, lastSyncedAt: ctx.now.toISOString(), lastErrorCode: null }
+    await this.setCalendar(ctx.actorId, next)
+    return next
+  }
+
+  async disconnectCalendar(ctx: MutationContext): Promise<void> {
+    await this.setCalendar(ctx.actorId, NOT_CONNECTED)
+    const keys = (await this.db.meta.toArray())
+      .filter((m) => m.key.startsWith(`calendarLink:${ctx.actorId}:`))
+      .map((m) => m.key)
+    await this.db.meta.bulkDelete(keys)
+  }
+
+  private async ownRowForCalendar(rowId: Id, ctx: MutationContext): Promise<Row> {
+    const actor = await this.actor(ctx)
+    const row = await this.liveRow(rowId)
+    assertCan(actor, 'editRow', row)
+    if ((await this.calendarOf(ctx.actorId)).state !== 'active') {
+      throw new CalendarError('not_connected')
+    }
+    return row
+  }
+
+  async saveNextActionEvent(
+    rowId: Id,
+    input: NextActionEventInput,
+    ctx: MutationContext,
+  ): Promise<void> {
+    const row = await this.ownRowForCalendar(rowId, ctx)
+    this.followUps.forget(rowId)
+    await this.writeSampleEvent(row, input, ctx)
+  }
+
+  async removeNextActionEvent(rowId: Id, ctx: MutationContext): Promise<void> {
+    const row = await this.ownRowForCalendar(rowId, ctx)
+    this.followUps.forget(rowId)
+    await this.removeSampleEvent(row)
+  }
+
+  /** The same rules as the server: an exact day, a valid time, an email to invite. */
+  private async writeSampleEvent(
+    row: Row,
+    input: NextActionEventInput,
+    ctx: MutationContext,
+  ): Promise<void> {
+    if (!row.nextAction) throw new CalendarError('no_next_action')
+    const own = row.nextAction.date
+    const date = input.date ?? (own?.precision === 'day' ? own.date : null)
+    if (!date) throw new CalendarError('fuzzy_date')
+    if (input.time !== null && !/^([01]\d|2[0-3]):[0-5]\d$/.test(input.time)) {
+      throw new CalendarError('bad_time')
+    }
+    if (input.invite && row.email.trim() === '') throw new CalendarError('no_email')
+    const id = row.nextActionEvent?.id ?? `na-${row.id}`
+    const start = istInstant(date, input.time ?? '00:00')
+    const end = input.time
+      ? new Date(start.getTime() + 30 * 60_000)
+      : istInstant(addDaysIso(date, 1))
+    const member = await this.db.members.get(row.memberId)
+    const event: CalendarEvent = {
+      id,
+      memberId: row.memberId,
+      title: `${row.nextAction.text || 'Next action'} · ${row.name}`,
+      start: start.toISOString(),
+      end: end.toISOString(),
+      attendees: [
+        ...(member ? [{ email: member.email, name: member.name, self: true }] : []),
+        ...(input.invite ? [{ email: row.email.trim(), name: row.name }] : []),
+      ],
+      source: 'sample',
+      allDay: input.time === null,
+      uaRowId: row.id,
+    }
+    const nextAction =
+      input.date && row.nextAction
+        ? { ...row.nextAction, date: { date: input.date, precision: 'day' as const } }
+        : row.nextAction
+    const { db } = this
+    await db.transaction('rw', db.rows, db.calendarEvents, async () => {
+      await db.calendarEvents.put(event)
+      await db.rows.put({
+        ...row,
+        nextAction,
+        nextActionEvent: { id, time: input.time, state: 'linked' },
+        updatedAt: ctx.now.toISOString(),
+      })
+    })
+    this.searchIndex.delete(row.id)
+  }
+
+  private async removeSampleEvent(row: Row): Promise<void> {
+    const { db } = this
+    await db.transaction('rw', db.rows, db.calendarEvents, async () => {
+      if (row.nextActionEvent) await db.calendarEvents.delete(row.nextActionEvent.id)
+      const current = await db.rows.get(row.id)
+      if (current) await db.rows.put({ ...current, nextActionEvent: null })
+    })
+  }
+
+  async listEventLinks(ctx: MutationContext): Promise<EventLink[]> {
+    return (await this.db.meta.toArray())
+      .filter((m) => m.key.startsWith(`calendarLink:${ctx.actorId}:`))
+      .map((m) => m.value as EventLink)
+  }
+
+  async linkEvent(link: EventLink, ctx: MutationContext): Promise<void> {
+    const actor = await this.actor(ctx)
+    const row = await this.liveRow(link.rowId)
+    assertCan(actor, 'editRow', row)
+    const target = link.googleEventId ?? `series:${link.recurringEventId ?? ''}`
+    await this.db.meta.put({
+      key: `calendarLink:${ctx.actorId}:${target}:${link.rowId}`,
+      value: link,
+    })
   }
 }
 

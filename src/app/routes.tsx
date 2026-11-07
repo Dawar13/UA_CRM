@@ -1,4 +1,5 @@
 import type { RouteObject } from 'react-router'
+import { CalendarPage } from '@/features/calendar/CalendarPage'
 import { TodayView } from '@/features/today/TodayView'
 import { testHooksEnabled } from '@/lib/env'
 import { AppFrame, RootRedirect } from './AppFrame'
@@ -13,6 +14,7 @@ export const routes: RouteObject[] = [
     children: [
       { index: true, Component: RootRedirect },
       { path: 'today', Component: TodayView },
+      { path: 'calendar', Component: CalendarPage },
       { path: 'm/:memberSlug', Component: MemberRedirect },
       { path: 'm/:memberSlug/:sheetSlug', Component: MainView },
       ...(testHooksEnabled

@@ -51,11 +51,15 @@ test.describe('calendar panel', () => {
     await expect(panel(page)).not.toContainText('GST registration checklist')
   })
 
-  test('Dhruv’s tab shows Dhruv’s week', async ({ page }) => {
+  test('Dhruv’s calendar is private to Dhruv', async ({ page }) => {
     await openSheet(page, 'dawar', 'customers')
     await memberTab(page, 'Dhruv').click()
     await expect(page).toHaveURL(/\/m\/dhruv\//)
+    // Dawar sees Dhruv's tab, but not his meetings.
+    await expect(panel(page).getByText('Dhruv’s calendar is private')).toBeVisible()
+    await expect(events(page)).toHaveCount(0)
 
+    await page.evaluate(() => window.__uaTest?.signInAs('dhruv'))
     await expect(events(page)).toHaveCount(4)
     const coffee = events(page).filter({ hasText: 'Coffee with Arvind Menon' })
     await expect(coffee).toContainText('12:00 pm')
@@ -79,7 +83,8 @@ test.describe('calendar panel', () => {
     await expect(nameCell(gridRow(page, ids.rohanMehta))).toHaveAttribute('aria-expanded', 'true')
     await expect(expandedRow(page)).toBeVisible()
 
-    // Dhruv's matched event jumps within his tab.
+    // Dhruv's matched event jumps within his tab, for Dhruv.
+    await page.evaluate(() => window.__uaTest?.signInAs('dhruv'))
     await memberTab(page, 'Dhruv').click()
     await events(page)
       .filter({ hasText: 'Coffee with Arvind Menon' })

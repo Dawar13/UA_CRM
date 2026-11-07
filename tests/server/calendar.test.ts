@@ -497,6 +497,31 @@ describe('next actions as calendar events (C5)', () => {
     })
   })
 
+  it('keeps a CRM date edit when Google did not move the event (the CRM is right)', async () => {
+    const t = await connected()
+    await handleNextActionEvent(
+      t.deps,
+      t.post('/api/calendar/next-action-event', TOKENS.dawar, {
+        rowId: 'r-rohan',
+        op: 'save',
+        time: '16:00',
+      }),
+    )
+    // Edited in the CRM; the event update has not reached Google yet when a sync runs.
+    const rohan = t.store.rows.get('r-rohan')
+    if (rohan?.nextAction) {
+      rohan.nextAction = { ...rohan.nextAction, date: { date: '2026-11-16', precision: 'day' } }
+    }
+    const notes = t.store.history.length
+    t.google.setNow(new Date(t.google.now().getTime() + 61_000))
+    await syncMember(t.deps, DAWAR.id, 'manual')
+    expect(t.store.rows.get('r-rohan')?.nextAction?.date).toEqual({
+      date: '2026-11-16',
+      precision: 'day',
+    })
+    expect(t.store.history).toHaveLength(notes)
+  })
+
   it('keeps the next action when its event is deleted in Google, marked for "Add again"', async () => {
     const t = await connected()
     await handleNextActionEvent(

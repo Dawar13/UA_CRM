@@ -161,11 +161,13 @@ For the signed-in member, with each section collapsible:
 
 ### 2.10 Calendar (Phase 2)
 
-- **Connecting:** each member connects their own Google Calendar through OAuth. The scope is `calendar.events`.
-- **Google app setup:** set the Google Cloud app to "In production" without verification. This avoids the 7-day refresh-token expiry of Testing mode. Members see Google's unverified-app screen once, and the app is limited to 100 users. Refresh tokens are stored server-side only (Supabase table readable only by the service role); token exchange and refresh run in Vercel functions.
-- **Sync window:** sync starts on **5 Nov 2026**. Nothing earlier is imported. The panel shows the next 30 days, refreshed on open and every 15 minutes while the app is open.
-- **Matching events to contacts:** attendee email first, then the contact's name or company in the event title. A matched upcoming event shows as a chip on the row. After it ends, a meeting history entry is added automatically.
-- **Creating events:** "Add to calendar" on a next action creates the event in the member's calendar. Adding the contact as a guest is off by default.
+- **Connecting:** each member connects their own Google Calendar through its own OAuth (sign-in stays email and password), from the side panel or the ⋯ menu. Scopes `openid email calendar.events.owned` (switchable to `calendar.events` by setting). Disconnect is in the ⋯ menu.
+- **Google app setup:** set the Google Cloud app to "In production" without verification. This avoids the 7-day refresh-token expiry of Testing mode. Members see Google's unverified-app screen once, and the app is limited to 100 users. Refresh tokens are sealed (AES-256-GCM, versioned key) in a Supabase table no client role can read; token exchange, refresh and every Google call run in Vercel functions (`api/`). Setup steps: `docs/RUNBOOK.md` §7.
+- **Sync window:** sync starts on **5 Nov 2026**. Nothing earlier is imported. The server keeps a window up to 60 days ahead, synced on open (if over 5 minutes old), every 15 minutes while the app is open, on Sync now, on Google push notifications (live), and by a daily job.
+- **Privacy:** a calendar is its member's alone. In another member's tab the panel says "Dhruv's calendar is private"; policies return only one's own events.
+- **Matching events to contacts:** attendee email first; when none matches, a title naming one of your own contacts suggests "Rohan Mehta?" with yes or no. A matched meeting in the next week shows as a mark beside the name in the grid and as Next meeting in the expanded row. After it ends, a Meeting history entry is added automatically, to your own rows only.
+- **Creating events:** "Add to calendar" on a next action with an exact day creates the event in the member's calendar (all day, or a time for 30 minutes). Adding the contact as a guest is off by default. CRM edits update or remove the event; a move in Google updates the next action with a note; a deletion in Google offers Add again.
+- **The calendar page** (`/calendar`, the Calendar item after Today): the member's week like Google Calendar's week view, with contacts on events. It reads and links; changing events stays in Google Calendar.
 
 ### 2.11 Import and export (Phase 1)
 
@@ -391,6 +393,8 @@ ua-crm/
       sheet-summary/             folder front: figures, pipeline card and funnel
       row-detail/                expanded row: tracker, warmth, next action, fields, history
       calendar-panel/            right panel: week strip, 30-day activity field, agenda
+      calendar/                  Phase 2: Google Calendar states, the week page, next actions in the
+                                 calendar, today's meetings, sync hooks
       command-palette/
       design/                    /design showcase route
       quick-add/  today/  trash/  import-export/   Phase 1
@@ -411,6 +415,8 @@ ua-crm/
   tests/
     unit/  component/  support/  e2e/  a11y/  visual/  perf/  fixtures/
     contract/  e2e-live/         Phase 1 (the Supabase contract run is the integration layer)
+  api/                           Phase 2: Vercel functions for Google Calendar (_lib/ holds the server
+                                 code: OAuth, sync, sealed tokens, the Supabase store)
   supabase/                      Phase 1: config, migrations/, tests/ (pgTAP)
   scripts/                       token generation, visual baselines; Phase 1: backup/ (dump,
                                  restore check, Storage mirror and restore)
@@ -432,18 +438,19 @@ ua-crm/
 
 **Test layers:**
 
-| Layer             | Tool                          | What it covers                                                                                                                                         |
-| ----------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Unit              | Vitest                        | All of `domain/`, formatters, parsers, the dedupe scorer, repository behaviour on fake-indexeddb, token contrast                                       |
-| Component         | Vitest + Testing Library      | Every CRM component's states, keyboard behaviour and ARIA                                                                                              |
-| End to end        | Playwright                    | Real user flows in the browser, with reload to prove persistence                                                                                       |
-| Accessibility     | @axe-core/playwright          | Main screens and `/design`, light and dark: zero serious or critical violations                                                                        |
-| Visual            | Playwright `toHaveScreenshot` | Main screens and `/design`, light and dark. Baselines are generated in the official Playwright Docker image so fonts render the same locally and in CI |
-| Performance smoke | Playwright                    | 2,000-row sheet: first rows visible quickly, scroll to bottom works, no long tasks over 200 ms while scrolling                                         |
-| Database policies | `supabase test db` (pgTAP)    | Phase 1: every policy and trigger, including member A refused on member B's data                                                                       |
-| Contract          | Vitest                        | Phase 1: one Repository suite run against LocalRepository and SupabaseRepository, including every permission refusal                                   |
-| Integration       | Vitest + supabase-js          | Phase 1: the contract suite's Supabase run, with four signed-in test users against local Supabase: reads, writes and refusals                          |
-| End to end (live) | Playwright                    | Phase 1: the main flows against local Supabase with two users, including view only, a rejected forced write and Realtime delivery                      |
+| Layer             | Tool                          | What it covers                                                                                                                                                  |
+| ----------------- | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Unit              | Vitest                        | All of `domain/`, formatters, parsers, the dedupe scorer, repository behaviour on fake-indexeddb, token contrast                                                |
+| Component         | Vitest + Testing Library      | Every CRM component's states, keyboard behaviour and ARIA                                                                                                       |
+| End to end        | Playwright                    | Real user flows in the browser, with reload to prove persistence                                                                                                |
+| Accessibility     | @axe-core/playwright          | Main screens and `/design`, light and dark: zero serious or critical violations                                                                                 |
+| Visual            | Playwright `toHaveScreenshot` | Main screens and `/design`, light and dark. Baselines are generated in the official Playwright Docker image so fonts render the same locally and in CI          |
+| Performance smoke | Playwright                    | 2,000-row sheet: first rows visible quickly, scroll to bottom works, no long tasks over 200 ms while scrolling                                                  |
+| Database policies | `supabase test db` (pgTAP)    | Phase 1: every policy and trigger, including member A refused on member B's data                                                                                |
+| Contract          | Vitest                        | Phase 1: one Repository suite run against LocalRepository and SupabaseRepository, including every permission refusal                                            |
+| Integration       | Vitest + supabase-js          | Phase 1: the contract suite's Supabase run, with four signed-in test users against local Supabase: reads, writes and refusals                                   |
+| Server            | Vitest                        | Phase 2: the calendar functions against a fake Google (OAuth, sync, push, next actions, refusals) and the store contract, in memory and in CI on local Supabase |
+| End to end (live) | Playwright                    | Phase 1: the main flows against local Supabase with two users, including view only, a rejected forced write and Realtime delivery                               |
 
 **Coverage:** `domain/` ≥ 90% lines; overall ≥ 70%.
 

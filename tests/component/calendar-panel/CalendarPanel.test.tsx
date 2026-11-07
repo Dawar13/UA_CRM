@@ -5,6 +5,7 @@ import type { ReactNode } from 'react'
 import { createMemoryRouter } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { AuthContext, type AuthValue } from '@/auth/AuthContext'
 import { UaCrmDb } from '@/data/local/db'
 import { LocalRepository } from '@/data/local/LocalRepository'
 import { seedIds } from '@/data/local/seed'
@@ -22,11 +23,16 @@ configure({ asyncUtilTimeout: 5000 })
 let repo: LocalRepository
 let qc: QueryClient
 let counter = 0
+/** Who is signed in: Dawar unless a test says otherwise. */
+let actor: Member | null = null
 
 function wrapper({ children }: { children: ReactNode }) {
+  const auth = { mode: 'local', status: 'signed-in', member: actor } as unknown as AuthValue
   return (
     <QueryClientProvider client={qc}>
-      <RepositoryProvider repository={repo}>{children}</RepositoryProvider>
+      <AuthContext.Provider value={auth}>
+        <RepositoryProvider repository={repo}>{children}</RepositoryProvider>
+      </AuthContext.Provider>
     </QueryClientProvider>
   )
 }
@@ -50,6 +56,7 @@ beforeEach(async () => {
   repo = new LocalRepository(new UaCrmDb(`ua-crm-calendar-panel-${counter}-${Date.now()}`))
   await repo.ensureSeeded()
   qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  actor = await memberById(seedIds.members.dawar)
 })
 
 afterEach(async () => {
@@ -120,5 +127,65 @@ describe('CalendarPanel', () => {
     await user.click(chip)
     expect(router.state.location.pathname).toBe('/m/dawar/customers')
     expect(router.state.location.search).toBe(`?row=${seedIds.rows.rohanMehta}`)
+  })
+
+  it('keeps another member’s calendar private', async () => {
+    renderPanel(await memberById(seedIds.members.dhruv))
+    expect(await screen.findByText('Dhruv’s calendar is private')).toBeInTheDocument()
+    expect(screen.getByText('Only Dhruv sees their meetings.')).toBeInTheDocument()
+    expect(screen.queryByTestId('calendar-event')).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: /Connect Google Calendar/ }),
+    ).not.toBeInTheDocument()
+    // Their last 30 days of activity still shows.
+    expect(await screen.findByRole('img', { name: /^Last 30 days: / })).toBeInTheDocument()
+  })
+
+  it('invites the member to connect when their calendar is not connected', async () => {
+    await repo.disconnectCalendar({ actorId: seedIds.members.dawar, now: new Date() })
+    renderPanel(await memberById(seedIds.members.dawar))
+    expect(
+      await screen.findByRole('button', { name: 'Connect Google Calendar' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText(/has not verified this app/)).toBeInTheDocument()
+    expect(screen.queryByTestId('calendar-event')).not.toBeInTheDocument()
+  })
+
+  it('says when it last synced, and syncs now', async () => {
+    const user = userEvent.setup()
+    renderPanel(await memberById(seedIds.members.dawar))
+    const status = await screen.findByTestId('calendar-sync-status')
+    expect(status).toHaveTextContent('Not synced yet')
+    await user.click(within(status).getByRole('button', { name: 'Sync now' }))
+    expect(await within(status).findByText(/^Synced \d/)).toBeInTheDocument()
+  })
+
+  it('asks about a contact the title names, and remembers the answer', async () => {
+    const user = userEvent.setup()
+    await repo.db.calendarEvents.put({
+      id: 'e-quote',
+      memberId: seedIds.members.dawar,
+      title: 'Quote review with Rohan Mehta',
+      start: '2026-11-07T05:30:00.000Z',
+      end: '2026-11-07T06:00:00.000Z',
+      attendees: [],
+      source: 'sample',
+    })
+    renderPanel(await memberById(seedIds.members.dawar))
+    const day = await screen.findByRole('region', { name: 'Sat 7 Nov' })
+    const suggestion = await within(day).findByTestId('event-suggestion')
+    expect(suggestion).toHaveTextContent('Rohan Mehta?')
+
+    await user.click(within(suggestion).getByRole('button', { name: 'Yes, Rohan Mehta' }))
+    expect(await within(day).findByRole('button', { name: 'Rohan Mehta' })).toBeInTheDocument()
+    expect(within(day).queryByTestId('event-suggestion')).not.toBeInTheDocument()
+    expect(await repo.listEventLinks({ actorId: seedIds.members.dawar, now: new Date() })).toEqual([
+      {
+        googleEventId: 'e-quote',
+        recurringEventId: null,
+        rowId: seedIds.rows.rohanMehta,
+        kind: 'confirmed',
+      },
+    ])
   })
 })
