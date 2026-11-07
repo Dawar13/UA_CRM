@@ -62,14 +62,15 @@ export function NewSheetDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent title="New sheet" description="Start from a template or blank.">
         <form onSubmit={submit} className="flex flex-col gap-4">
-          <fieldset className="flex flex-col gap-1">
+          {/* A fieldset will not shrink below its content unless told to (min-w-0). */}
+          <fieldset className="flex min-w-0 flex-col gap-1">
             <legend className="mb-1.5 text-sm font-medium">Template</legend>
             <div role="radiogroup" aria-label="Template" className="flex flex-col gap-1">
               {templateKeys.map((key) => (
                 <label
                   key={key}
                   className={cn(
-                    'flex cursor-default items-start gap-2.5 rounded-control border px-3 py-2',
+                    'flex min-w-0 cursor-default items-start gap-2.5 rounded-control border px-3 py-2',
                     template === key
                       ? 'border-focus bg-brand-tint'
                       : 'border-border hover:bg-surface-hover',
@@ -85,7 +86,10 @@ export function NewSheetDialog({
                   />
                   <span className="flex min-w-0 flex-col">
                     <span className="text-sm font-medium text-text">{templates[key].name}</span>
-                    <span className="truncate text-xs text-muted">{templateHint(key)}</span>
+                    {/* The whole stage list, wrapping onto a second line when it is long. */}
+                    <span className="text-xs leading-snug text-pretty text-muted">
+                      {templateHint(key)}
+                    </span>
                   </span>
                 </label>
               ))}

@@ -14,6 +14,17 @@ test.describe('sheets, columns, stages and the team', () => {
     await openSheet(page, 'dawar', 'customers')
     await page.getByTestId('new-sheet').click()
     const dialog = page.getByRole('dialog', { name: 'New sheet' })
+    // Every template option fits inside the dialog (the fieldset once grew past it).
+    const box = await dialog.boundingBox()
+    const options = dialog.locator('label:has(input[type="radio"])')
+    await expect(options).toHaveCount(6)
+    for (const option of await options.all()) {
+      const edge = await option.boundingBox()
+      expect((edge?.x ?? 0) + (edge?.width ?? 0)).toBeLessThanOrEqual(
+        (box?.x ?? 0) + (box?.width ?? 0),
+      )
+    }
+    await expect(dialog.getByText(/Pilot live → Paid/)).toBeVisible()
     await dialog.getByRole('radio', { name: /Investors/ }).check()
     await dialog.getByLabel('Name').fill('Angels')
     await dialog.getByRole('button', { name: 'Create sheet' }).click()
