@@ -22,6 +22,7 @@ export interface GoogleEvent {
   id: string
   status?: string
   summary?: string
+  description?: string
   location?: string
   htmlLink?: string
   updated?: string

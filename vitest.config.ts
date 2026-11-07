@@ -30,6 +30,15 @@ export default mergeConfig(
         {
           extends: true,
           test: {
+            // The calendar server (api/) against the fake Google and the in-memory store.
+            name: 'server',
+            include: ['tests/server/**/*.test.ts'],
+            environment: 'node',
+          },
+        },
+        {
+          extends: true,
+          test: {
             name: 'component',
             include: ['tests/component/**/*.test.tsx'],
             environment: 'jsdom',
@@ -39,7 +48,7 @@ export default mergeConfig(
       ],
       coverage: {
         provider: 'v8',
-        include: ['src/**/*.{ts,tsx}'],
+        include: ['src/**/*.{ts,tsx}', 'api/**/*.ts'],
         exclude: [
           'src/main.tsx',
           'src/**/*.d.ts',

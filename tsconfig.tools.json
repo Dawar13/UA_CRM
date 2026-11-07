@@ -32,6 +32,7 @@
     "playwright.config.ts",
     "playwright.live.config.ts",
     "scripts",
+    "api",
     "tests",
     "src"
   ]

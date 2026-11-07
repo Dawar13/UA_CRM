@@ -147,6 +147,9 @@ jobs:
         # The same suite LocalRepository passes, with four signed-in members and every refusal.
         run: pnpm exec vitest run --project contract tests/contract/supabase.contract.test.ts
 
+      - name: Calendar store contract against Supabase
+        run: pnpm exec vitest run --project server tests/server/supabaseStore.test.ts
+
       - name: Install Chromium for the live browser tests
         if: ${{ !cancelled() }}
         run: pnpm exec playwright install --with-deps chromium
