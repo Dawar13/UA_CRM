@@ -240,6 +240,7 @@ Everything runs in the browser, in a Web Worker.
 | Shift+Up and Down             | Select several rows                                        |
 | Delete; Ctrl/Cmd+Delete       | Clear the cell or trash the selected rows; trash the row   |
 | Ctrl/Cmd+C and V              | Copy, or paste from Excel or Google Sheets                 |
+| Right-click, or the menu key  | Format the cell: fill colour, wrap text, row height        |
 | `W`                           | Cycle warmth on the active row                             |
 | `]` and `[`                   | Next and previous stage                                    |
 | Ctrl/Cmd+Z; Ctrl/Cmd+Shift+Z  | Undo; redo                                                 |
