@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { cleanRowPatch, newRow, patchRow, RowValidationError, rowIssues } from '@/domain/rows'
+import {
+  clampRowHeight,
+  cleanRowPatch,
+  newRow,
+  patchRow,
+  RowValidationError,
+  rowIssues,
+} from '@/domain/rows'
 import { buildSheetSchema } from '@/domain/templates'
 import type { DomainContext, Row, Sheet } from '@/domain/types'
 
@@ -191,5 +198,34 @@ describe('patchRow', () => {
     expect(() => patchRow(row, sheet, { fields: { plantLocation: 4 } }, ctx)).toThrow(
       RowValidationError,
     )
+  })
+})
+
+describe('cell formatting (D-049)', () => {
+  it('keeps a dragged row height in range and stores the default as null', () => {
+    expect(clampRowHeight(72)).toBe(72)
+    expect(clampRowHeight(72.6)).toBe(73)
+    expect(clampRowHeight(10)).toBeNull()
+    expect(clampRowHeight(36)).toBeNull()
+    expect(clampRowHeight(999)).toBe(240)
+    expect(clampRowHeight(null)).toBeNull()
+    expect(clampRowHeight(Number.NaN)).toBeNull()
+  })
+
+  it('patches fill colours and height like any cell edit', () => {
+    const sheet = makeSheet()
+    const row = created(sheet, { name: 'R' })
+    const next = patchRow(row, sheet, { cellColours: { company: 'teal' }, height: 96 }, ctx)
+    expect(next.cellColours).toEqual({ company: 'teal' })
+    expect(next.height).toBe(96)
+    const back = patchRow(next, sheet, { cellColours: {}, height: null }, ctx)
+    expect(back.cellColours).toEqual({})
+    expect(back.height).toBeNull()
+  })
+
+  it('drops cells without a colour', () => {
+    expect(
+      cleanRowPatch({ cellColours: { a: 'teal', b: undefined as unknown as 'teal' } }).cellColours,
+    ).toEqual({ a: 'teal' })
   })
 })

@@ -215,6 +215,42 @@ export function runRepositoryContract(
         expect(await dhruv.getRow(rohan.id)).toMatchObject({ title: 'Plant Head' })
       })
 
+      it('keeps cell formatting: fill colours, a row height and column wrapping (D-049)', async () => {
+        const formatted = await dawar.updateRow(
+          rohan.id,
+          { cellColours: { company: 'teal', title: 'amber' }, height: 96 },
+          ctx('dawar', 1),
+        )
+        expect(formatted).toMatchObject({
+          cellColours: { company: 'teal', title: 'amber' },
+          height: 96,
+        })
+        expect(await dawar.getRow(rohan.id)).toMatchObject({
+          cellColours: { company: 'teal', title: 'amber' },
+          height: 96,
+        })
+        const cleared = await dawar.updateRow(
+          rohan.id,
+          { cellColours: {}, height: null },
+          ctx('dawar', 2),
+        )
+        expect(cleared.cellColours ?? {}).toEqual({})
+        expect(cleared.height ?? null).toBeNull()
+
+        const notes = dawarCustomers.columns.find((c) => c.key === 'notes')
+        const wrapped = await dawar.updateColumn(
+          dawarCustomers.id,
+          notes?.id ?? '',
+          { wrap: true },
+          ctx('dawar', 3),
+        )
+        expect(wrapped.columns.find((c) => c.key === 'notes')?.wrap).toBe(true)
+        await expectDenied(
+          dhruv.updateRow(rohan.id, { cellColours: { company: 'pink' } }, ctx('dhruv')),
+          'not-owner',
+        )
+      })
+
       it('custom fields are checked against their column type', async () => {
         const error = await refusal(
           dawar.updateRow(rohan.id, { fields: { ticketEstimate: 'lots' } }, ctx('dawar')),

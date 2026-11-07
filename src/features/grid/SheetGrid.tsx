@@ -6,10 +6,21 @@ import {
   useTable,
 } from '@tanstack/react-table'
 import { defaultRangeExtractor, type Range, useVirtualizer } from '@tanstack/react-virtual'
-import { ArrowDown, ArrowUp, ChevronDown, Eye, EyeOff, Plus, Settings2 } from 'lucide-react'
+import {
+  ArrowDown,
+  ArrowUp,
+  ChevronDown,
+  Eye,
+  EyeOff,
+  MoveVertical,
+  Plus,
+  Settings2,
+  WrapText,
+} from 'lucide-react'
 import {
   type ClipboardEvent,
   type KeyboardEvent,
+  type MouseEvent as ReactMouseEvent,
   type ReactNode,
   type PointerEvent as ReactPointerEvent,
   useCallback,
@@ -23,7 +34,20 @@ import { toast } from 'sonner'
 import { useUiStore } from '@/app/uiStore'
 import { useActor } from '@/auth/AuthContext'
 import { Kbd } from '@/components/ui/Kbd'
-import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from '@/components/ui/Menu'
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuLabel,
+  ContextMenuSeparator,
+  ContextMenuSwatch,
+  ContextMenuTrigger,
+  Menu,
+  MenuContent,
+  MenuItem,
+  MenuSeparator,
+  MenuTrigger,
+} from '@/components/ui/Menu'
 import {
   type PastedRow,
   useCreateRow,
@@ -48,7 +72,7 @@ import {
 } from '@/domain/cellInput'
 import { pluralise } from '@/domain/format'
 import { isContactText } from '@/domain/quickadd/smartPaste'
-import type { NewRowValues, RowPatch } from '@/domain/rows'
+import { type NewRowValues, ROW_HEIGHT_MAX, ROW_HEIGHT_MIN, type RowPatch } from '@/domain/rows'
 import { nextStageIndex, previousStageIndex } from '@/domain/stages'
 import type { ColumnDef, Member, Row, Sheet, Warmth } from '@/domain/types'
 import { nextWarmth } from '@/domain/warmth'
@@ -57,8 +81,9 @@ import { cn } from '@/lib/cn'
 import { isModKey } from '@/lib/platform'
 import { readJson, storageKeys, writeJson } from '@/lib/storage'
 import { useNow } from '@/lib/useNow'
-import { layout } from '@/styles/tokens'
+import { layout, type TagColour } from '@/styles/tokens'
 import { CellEditor, type EditMove, type EditOutcome } from './CellEditor'
+import { cellFill, cellFillColours, colourName } from './cellFormat'
 import type { CellContext } from './cells'
 import {
   columnAlign,
@@ -219,6 +244,10 @@ export function SheetGrid({
   const reorderColumns = useReorderColumns()
   /** A column being resized: its id and the width so far. */
   const [resizing, setResizing] = useState<{ id: string; width: number } | null>(null)
+  // A row height being dragged, shown live and saved on release.
+  const [rowResize, setRowResize] = useState<{ id: string; height: number } | null>(null)
+  // The cell a right-click opened the format menu on.
+  const [menuCell, setMenuCell] = useState<{ rowId: string; key: string } | null>(null)
   const [draggingCol, setDraggingCol] = useState<string | null>(null)
   const [sorting, setSorting] = usePersistedSorting(sheet.id)
   const [active, setActive] = useState<ActiveCell>({ row: 0, col: 0 })
@@ -227,6 +256,7 @@ export function SheetGrid({
   const [editing, setEditing] = useState<Editing | null>(null)
 
   const defs = useMemo(() => visibleColumns(sheet), [sheet])
+  const anyWrap = useMemo(() => defs.some((d) => d.wrap), [defs])
   const hiddenColumns = useMemo(
     () => sheet.columns.filter((c) => c.hidden && !c.deletedAt),
     [sheet],
@@ -321,8 +351,11 @@ export function SheetGrid({
   const virtualizer = useVirtualizer({
     count: rowCount,
     getScrollElement: () => scrollRef.current,
-    estimateSize: (index) =>
-      tableRows[index]?.original.id === expandedRowId ? ROW_HEIGHT + EXPANDED_ESTIMATE : ROW_HEIGHT,
+    estimateSize: (index) => {
+      const r = tableRows[index]?.original
+      const base = r?.height ?? ROW_HEIGHT
+      return r?.id === expandedRowId ? base + EXPANDED_ESTIMATE : base
+    },
     getItemKey: (index) => tableRows[index]?.original.id ?? index,
     // Rows are 36px, so 6 rows each way already cover a fast scroll; more costs long tasks on jumps.
     overscan: 6,
@@ -380,6 +413,91 @@ export function SheetGrid({
     }
     handle.addEventListener('pointermove', onMove)
     handle.addEventListener('pointerup', onUp)
+  }
+
+  // ---------- Rows: height, fill colours (your own tab) ----------
+
+  const startRowResize = (event: ReactPointerEvent<HTMLElement>, row: Row) => {
+    if (!editable) return
+    event.preventDefault()
+    event.stopPropagation()
+    const startY = event.clientY
+    const startHeight = row.height ?? ROW_HEIGHT
+    const handle = event.currentTarget
+    handle.setPointerCapture(event.pointerId)
+    let height = startHeight
+    const onMove = (e: PointerEvent) => {
+      height = Math.min(
+        ROW_HEIGHT_MAX,
+        Math.max(ROW_HEIGHT_MIN, Math.round(startHeight + e.clientY - startY)),
+      )
+      setRowResize({ id: row.id, height })
+    }
+    const onUp = () => {
+      handle.removeEventListener('pointermove', onMove)
+      handle.removeEventListener('pointerup', onUp)
+      setRowResize(null)
+      if (height !== startHeight) {
+        updateRow.mutate({ row, sheet, patch: { height }, actorId, label: 'Row height' })
+      }
+    }
+    handle.addEventListener('pointermove', onMove)
+    handle.addEventListener('pointerup', onUp)
+  }
+
+  const resetRowHeight = (row: Row) => {
+    if (!editable || row.height == null) return
+    updateRow.mutate({ row, sheet, patch: { height: null }, actorId, label: 'Row height' })
+  }
+
+  /** The rows a format action applies to: the selection when it holds this row, else the row. */
+  const formatTargets = (row: Row): Row[] =>
+    selected.size > 1 && selected.has(row.id)
+      ? tableRows.map((r) => r.original).filter((r) => selected.has(r.id))
+      : [row]
+
+  const applyFill = (row: Row, key: string, colour: TagColour | null) => {
+    for (const target of formatTargets(row)) {
+      const next = { ...(target.cellColours ?? {}) }
+      if (colour) next[key] = colour
+      else delete next[key]
+      updateRow.mutate({
+        row: target,
+        sheet,
+        patch: { cellColours: next },
+        actorId,
+        label: colour ? `Fill ${colourName(colour)}` : 'No fill',
+      })
+    }
+  }
+
+  const toggleWrap = (def: ColumnDef) =>
+    updateColumn.mutate({ sheet, column: def, patch: { wrap: !def.wrap }, actorId })
+
+  /** A right-click: the format menu opens on the cell under the pointer, or the active cell. */
+  const onGridContextMenu = (event: ReactMouseEvent<HTMLDivElement>) => {
+    const target = event.target as HTMLElement
+    const rowEl = target.closest<HTMLElement>('[role="row"][data-row-id]')
+    const cellEl = target.closest<HTMLElement>('[role="gridcell"][data-col]')
+    let rowIndex = -1
+    let col = -1
+    if (rowEl && cellEl) {
+      rowIndex = tableRows.findIndex((r) => r.original.id === rowEl.dataset.rowId)
+      col = Number(cellEl.getAttribute('aria-colindex') ?? '0') - 1
+    } else if (target === event.currentTarget && active.row >= 0 && active.row < rowCount) {
+      // The keyboard's menu key: the active cell.
+      rowIndex = active.row
+      col = active.col
+    }
+    const row = tableRows[rowIndex]?.original
+    const def = defs[col]
+    if (!row || !def) {
+      // Not on a cell (the header, the add line): no menu.
+      event.preventDefault()
+      return
+    }
+    setActive({ row: rowIndex, col })
+    setMenuCell({ rowId: row.id, key: def.key })
   }
 
   const dropColumn = (targetId: string) => {
@@ -674,6 +792,8 @@ export function SheetGrid({
   const latest = useRef({
     toggleExpand,
     startEdit,
+    startRowResize,
+    resetRowHeight,
     editable,
     defs,
     tableRows,
@@ -684,6 +804,8 @@ export function SheetGrid({
   latest.current = {
     toggleExpand,
     startEdit,
+    startRowResize,
+    resetRowHeight,
     editable,
     defs,
     tableRows,
@@ -726,6 +848,8 @@ export function SheetGrid({
         scrollRef.current?.focus({ preventScroll: true })
       },
       onCellMouseDown: (rowIndex, colIndex) => setActive({ row: rowIndex, col: colIndex }),
+      onRowResizeStart: (event, row) => latest.current.startRowResize(event, row),
+      onRowResizeReset: (row) => latest.current.resetRowHeight(row),
       onCellDoubleClick: (rowIndex, colIndex) => {
         const l = latest.current
         if (l.editable) l.startEdit(rowIndex, colIndex, null)
@@ -909,279 +1033,363 @@ export function SheetGrid({
   const nameDef = defs.find((d) => d.system && d.key === 'name')
   const editingDef = editing ? (editing.rowId === null ? nameDef : defs[editing.col]) : undefined
 
+  const menuRow = menuCell ? rowById.get(menuCell.rowId) : undefined
+  const menuDef = menuCell ? defs.find((d) => d.key === menuCell.key) : undefined
+  const menuTargets = menuRow ? formatTargets(menuRow) : []
+  const menuFill = (colour: TagColour | null) =>
+    menuTargets.length > 0 &&
+    menuTargets.every((r) => (r.cellColours?.[menuCell?.key ?? ''] ?? null) === colour)
+
   return (
-    <div
-      ref={scrollRef}
-      role="grid"
-      aria-label={sheet.name}
-      aria-rowcount={ariaRowCount}
-      aria-colcount={colCount}
-      aria-multiselectable={editable || undefined}
-      aria-activedescendant={editing ? undefined : activeDescendant}
-      tabIndex={0}
-      onKeyDown={onKeyDown}
-      onCopy={onCopy}
-      onPaste={onPaste}
-      data-testid="sheet-grid"
-      className="group/grid relative h-full overflow-auto overscroll-contain bg-bg outline-none"
-      style={{ scrollPaddingTop: HEADER_HEIGHT, scrollPaddingLeft: defs[0]?.width ?? 0 }}
+    <ContextMenu
+      onOpenChange={(open) => {
+        if (!open) setMenuCell(null)
+      }}
     >
-      <div style={{ width: totalWidth, minWidth: '100%' }}>
-        {/* Header */}
-        <div role="rowgroup" className="sticky top-0 z-20 bg-grid-header">
-          <div
-            role="row"
-            aria-rowindex={1}
-            className="grid border-y border-grid-line"
-            style={{ gridTemplateColumns, height: HEADER_HEIGHT }}
-          >
-            {headerGroup?.headers.map((header, colIndex) => {
-              const def = header.column.columnDef.meta?.def
-              const sorted = header.column.getIsSorted()
-              const isActive = active.row === -1 && active.col === colIndex
-              return (
-                <div
-                  key={header.id}
-                  id={cellId(-1, colIndex)}
-                  role="columnheader"
-                  aria-colindex={colIndex + 1}
-                  aria-sort={
-                    sorted === 'asc' ? 'ascending' : sorted === 'desc' ? 'descending' : undefined
-                  }
-                  data-active={isActive || undefined}
-                  data-dragging={draggingCol === def?.id || undefined}
-                  onMouseDown={() => rowHandlers.onCellMouseDown(-1, colIndex)}
-                  draggable={editable && def ? true : undefined}
-                  onDragStart={
-                    editable && def
-                      ? (e) => {
-                          e.dataTransfer.effectAllowed = 'move'
-                          e.dataTransfer.setData('text/plain', def.label)
-                          setDraggingCol(def.id)
-                        }
-                      : undefined
-                  }
-                  onDragOver={editable && draggingCol ? (e) => e.preventDefault() : undefined}
-                  onDrop={
-                    editable && def && draggingCol
-                      ? (e) => {
-                          e.preventDefault()
-                          dropColumn(def.id)
-                        }
-                      : undefined
-                  }
-                  onDragEnd={() => setDraggingCol(null)}
-                  className={cn(
-                    'group/header relative flex items-center border-r border-grid-line bg-grid-header data-[dragging]:opacity-50',
-                    // Labels start where the cells' content starts; start-aligned ones may use
-                    // the right padding so "Last touch" fits its narrow default column.
-                    def && columnAlign(def) === 'end' ? 'justify-end px-2.5' : 'pr-0 pl-2.5',
-                    colIndex === 0 && 'sticky left-0 z-10',
-                    'group-focus/grid:data-[active]:focus-ring-inset',
-                  )}
-                >
-                  <button
-                    type="button"
-                    tabIndex={-1}
-                    onClick={() => header.column.toggleSorting(undefined, false)}
-                    className={cn(
-                      'inline-flex min-w-0 items-center gap-1 rounded-control py-1',
-                      'font-mono text-[10.5px] leading-[1.3] font-semibold tracking-[0.08em] text-muted uppercase hover:text-text',
-                      sorted && 'text-text',
-                    )}
-                  >
-                    <span className="truncate">{def?.label}</span>
-                    {sorted === 'asc' ? (
-                      <ArrowUp aria-hidden className="size-3 shrink-0" />
-                    ) : sorted === 'desc' ? (
-                      <ArrowDown aria-hidden className="size-3 shrink-0" />
-                    ) : null}
-                  </button>
-                  {editable && def ? (
-                    <>
-                      <Menu>
-                        <MenuTrigger asChild>
-                          <button
-                            type="button"
-                            tabIndex={-1}
-                            aria-label={`${def.label} column options`}
-                            className="mr-1 ml-auto grid size-5 shrink-0 place-items-center rounded-chip text-muted opacity-0 hover:bg-surface-hover hover:text-text group-hover/header:opacity-100 data-[state=open]:opacity-100"
-                          >
-                            <ChevronDown aria-hidden className="size-3" />
-                          </button>
-                        </MenuTrigger>
-                        <MenuContent align="start" className="w-56">
-                          <MenuItem
-                            onSelect={() => header.column.toggleSorting(false, false)}
-                            icon={<ArrowUp aria-hidden />}
-                          >
-                            Sort ascending
-                          </MenuItem>
-                          <MenuItem
-                            onSelect={() => header.column.toggleSorting(true, false)}
-                            icon={<ArrowDown aria-hidden />}
-                          >
-                            Sort descending
-                          </MenuItem>
-                          <MenuSeparator />
-                          <MenuItem
-                            disabled={def.system && def.key === 'name'}
-                            onSelect={() =>
-                              updateColumn.mutate({
-                                sheet,
-                                column: def,
-                                patch: { hidden: true },
-                                actorId,
-                              })
+      <ContextMenuTrigger asChild disabled={!editable || editing !== null}>
+        <div
+          ref={scrollRef}
+          role="grid"
+          aria-label={sheet.name}
+          aria-rowcount={ariaRowCount}
+          aria-colcount={colCount}
+          aria-multiselectable={editable || undefined}
+          aria-activedescendant={editing ? undefined : activeDescendant}
+          tabIndex={0}
+          onKeyDown={onKeyDown}
+          onCopy={onCopy}
+          onPaste={onPaste}
+          onContextMenu={onGridContextMenu}
+          data-testid="sheet-grid"
+          className="group/grid relative h-full overflow-auto overscroll-contain bg-bg outline-none"
+          style={{ scrollPaddingTop: HEADER_HEIGHT, scrollPaddingLeft: defs[0]?.width ?? 0 }}
+        >
+          <div style={{ width: totalWidth, minWidth: '100%' }}>
+            {/* Header */}
+            <div role="rowgroup" className="sticky top-0 z-20 bg-grid-header">
+              <div
+                role="row"
+                aria-rowindex={1}
+                className="grid border-y border-grid-line"
+                style={{ gridTemplateColumns, height: HEADER_HEIGHT }}
+              >
+                {headerGroup?.headers.map((header, colIndex) => {
+                  const def = header.column.columnDef.meta?.def
+                  const sorted = header.column.getIsSorted()
+                  const isActive = active.row === -1 && active.col === colIndex
+                  return (
+                    <div
+                      key={header.id}
+                      id={cellId(-1, colIndex)}
+                      role="columnheader"
+                      aria-colindex={colIndex + 1}
+                      aria-sort={
+                        sorted === 'asc'
+                          ? 'ascending'
+                          : sorted === 'desc'
+                            ? 'descending'
+                            : undefined
+                      }
+                      data-active={isActive || undefined}
+                      data-dragging={draggingCol === def?.id || undefined}
+                      onMouseDown={() => rowHandlers.onCellMouseDown(-1, colIndex)}
+                      draggable={editable && def ? true : undefined}
+                      onDragStart={
+                        editable && def
+                          ? (e) => {
+                              e.dataTransfer.effectAllowed = 'move'
+                              e.dataTransfer.setData('text/plain', def.label)
+                              setDraggingCol(def.id)
                             }
-                            icon={<EyeOff aria-hidden />}
-                          >
-                            Hide column
-                          </MenuItem>
-                          {hiddenColumns.length > 0 ? (
-                            <MenuItem
-                              onSelect={() => {
-                                for (const column of hiddenColumns) {
+                          : undefined
+                      }
+                      onDragOver={editable && draggingCol ? (e) => e.preventDefault() : undefined}
+                      onDrop={
+                        editable && def && draggingCol
+                          ? (e) => {
+                              e.preventDefault()
+                              dropColumn(def.id)
+                            }
+                          : undefined
+                      }
+                      onDragEnd={() => setDraggingCol(null)}
+                      className={cn(
+                        'group/header relative flex items-center border-r border-grid-line bg-grid-header data-[dragging]:opacity-50',
+                        // Labels start where the cells' content starts; start-aligned ones may use
+                        // the right padding so "Last touch" fits its narrow default column.
+                        def && columnAlign(def) === 'end' ? 'justify-end px-2.5' : 'pr-0 pl-2.5',
+                        colIndex === 0 && 'sticky left-0 z-10',
+                        'group-focus/grid:data-[active]:focus-ring-inset',
+                      )}
+                    >
+                      <button
+                        type="button"
+                        tabIndex={-1}
+                        onClick={() => header.column.toggleSorting(undefined, false)}
+                        className={cn(
+                          'inline-flex min-w-0 items-center gap-1 rounded-control py-1',
+                          'font-mono text-[10.5px] leading-[1.3] font-semibold tracking-[0.08em] text-muted uppercase hover:text-text',
+                          sorted && 'text-text',
+                        )}
+                      >
+                        <span className="truncate">{def?.label}</span>
+                        {sorted === 'asc' ? (
+                          <ArrowUp aria-hidden className="size-3 shrink-0" />
+                        ) : sorted === 'desc' ? (
+                          <ArrowDown aria-hidden className="size-3 shrink-0" />
+                        ) : null}
+                      </button>
+                      {editable && def ? (
+                        <>
+                          <Menu>
+                            <MenuTrigger asChild>
+                              <button
+                                type="button"
+                                tabIndex={-1}
+                                aria-label={`${def.label} column options`}
+                                className="mr-1 ml-auto grid size-5 shrink-0 place-items-center rounded-chip text-muted opacity-0 hover:bg-surface-hover hover:text-text group-hover/header:opacity-100 data-[state=open]:opacity-100"
+                              >
+                                <ChevronDown aria-hidden className="size-3" />
+                              </button>
+                            </MenuTrigger>
+                            <MenuContent align="start" className="w-56">
+                              <MenuItem
+                                onSelect={() => header.column.toggleSorting(false, false)}
+                                icon={<ArrowUp aria-hidden />}
+                              >
+                                Sort ascending
+                              </MenuItem>
+                              <MenuItem
+                                onSelect={() => header.column.toggleSorting(true, false)}
+                                icon={<ArrowDown aria-hidden />}
+                              >
+                                Sort descending
+                              </MenuItem>
+                              <MenuSeparator />
+                              <MenuItem
+                                disabled={def.system && def.key === 'name'}
+                                onSelect={() =>
                                   updateColumn.mutate({
                                     sheet,
-                                    column,
-                                    patch: { hidden: false },
+                                    column: def,
+                                    patch: { hidden: true },
                                     actorId,
                                   })
                                 }
-                              }}
-                              icon={<Eye aria-hidden />}
-                            >
-                              Show {pluralise(hiddenColumns.length, 'hidden column')}
-                            </MenuItem>
-                          ) : null}
-                          {onManageColumns ? (
-                            <>
-                              <MenuSeparator />
-                              <MenuItem onSelect={onManageColumns} icon={<Settings2 aria-hidden />}>
-                                Manage columns
+                                icon={<EyeOff aria-hidden />}
+                              >
+                                Hide column
                               </MenuItem>
-                            </>
-                          ) : null}
-                        </MenuContent>
-                      </Menu>
-                      {/* Drag the edge to resize. */}
-                      <span
-                        aria-hidden="true"
-                        onPointerDown={(e) => startResize(e, def)}
-                        onClick={(e) => e.stopPropagation()}
-                        className="absolute top-0 -right-[3px] z-10 h-full w-[6px] cursor-col-resize hover:bg-focus/40"
-                        data-testid="column-resize"
-                      />
-                    </>
-                  ) : null}
-                </div>
-              )
-            })}
-          </div>
-        </div>
-
-        {/* Body */}
-        <div role="rowgroup" className="relative" style={{ height: virtualizer.getTotalSize() }}>
-          {virtualItems.map((item) => {
-            const tableRow = tableRows[item.index]
-            if (!tableRow) return null
-            const row = tableRow.original
-            const isExpanded = row.id === expandedRowId
-            const rowIndexAria =
-              2 + item.index + (expandedIndex >= 0 && item.index > expandedIndex ? 1 : 0)
-            return (
-              <div
-                key={item.key}
-                role="presentation"
-                data-index={item.index}
-                ref={virtualizer.measureElement}
-                className="absolute left-0 top-0 w-full"
-                style={{ transform: `translateY(${item.start}px)` }}
-              >
-                <GridRow
-                  row={row}
-                  rowIndex={item.index}
-                  ariaRowIndex={rowIndexAria}
-                  defs={defs}
-                  gridTemplateColumns={gridTemplateColumns}
-                  height={ROW_HEIGHT}
-                  activeCol={active.row === item.index ? active.col : null}
-                  isExpanded={isExpanded}
-                  isSelected={selected.has(row.id)}
-                  isFlashing={flashRowId === row.id}
-                  cellId={cellId}
-                  ctx={cellCtx}
-                  handlers={rowHandlers}
-                />
-                {isExpanded ? (
-                  <div
-                    role="row"
-                    aria-rowindex={rowIndexAria + 1}
-                    className="border-b border-border bg-surface-subtle"
-                  >
-                    <div
-                      role="gridcell"
-                      aria-colindex={1}
-                      aria-colspan={colCount}
-                      className="sticky left-0"
-                      style={{ width: scrollRef.current?.clientWidth ?? '100%' }}
-                    >
-                      {renderExpanded(row, collapse)}
+                              <MenuItem
+                                onSelect={() => toggleWrap(def)}
+                                icon={<WrapText aria-hidden />}
+                              >
+                                {def.wrap ? 'Stop wrapping text' : 'Wrap text'}
+                              </MenuItem>
+                              {hiddenColumns.length > 0 ? (
+                                <MenuItem
+                                  onSelect={() => {
+                                    for (const column of hiddenColumns) {
+                                      updateColumn.mutate({
+                                        sheet,
+                                        column,
+                                        patch: { hidden: false },
+                                        actorId,
+                                      })
+                                    }
+                                  }}
+                                  icon={<Eye aria-hidden />}
+                                >
+                                  Show {pluralise(hiddenColumns.length, 'hidden column')}
+                                </MenuItem>
+                              ) : null}
+                              {onManageColumns ? (
+                                <>
+                                  <MenuSeparator />
+                                  <MenuItem
+                                    onSelect={onManageColumns}
+                                    icon={<Settings2 aria-hidden />}
+                                  >
+                                    Manage columns
+                                  </MenuItem>
+                                </>
+                              ) : null}
+                            </MenuContent>
+                          </Menu>
+                          {/* Drag the edge to resize. */}
+                          <span
+                            aria-hidden="true"
+                            onPointerDown={(e) => startResize(e, def)}
+                            onClick={(e) => e.stopPropagation()}
+                            className="absolute top-0 -right-[3px] z-10 h-full w-[6px] cursor-col-resize hover:bg-focus/40"
+                            data-testid="column-resize"
+                          />
+                        </>
+                      ) : null}
                     </div>
-                  </div>
-                ) : null}
-              </div>
-            )
-          })}
-        </div>
-
-        {/* The add line: a new row's Name, in your own tab. */}
-        {editable ? (
-          <div role="rowgroup">
-            <div
-              role="row"
-              aria-rowindex={ariaRowCount}
-              className="grid border-b border-grid-line bg-bg"
-              style={{ gridTemplateColumns, height: ROW_HEIGHT }}
-              data-testid="add-row"
-            >
-              {/* biome-ignore lint/a11y/useKeyWithClickEvents: the grid owns the keyboard (N, Enter). */}
-              <div
-                id={addLineCellId}
-                role="gridcell"
-                aria-colindex={1}
-                data-active={active.row === rowCount || undefined}
-                onMouseDown={() => setActive({ row: rowCount, col: 0 })}
-                onClick={() => startEdit(rowCount, 0, null)}
-                className={cn(
-                  'sticky left-0 z-10 flex min-w-0 cursor-default items-center gap-1.5 overflow-hidden border-r border-grid-line bg-bg px-2.5 text-sm text-muted hover:text-text',
-                  'group-focus/grid:data-[active]:focus-ring-inset',
-                )}
-              >
-                <Plus aria-hidden className="size-3.5 shrink-0" />
-                <span className="truncate">Add a contact</span>
-                <Kbd keys={['N']} className="ml-auto" />
+                  )
+                })}
               </div>
             </div>
-          </div>
-        ) : null}
-      </div>
 
-      {editing && editingAnchor && editingDef ? (
-        <CellEditor
-          key={`${editing.rowId ?? 'new'}-${editing.col}`}
-          anchor={editingAnchor}
-          def={editingDef}
-          row={editingRow ?? blankRow(sheet)}
-          sheet={sheet}
-          initial={editing.initial}
-          ctx={textCtx}
-          actorId={actorId}
-          onDone={finishEdit}
-          onCancel={cancelEdit}
-        />
+            {/* Body */}
+            <div
+              role="rowgroup"
+              className="relative"
+              style={{ height: virtualizer.getTotalSize() }}
+            >
+              {virtualItems.map((item) => {
+                const tableRow = tableRows[item.index]
+                if (!tableRow) return null
+                const row = tableRow.original
+                const isExpanded = row.id === expandedRowId
+                const rowIndexAria =
+                  2 + item.index + (expandedIndex >= 0 && item.index > expandedIndex ? 1 : 0)
+                return (
+                  <div
+                    key={item.key}
+                    role="presentation"
+                    data-index={item.index}
+                    ref={virtualizer.measureElement}
+                    className="absolute left-0 top-0 w-full"
+                    style={{ transform: `translateY(${item.start}px)` }}
+                  >
+                    <GridRow
+                      row={row}
+                      rowIndex={item.index}
+                      ariaRowIndex={rowIndexAria}
+                      defs={defs}
+                      gridTemplateColumns={gridTemplateColumns}
+                      height={
+                        rowResize?.id === row.id ? rowResize.height : (row.height ?? ROW_HEIGHT)
+                      }
+                      autoHeight={anyWrap}
+                      resizable={editable}
+                      activeCol={active.row === item.index ? active.col : null}
+                      isExpanded={isExpanded}
+                      isSelected={selected.has(row.id)}
+                      isFlashing={flashRowId === row.id}
+                      cellId={cellId}
+                      ctx={cellCtx}
+                      handlers={rowHandlers}
+                    />
+                    {isExpanded ? (
+                      <div
+                        role="row"
+                        aria-rowindex={rowIndexAria + 1}
+                        className="border-b border-border bg-surface-subtle"
+                      >
+                        <div
+                          role="gridcell"
+                          aria-colindex={1}
+                          aria-colspan={colCount}
+                          className="sticky left-0"
+                          style={{ width: scrollRef.current?.clientWidth ?? '100%' }}
+                        >
+                          {renderExpanded(row, collapse)}
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* The add line: a new row's Name, in your own tab. */}
+            {editable ? (
+              <div role="rowgroup">
+                <div
+                  role="row"
+                  aria-rowindex={ariaRowCount}
+                  className="grid border-b border-grid-line bg-bg"
+                  style={{ gridTemplateColumns, height: ROW_HEIGHT }}
+                  data-testid="add-row"
+                >
+                  {/* biome-ignore lint/a11y/useKeyWithClickEvents: the grid owns the keyboard (N, Enter). */}
+                  <div
+                    id={addLineCellId}
+                    role="gridcell"
+                    aria-colindex={1}
+                    data-active={active.row === rowCount || undefined}
+                    onMouseDown={() => setActive({ row: rowCount, col: 0 })}
+                    onClick={() => startEdit(rowCount, 0, null)}
+                    className={cn(
+                      'sticky left-0 z-10 flex min-w-0 cursor-default items-center gap-1.5 overflow-hidden border-r border-grid-line bg-bg px-2.5 text-sm text-muted hover:text-text',
+                      'group-focus/grid:data-[active]:focus-ring-inset',
+                    )}
+                  >
+                    <Plus aria-hidden className="size-3.5 shrink-0" />
+                    <span className="truncate">Add a contact</span>
+                    <Kbd keys={['N']} className="ml-auto" />
+                  </div>
+                </div>
+              </div>
+            ) : null}
+          </div>
+
+          {editing && editingAnchor && editingDef ? (
+            <CellEditor
+              key={`${editing.rowId ?? 'new'}-${editing.col}`}
+              anchor={editingAnchor}
+              def={editingDef}
+              row={editingRow ?? blankRow(sheet)}
+              sheet={sheet}
+              initial={editing.initial}
+              ctx={textCtx}
+              actorId={actorId}
+              onDone={finishEdit}
+              onCancel={cancelEdit}
+            />
+          ) : null}
+        </div>
+      </ContextMenuTrigger>
+      {menuRow && menuDef ? (
+        <ContextMenuContent className="w-64" data-testid="cell-menu">
+          <ContextMenuLabel>
+            {menuTargets.length > 1 ? `Fill ${menuTargets.length} cells` : 'Fill colour'}
+          </ContextMenuLabel>
+          <div className="grid grid-cols-9 gap-0.5 px-1 pb-1">
+            <ContextMenuSwatch
+              aria-label="No fill"
+              data-current={menuFill(null) || undefined}
+              onSelect={() => applyFill(menuRow, menuDef.key, null)}
+              className="data-[current]:ring-2 data-[current]:ring-border-strong"
+            >
+              <span className="relative size-4 overflow-hidden rounded-[4px] border border-border-strong bg-bg">
+                <span className="absolute top-1/2 left-[-2px] h-px w-[22px] -rotate-45 bg-border-strong" />
+              </span>
+            </ContextMenuSwatch>
+            {cellFillColours.map((colour) => (
+              <ContextMenuSwatch
+                key={colour}
+                aria-label={`Fill ${colourName(colour)}`}
+                data-current={menuFill(colour) || undefined}
+                onSelect={() => applyFill(menuRow, menuDef.key, colour)}
+                className="data-[current]:ring-2 data-[current]:ring-border-strong"
+              >
+                <span
+                  className="size-4 rounded-[4px]"
+                  style={{
+                    background: cellFill(colour),
+                    boxShadow: `inset 0 0 0 1px color-mix(in srgb, var(--tag-${colour}) 60%, transparent)`,
+                  }}
+                />
+              </ContextMenuSwatch>
+            ))}
+          </div>
+          <ContextMenuSeparator />
+          <ContextMenuItem icon={<WrapText aria-hidden />} onSelect={() => toggleWrap(menuDef)}>
+            {menuDef.wrap ? `Stop wrapping ${menuDef.label}` : `Wrap text in ${menuDef.label}`}
+          </ContextMenuItem>
+          <ContextMenuItem
+            icon={<MoveVertical aria-hidden />}
+            disabled={menuRow.height == null}
+            onSelect={() => resetRowHeight(menuRow)}
+          >
+            Reset row height
+          </ContextMenuItem>
+        </ContextMenuContent>
       ) : null}
-    </div>
+    </ContextMenu>
   )
 }

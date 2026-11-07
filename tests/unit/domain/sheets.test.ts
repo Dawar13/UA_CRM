@@ -162,6 +162,11 @@ describe('columns', () => {
     expect(column(next, 'pain').options).toEqual(['High', 'Low'])
     next = updateColumn(next, pain.id, { type: 'text' }, LATER)
     expect(column(next, 'pain')).not.toHaveProperty('options')
+    // Wrapping is a column setting too (D-049).
+    next = updateColumn(next, pain.id, { wrap: true }, LATER)
+    expect(column(next, 'pain').wrap).toBe(true)
+    next = updateColumn(next, pain.id, { wrap: false }, LATER)
+    expect(column(next, 'pain').wrap).toBe(false)
   })
 
   it('updateColumn keeps the rules for system columns, sizes and options', () => {

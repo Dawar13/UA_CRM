@@ -557,3 +557,17 @@ Container jobs first make sure git is installed (otherwise checkout falls back t
 **Decision.** In the expanded row's tracker, a stage passed is drawn as 135° hatching: 1.5px stripes of its ramp colour mixed 45% with the page, over a ground mixed 18%, so the shade deepens from the first stage to the last. Its name and date are in --text. The current stage stays solid in its ramp colour with its contrast-tested text and the ring. Skipped stages, which were the only hatched ones, become faint grey hatching (--grid-line over --stage-track) with "Skipped" in --text-secondary, so they no longer read as passed. The grid's small stage bar is unchanged.
 
 **Consequences.** The contrast test now checks --text on both the stripe and the ground of every stage's hatching, and the skipped label on its hatching, in both themes. It caught the first mix (55%) at 4.33:1 in dark mode on stage 6; 45% passes everywhere.
+
+## D-049 · 7 Nov 2026 · Cell formatting: fill colours, wrapped columns, row heights
+
+**Context.** The founders asked for text wrapping, light cell colours and taller rows; columns could already be resized.
+
+**Decision.**
+
+- **Data.** Migration `20261107150000_cell_format.sql` adds `rows.cell_colours` (jsonb, column key to a tag hue), `rows.height` (36 to 240 px, null for the default) and `columns.wrap`. `ua_row_json`, `ua_sheet_json`, `api_save_row` and `api_save_sheet` are their previous definitions with only these fields added. In the domain they are optional (`cellColours`, `height`, `wrap`), so the app reads a database without the migration; formatting is then simply not kept. Colours and height are cell edits like any other: one patch, owner only, with Undo.
+- **Fill colour.** Right-click a cell (or press the menu key) in your own tab: a swatch row of the eight tag hues, each mixed 22% with the page, plus No fill. With several rows selected, the same column of every selected row is filled. The contrast test checks --text on every fill in both themes.
+- **Wrap text.** A column setting, from the column menu or the right-click menu. A wrapped column shows its whole text on as many lines as it needs; while any column wraps, rows grow to fit (their height is a minimum).
+- **Row height.** Drag the bottom edge of a row's first cell; double-click it, or use Reset row height, to go back. Taller rows start their text at the top.
+- Another member's tab has no format menu and no row handles (view only).
+
+**Consequences.** The hosted database needs the migration (`supabase db push`) for formatting to be kept. The grid's row heights are measured (they already were, for the expanded row), so performance at 2,000 rows is unchanged when nothing is formatted.

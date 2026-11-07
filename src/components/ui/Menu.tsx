@@ -1,5 +1,5 @@
 import { Check } from 'lucide-react'
-import { DropdownMenu } from 'radix-ui'
+import { DropdownMenu, ContextMenu as RadixContextMenu } from 'radix-ui'
 import type { ComponentProps, ComponentPropsWithRef, ReactNode } from 'react'
 import { cn } from '@/lib/cn'
 import { ariaKeyShortcuts, Kbd, type KeyName } from './Kbd'
@@ -136,5 +136,72 @@ export function MenuRadioItem({
       <span className="min-w-0 flex-1 truncate">{children}</span>
       {shortcut ? <MenuShortcut keys={shortcut} /> : null}
     </DropdownMenu.RadioItem>
+  )
+}
+
+// ---------- Right-click menus, styled like the dropdowns above ----------
+
+export const ContextMenu = RadixContextMenu.Root
+export const ContextMenuTrigger = RadixContextMenu.Trigger
+
+export function ContextMenuContent({
+  className,
+  collisionPadding = 8,
+  ...props
+}: ComponentPropsWithRef<typeof RadixContextMenu.Content>) {
+  return (
+    <RadixContextMenu.Portal>
+      <RadixContextMenu.Content
+        collisionPadding={collisionPadding}
+        className={cn(menuContentClassName, className)}
+        {...props}
+      />
+    </RadixContextMenu.Portal>
+  )
+}
+
+export interface ContextMenuItemProps extends ComponentPropsWithRef<typeof RadixContextMenu.Item> {
+  icon?: ReactNode
+}
+
+export function ContextMenuItem({ className, icon, children, ...props }: ContextMenuItemProps) {
+  return (
+    <RadixContextMenu.Item className={cn(menuItemClassName, className)} {...props}>
+      {icon}
+      <span className="min-w-0 flex-1 truncate">{children}</span>
+    </RadixContextMenu.Item>
+  )
+}
+
+/** An item that is only a small square of colour (a swatch row); name it with aria-label. */
+export function ContextMenuSwatch({
+  className,
+  ...props
+}: ComponentPropsWithRef<typeof RadixContextMenu.Item>) {
+  return (
+    <RadixContextMenu.Item
+      className={cn(
+        'grid size-7 cursor-default place-items-center rounded-control outline-none',
+        'data-[highlighted]:bg-surface-hover data-[highlighted]:ring-2 data-[highlighted]:ring-focus',
+        className,
+      )}
+      {...props}
+    />
+  )
+}
+
+export function ContextMenuLabel({
+  className,
+  ...props
+}: ComponentPropsWithRef<typeof RadixContextMenu.Label>) {
+  return <RadixContextMenu.Label className={cn(menuLabelClassName, className)} {...props} />
+}
+
+export function ContextMenuSeparator({
+  className,
+  ...props
+}: ComponentPropsWithRef<typeof RadixContextMenu.Separator>) {
+  return (
+    <RadixContextMenu.Separator className={cn('-mx-1 my-1 h-px bg-border', className)} {...props} />
   )
 }

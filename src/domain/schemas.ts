@@ -84,6 +84,8 @@ export const columnDefSchema = z.object({
   options: z.array(z.string()).optional(),
   width: z.number().int().positive(),
   hidden: z.boolean(),
+  /** Show the full text of this column's cells on several lines; the rows grow to fit. */
+  wrap: z.boolean().optional(),
   position: z.number().int().nonnegative(),
   /** Set while the column is in Trash. Its values stay in `row.fields` so a restore loses nothing. */
   deletedAt: isoDateTimeSchema.nullable().optional(),
@@ -200,6 +202,13 @@ export const rowSchema = z.object({
 
   /** Custom per-sheet fields, keyed by `ColumnDef.key`. Validated against the column type. */
   fields: z.record(z.string(), z.unknown()),
+
+  /** Fill colours set on cells, keyed by `ColumnDef.key`: a soft tag hue. Optional: most rows have none. */
+  cellColours: z
+    .record(z.string(), z.enum(tagColourNames as [TagColour, ...TagColour[]]))
+    .optional(),
+  /** A height set by dragging the row's edge, in pixels (36 to 240); null or missing is the default. */
+  height: z.number().int().min(36).max(240).nullable().optional(),
 
   /** Most recent history instant. Derived and maintained by the repository, never typed. */
   lastTouchAt: isoDateTimeSchema.nullable(),

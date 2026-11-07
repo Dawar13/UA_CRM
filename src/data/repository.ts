@@ -101,7 +101,7 @@ export interface NewColumnInput {
   width?: number
 }
 export type ColumnPatch = Partial<
-  Pick<ColumnDef, 'label' | 'type' | 'options' | 'width' | 'hidden'>
+  Pick<ColumnDef, 'label' | 'type' | 'options' | 'width' | 'hidden' | 'wrap'>
 >
 
 export interface MemberPatch {

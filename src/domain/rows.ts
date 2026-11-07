@@ -24,7 +24,21 @@ export const editableRowKeys = [
   'notes',
   'fields',
   'samePerson',
+  'cellColours',
+  'height',
 ] as const satisfies readonly (keyof Row)[]
+
+/** Row heights (CLAUDE.md §3.3): the default, and the range a dragged row may take. */
+export const ROW_HEIGHT_DEFAULT = 36
+export const ROW_HEIGHT_MIN = 36
+export const ROW_HEIGHT_MAX = 240
+
+/** A dragged height, rounded and kept in range; the default height is stored as null. */
+export function clampRowHeight(height: number | null | undefined): number | null {
+  if (height === null || height === undefined || !Number.isFinite(height)) return null
+  const rounded = Math.round(Math.min(ROW_HEIGHT_MAX, Math.max(ROW_HEIGHT_MIN, height)))
+  return rounded === ROW_HEIGHT_DEFAULT ? null : rounded
+}
 
 export type EditableRowKey = (typeof editableRowKeys)[number]
 export type RowPatch = Partial<Pick<Row, EditableRowKey>>
@@ -69,6 +83,13 @@ export function cleanRowPatch(patch: RowPatch): RowPatch {
   if (out.links !== undefined) out.links = unique(out.links.map((l) => l.trim()).filter(Boolean))
   if (out.tagIds !== undefined) out.tagIds = unique(out.tagIds)
   if (out.samePerson !== undefined) out.samePerson = unique(out.samePerson)
+  if (out.height !== undefined) out.height = clampRowHeight(out.height)
+  if (out.cellColours !== undefined) {
+    // Only cells that have a colour are kept.
+    out.cellColours = Object.fromEntries(
+      Object.entries(out.cellColours).filter(([, colour]) => Boolean(colour)),
+    )
+  }
   if (out.connectsTo !== undefined) {
     const kept: LinkRef[] = []
     for (const link of out.connectsTo) {

@@ -10,6 +10,7 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { HATCH_GROUND, HATCH_STRIPE } from '@/components/crm/StageDots'
+import { CELL_FILL_PERCENT, cellFillColours } from '@/features/grid/cellFormat'
 import { contrastRatio, formatRatio, parseHex, relativeLuminance } from '@/styles/contrast'
 import { renderTokensCss } from '@/styles/renderTokensCss'
 import {
@@ -17,6 +18,7 @@ import {
   STAGE_STEPS,
   type ThemeColours,
   type ThemeName,
+  tagPalette,
   themes,
 } from '@/styles/tokens'
 
@@ -142,6 +144,16 @@ describe.each(themeNames)('%s theme', (themeName) => {
         `text on ${percent}% stage${n} ${fill}: ${formatRatio(ratio)}`,
       ).toBeGreaterThanOrEqual(TEXT)
     }
+  })
+
+  // Cell fills (D-049): each tag hue mixed with the page; cell text stays --text.
+  it.each(cellFillColours)('cell text reads on a %s fill', (colour) => {
+    const hue = tagPalette.find((t) => t.name === colour)?.hex ?? '#000000'
+    const fill = mixHex(hue, t.bg, CELL_FILL_PERCENT / 100)
+    const ratio = contrastRatio(t.text, fill)
+    expect(ratio, `text on ${colour} fill ${fill}: ${formatRatio(ratio)}`).toBeGreaterThanOrEqual(
+      TEXT,
+    )
   })
 
   it('the "Skipped" label reads on its grey hatching', () => {

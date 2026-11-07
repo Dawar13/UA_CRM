@@ -197,12 +197,13 @@ function replaceColumn(sheet: Sheet, column: ColumnDef, now: Date): Sheet {
 export function updateColumn(
   sheet: Sheet,
   columnId: Id,
-  patch: Partial<Pick<ColumnDef, 'label' | 'type' | 'options' | 'width' | 'hidden'>>,
+  patch: Partial<Pick<ColumnDef, 'label' | 'type' | 'options' | 'width' | 'hidden' | 'wrap'>>,
   now: Date,
 ): Sheet {
   const column = withColumn(sheet, columnId)
   const next: ColumnDef = { ...column }
   if (patch.label !== undefined) next.label = cleanName(patch.label, 'column')
+  if (patch.wrap !== undefined) next.wrap = patch.wrap
   if (patch.width !== undefined) {
     if (!Number.isInteger(patch.width) || patch.width < 48) {
       throw new SheetRuleError('A column is at least 48 pixels wide')
