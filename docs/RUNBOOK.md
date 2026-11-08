@@ -189,6 +189,7 @@ It lists `20261107150000_cell_format.sql` and `20261108090000_calendar.sql`; con
 
 ### 7.4 First connection, and what to check
 
+0. Open `https://<your production domain>/api/calendar/callback` in the browser. If you land back in the CRM with "That connection link expired. Connect again.", the functions are live and have their settings. "404" means the deployment has no functions; `{"error":"not_configured"}` means a variable is missing (Vercel → Logs names it).
 1. Open the production app, sign in, open the side panel (Ctrl+.) and choose **Connect Google Calendar**.
 2. Google says it has not verified the app: **Advanced → Go to UA Internal CRM**, then allow calendar access.
 3. You come back to the CRM with "Google Calendar connected", and the panel shows this week.

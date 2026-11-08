@@ -445,7 +445,7 @@ Screenshots: `docs/screenshots/p2-*-light.png` and `-dark.png` (the week page, t
 
 **Known issues**
 
-- **Not yet run against Google or Vercel.** No Google Cloud project exists yet, so the OAuth flow, push and the functions' deployment are checked with a fake Google and an in-memory store, and the Supabase store runs against the local stack in CI only. The founders' first connection (RUNBOOK §7.4) is the real test; the first thing to confirm is that the deployment built the functions (`/api/calendar/sync` answers 401 when called without signing in, not 404).
+- **Not yet run against Google or Vercel.** No Google Cloud project exists yet, so the OAuth flow, push and the functions' deployment are checked with a fake Google and an in-memory store, and the Supabase store runs against the local stack in CI only. The founders' first connection (RUNBOOK §7.4) is the real test; the first thing to confirm is that the deployment built the functions and has its settings (RUNBOOK §7.4 step 0).
 - **Two questions for that first connection:** whether `calendar.events.owned` returns invitations from others, and whether Google accepts the production address for push without verifying the domain. Both have a fallback (a scope setting; polling every 15 minutes).
 - **Visual baselines:** the header's new Calendar item, the panel's sync line and the `/design` Calendar section need new Linux baselines (Actions → Visual baselines, then CI).
 - The hosted database needs `20261107150000_cell_format.sql` and `20261108090000_calendar.sql` (RUNBOOK §7.3) before this code is pushed. If the code arrives first, the calendar simply reads as not connected, and connecting fails until the migration and the variables are in place.
