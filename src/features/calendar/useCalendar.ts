@@ -48,6 +48,10 @@ export function calendarErrorMessage(error: unknown): string {
       return 'Use a time like 4:00 pm.'
     case 'not_configured':
       return 'Google Calendar is not set up on the server yet.'
+    case 'unauthorized':
+      return 'The calendar server could not confirm your sign-in. Sign out and in again, then retry.'
+    case 'server_error':
+      return 'The calendar server hit an error. Try again in a minute.'
     case 'network':
       return 'Could not reach the server. Check the connection.'
     default:

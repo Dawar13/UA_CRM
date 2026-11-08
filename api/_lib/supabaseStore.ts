@@ -545,9 +545,13 @@ export async function memberForToken(
   url: string,
   publishableKey: string,
   token: string,
+  onRefused?: (code: string) => void,
 ): Promise<MemberInfo | null> {
   const { data, error } = await serverClient(url, publishableKey, token).rpc('api_me')
-  if (error || !data) return null
+  if (error || !data) {
+    onRefused?.(error ? (error.code ?? 'error') : 'not_on_team')
+    return null
+  }
   const m = data as { id?: string; email?: string; name?: string; slug?: string; active?: boolean }
   if (!m.id || m.active === false) return null
   return {

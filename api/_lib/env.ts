@@ -49,6 +49,11 @@ function key(base64: string, name: string): Buffer {
 /**
  * Reads the settings. `CALENDAR_TOKEN_KEYS_PREVIOUS` ("1:<base64>,2:<base64>") keeps older keys
  * readable during a rotation (docs/RUNBOOK.md).
+ *
+ * Supabase: the server must use the project the app signs in to, so it takes the app's own
+ * `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` first (both public), and the secret key
+ * from `CALENDAR_SUPABASE_SECRET_KEY` first. A Vercel Supabase integration may also define
+ * `SUPABASE_URL` and its keys for another project; those are only the fallback.
  */
 export function readEnv(source: Record<string, string | undefined> = process.env): ServerEnv {
   const get = (name: string) => source[name]?.trim() ?? ''
@@ -57,12 +62,17 @@ export function readEnv(source: Record<string, string | undefined> = process.env
     'GOOGLE_CLIENT_SECRET',
     'CALENDAR_TOKEN_KEY',
     'APP_BASE_URL',
-    'SUPABASE_URL',
-    'SUPABASE_PUBLISHABLE_KEY',
   ]
   const missing = required.filter((name) => get(name) === '')
-  const secretKey = get('SUPABASE_SECRET_KEY') || get('SUPABASE_SERVICE_ROLE_KEY')
-  if (secretKey === '') missing.push('SUPABASE_SECRET_KEY')
+  const supabaseUrl = get('VITE_SUPABASE_URL') || get('SUPABASE_URL')
+  const publishableKey = get('VITE_SUPABASE_PUBLISHABLE_KEY') || get('SUPABASE_PUBLISHABLE_KEY')
+  const secretKey =
+    get('CALENDAR_SUPABASE_SECRET_KEY') ||
+    get('SUPABASE_SECRET_KEY') ||
+    get('SUPABASE_SERVICE_ROLE_KEY')
+  if (supabaseUrl === '') missing.push('VITE_SUPABASE_URL')
+  if (publishableKey === '') missing.push('VITE_SUPABASE_PUBLISHABLE_KEY')
+  if (secretKey === '') missing.push('CALENDAR_SUPABASE_SECRET_KEY')
   if (missing.length > 0) throw new ConfigError(missing)
 
   const version = Number(get('CALENDAR_TOKEN_KEY_VERSION') || '1')
@@ -89,8 +99,8 @@ export function readEnv(source: Record<string, string | undefined> = process.env
     googleApiBase: get('GOOGLE_API_BASE') || GOOGLE_DEFAULTS.apiBase,
     calendarScope: get('GOOGLE_CALENDAR_SCOPE') || GOOGLE_DEFAULTS.scope,
     appBaseUrl: get('APP_BASE_URL').replace(/\/+$/, ''),
-    supabaseUrl: get('SUPABASE_URL'),
-    supabasePublishableKey: get('SUPABASE_PUBLISHABLE_KEY'),
+    supabaseUrl,
+    supabasePublishableKey: publishableKey,
     supabaseSecretKey: secretKey,
     tokenKeys,
     tokenKeyVersion: version,

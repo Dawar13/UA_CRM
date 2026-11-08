@@ -61,11 +61,34 @@ describe('token encryption', () => {
       SUPABASE_PUBLISHABLE_KEY: 'p',
       SUPABASE_SERVICE_ROLE_KEY: 's',
     })
+    expect(env).toMatchObject({
+      supabaseUrl: 'https://x.supabase.co',
+      supabasePublishableKey: 'p',
+      supabaseSecretKey: 's',
+    })
     expect(env.tokenKeyVersion).toBe(2)
     expect([...env.tokenKeys.keys()].sort()).toEqual([1, 2])
     expect(env.appBaseUrl).toBe('https://crm.example')
     expect(env.calendarScope).toBe('https://www.googleapis.com/auth/calendar.events.owned')
     expect(() => readEnv({})).toThrow(ConfigError)
+    // The app's own project wins over an integration's SUPABASE_* for another project.
+    const own = readEnv({
+      GOOGLE_CLIENT_ID: 'id',
+      GOOGLE_CLIENT_SECRET: 'secret',
+      CALENDAR_TOKEN_KEY: key,
+      APP_BASE_URL: 'https://crm.example',
+      VITE_SUPABASE_URL: 'https://app.supabase.co',
+      VITE_SUPABASE_PUBLISHABLE_KEY: 'app-publishable',
+      CALENDAR_SUPABASE_SECRET_KEY: 'app-secret',
+      SUPABASE_URL: 'https://integration.supabase.co',
+      SUPABASE_PUBLISHABLE_KEY: 'integration-publishable',
+      SUPABASE_SECRET_KEY: 'integration-secret',
+    })
+    expect(own).toMatchObject({
+      supabaseUrl: 'https://app.supabase.co',
+      supabasePublishableKey: 'app-publishable',
+      supabaseSecretKey: 'app-secret',
+    })
     try {
       readEnv({ GOOGLE_CLIENT_ID: 'x' })
     } catch (error) {

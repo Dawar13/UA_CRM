@@ -7,7 +7,13 @@ import { ConfigError, readEnv } from './env.js'
 import type { HandlerDeps } from './handlers.js'
 import { bearer, json } from './http.js'
 import { consoleLogger } from './log.js'
-import { memberForToken, SupabaseStore, serverClient, supabaseRowGateway } from './supabaseStore.js'
+import {
+  memberForToken,
+  StoreError,
+  SupabaseStore,
+  serverClient,
+  supabaseRowGateway,
+} from './supabaseStore.js'
 
 let cached: HandlerDeps | null = null
 
@@ -22,7 +28,12 @@ export function productionDeps(source: Record<string, string | undefined> = proc
     async authenticate(request) {
       const token = bearer(request)
       if (!token) return null
-      const member = await memberForToken(env.supabaseUrl, env.supabasePublishableKey, token)
+      const member = await memberForToken(
+        env.supabaseUrl,
+        env.supabasePublishableKey,
+        token,
+        (code) => consoleLogger('calendar.auth.refused', { code }),
+      )
       return member ? { member, token } : null
     },
     rowsFor: (caller) =>
@@ -57,6 +68,8 @@ export function route(handler: Handler) {
         deps.log('calendar.error', {
           path: new URL(request.url).pathname,
           name: error instanceof Error ? error.name : 'unknown',
+          // A store error names only its operation and the database's error code.
+          detail: error instanceof StoreError ? error.message : undefined,
         })
         return json({ error: 'server_error' }, 500)
       }

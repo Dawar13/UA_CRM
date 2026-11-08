@@ -163,19 +163,17 @@ node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 
 Run it twice: once for `CALENDAR_TOKEN_KEY`, once for `CRON_SECRET`.
 
-| Name                         | Value                                                                 | Sensitive |
-| ---------------------------- | --------------------------------------------------------------------- | --------- |
-| `GOOGLE_CLIENT_ID`           | From 7.1                                                              | No        |
-| `GOOGLE_CLIENT_SECRET`       | From 7.1                                                              | Yes       |
-| `CALENDAR_TOKEN_KEY`         | The first random value                                                | Yes       |
-| `CALENDAR_TOKEN_KEY_VERSION` | `1` (optional; 1 is the default)                                      | No        |
-| `CRON_SECRET`                | The second random value (Vercel sends it to the daily job)            | Yes       |
-| `APP_BASE_URL`               | `https://<your production domain>`, no slash at the end               | No        |
-| `SUPABASE_URL`               | The same value as `VITE_SUPABASE_URL`                                 | No        |
-| `SUPABASE_PUBLISHABLE_KEY`   | The same value as `VITE_SUPABASE_PUBLISHABLE_KEY`                     | No        |
-| `SUPABASE_SECRET_KEY`        | Supabase → Project Settings → API Keys → a secret key (`sb_secret_…`) | Yes       |
+| Name                           | Value                                                                                                                 | Sensitive |
+| ------------------------------ | --------------------------------------------------------------------------------------------------------------------- | --------- |
+| `GOOGLE_CLIENT_ID`             | From 7.1                                                                                                              | No        |
+| `GOOGLE_CLIENT_SECRET`         | From 7.1                                                                                                              | Yes       |
+| `CALENDAR_TOKEN_KEY`           | The first random value                                                                                                | Yes       |
+| `CALENDAR_TOKEN_KEY_VERSION`   | `1` (optional; 1 is the default)                                                                                      | No        |
+| `CRON_SECRET`                  | The second random value (Vercel sends it to the daily job)                                                            | Yes       |
+| `APP_BASE_URL`                 | `https://<your production domain>`, no slash at the end                                                               | No        |
+| `CALENDAR_SUPABASE_SECRET_KEY` | A secret key of the **ua-crm** project: Supabase → ua-crm → Project Settings → API Keys → Secret keys (`sb_secret_…`) | Yes       |
 
-None of these may start with `VITE_`: that would put them in the browser. Then **Deployments → Redeploy** the latest production deployment.
+The server takes the project URL and publishable key from your existing `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`, so it always uses the project the app signs in to. A Vercel Supabase integration may add its own `SUPABASE_URL` and keys, possibly for another project; the server ignores them when these are set. None of the new names may start with `VITE_`: that would put them in the browser. Then **Deployments → Redeploy** the latest production deployment.
 
 ### 7.3 Database
 
