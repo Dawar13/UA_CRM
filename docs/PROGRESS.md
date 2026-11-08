@@ -454,3 +454,8 @@ Screenshots: `docs/screenshots/p2-*-light.png` and `-dark.png` (the week page, t
 **Next**
 
 Part 1 ends with the founders' first connections and a week of use. Part 2 (PDF and photo import) is not started.
+
+### Founder feedback, 8 Nov 2026: the pixel pipeline
+
+- **The folder front's pipeline** is now stacks of small squares on a faint dot matrix (D-053): one square per person who reached each stage, those there now at the bottom in their warmth colour, those who went further in the stage's blue, those lost there in charcoal, with conversion chips on a sand baseline. Hover a stage to bring it forward. Try it: open Dawar's Customers; then ⋯ → Load 2,000-row sheet to see each square stand for 48 people. Screenshots: `docs/screenshots/p2-pipeline-light.png` and `-dark.png`.
+- **Production check:** both migrations are on the hosted database (the calendar tables exist; no connections yet). The calendar code reaches production with the next push.

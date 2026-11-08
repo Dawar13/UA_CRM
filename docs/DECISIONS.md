@@ -609,3 +609,17 @@ Container jobs first make sure git is installed (otherwise checkout falls back t
 - **Today** lists today's meetings first; an expanded row shows the next meeting with that contact.
 
 **Consequences.** The header gains an item, so visual baselines change, as does `/design` (a Calendar section).
+
+## D-053 · 8 Nov 2026 · The pixel pipeline replaces the funnel
+
+**Context.** The founders asked for a pipeline chart more in keeping with their data-visualisation references: pixel bar charts built from small cells, dot columns, and step-down stage bars with conversion between them.
+
+**Decision.**
+
+- Each stage is a stack of 9px rounded squares, one per person who reached it, rising from a sand baseline, on a faint dot matrix that runs across the whole card. Its height is the stage's "reached" count, so the stacks step down along the pipeline like the funnel did.
+- From the bottom: who is at the stage now in their warmth colour, deeper when touched more recently (sand when unset); then anyone lost at that stage, in charcoal; then everyone who went further, in the stage's blue. The blue starts two steps into the ramp (`--capsule3`), so even the first stage reads on the card, and deepens to `--capsule8` (reversed in dark mode).
+- A stack is as narrow as the busiest stage allows (2 to 6 squares across, 7 rows), so bars stay tall. Past about 42 people at one stage, each square stands for several and the caption says how many; lost dots follow the same scale.
+- Conversion chips sit on the baseline between stages. The Lost column keeps its charcoal dots, now in the same grid. Squares pop in from the bottom, stage by stage (not under reduced motion); hovering one stage dims the others. Each square for a person names them and their last touch, as before.
+- `SummaryStage` gains `stopped`, the people lost at that stage, so they are not drawn as having gone further. The funnel geometry and `PipelineCapsule` are removed.
+
+**Consequences.** The folder front's visual baselines change. The screen-reader list of stages is unchanged.

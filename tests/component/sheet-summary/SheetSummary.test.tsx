@@ -163,15 +163,21 @@ describe('SheetSummary', () => {
 })
 
 describe('PipelineCard with stages', () => {
-  it('draws one band per stage, with conversion between stages', () => {
+  it('draws a stack of squares per stage, one per person who reached it, with conversion', () => {
     renderUi(<Connected sheet={customers} />)
-    const capsule = screen.getByTestId('pipeline-capsule')
-    expect(capsule).toHaveAttribute('aria-hidden', 'true')
-    const bands = capsule.querySelectorAll('[data-stage-band]')
-    expect(bands).toHaveLength(7)
-    expect((bands[0] as SVGElement).style.fill).toBe('var(--capsule1)')
-    expect((bands[3] as SVGElement).style.fill).toBe('var(--capsule5)')
-    expect((bands[6] as SVGElement).style.fill).toBe('var(--capsule8)')
+    const pixels = screen.getByTestId('pipeline-pixels')
+    expect(pixels.closest('[aria-hidden="true"]')).not.toBeNull()
+    const stacks = Array.from(pixels.querySelectorAll<HTMLElement>('[data-stage-people]'))
+    expect(stacks).toHaveLength(7)
+    expect(stacks.map((s) => s.querySelectorAll('[data-cell]').length)).toEqual([
+      12, 10, 8, 6, 3, 2, 1,
+    ])
+    // Those who went further take the stage's blue, deepening along the pipeline.
+    const wentOn = (i: number) =>
+      stacks[i]?.querySelector<HTMLElement>('[data-cell="went-on"]')?.style.backgroundColor
+    expect(wentOn(0)).toBe('var(--capsule3)')
+    expect(wentOn(3)).toBe('var(--capsule6)')
+    expect(wentOn(5)).toBe('var(--capsule7)')
     expect(screen.getAllByTestId('conversion-pill').map((p) => p.textContent)).toEqual([
       '83%',
       '80%',
@@ -182,15 +188,18 @@ describe('PipelineCard with stages', () => {
     ])
   })
 
-  it('stops the band at the last stage anyone reached', () => {
+  it('leaves the stages nobody reached empty', () => {
     renderUi(<Connected sheet={dhruvCustomers} />)
-    const bands = screen.getByTestId('pipeline-capsule').querySelectorAll('[data-stage-band]')
+    const stacks = screen.getByTestId('pipeline-pixels').querySelectorAll('[data-stage-people]')
     // Dhruv's customers reach Plant visit (stage 4 of 7) and no further.
-    expect(Array.from(bands, (b) => b.getAttribute('data-stage-band'))).toEqual([
-      '0',
-      '1',
-      '2',
-      '3',
+    expect(Array.from(stacks, (s) => s.querySelectorAll('[data-cell]').length > 0)).toEqual([
+      true,
+      true,
+      true,
+      true,
+      false,
+      false,
+      false,
     ])
     expect(screen.getAllByTestId('conversion-pill').map((p) => p.textContent)).toEqual([
       '60%',
@@ -247,7 +256,7 @@ describe('PipelineCard with stages', () => {
         onOpenChange={vi.fn()}
       />,
     )
-    expect(screen.getByTestId('pipeline-capsule')).toBeEmptyDOMElement()
+    expect(screen.getByTestId('pipeline-pixels').querySelectorAll('[data-cell]')).toHaveLength(0)
     expect(screen.queryAllByTestId('conversion-pill')).toHaveLength(0)
     expect(figure('people')).toHaveTextContent('No warmth set yet')
     expect(figure('due')).toHaveTextContent('Nothing due')
@@ -259,7 +268,7 @@ describe('PipelineCard without stages', () => {
     renderUi(<Connected sheet={connectors} index={3} />)
     expect(screen.getByText('Owned by Dawar · no stages')).toBeInTheDocument()
     expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent('By relationship')
-    expect(screen.queryByTestId('pipeline-capsule')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('pipeline-pixels')).not.toBeInTheDocument()
     const items = within(screen.getByRole('list', { name: 'People by group' }))
       .getAllByRole('listitem')
       .map((li) => li.textContent)

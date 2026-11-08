@@ -37,7 +37,7 @@ None of the three is optional. A screen that works but looks rough is not done, 
 | /01 Customers 12\ /02 Investors 6\ /03 …\   (folder tabs)| THIS WEEK      |
 | +-------------------------------------------------------+| 7-day strip    |
 | | 01 — CUSTOMERS            folder front (blue → white)  || last 30 days   |
-| | People · Open pipeline    | Pipeline: funnel + squares || (dot field)    |
+| | People · Open pipeline    | Pipeline: pixel stacks     || (dot field)    |
 | | Won    · Due              |                            ||                |
 | +-------------------------------------------------------+| agenda cards   |
 | | > quick add (own tab only)                             ||                |
@@ -274,7 +274,7 @@ The founders approved this look in M0.6 (5 Nov 2026). It is calm and art-like: p
 **The blue palette** (from the founders' reference), navy to white: #03045E, #033E8A, #0078B7, #0096C8, #00B4D7, #48CAE4, #91E0EF, #AEE8F4, #CAF1F8, #FFFFFF. It is used for:
 - **Folders.** Each sheet's tab is a two-stop gradient, deepest first: 01 #0096C8 → #00B4D7, 02 #00B4D7 → #48CAE4, 03 #48CAE4 → #91E0EF, 04 #91E0EF → #AEE8F4, 05 #AEE8F4 → #CAF1F8 (sheet n takes folder n mod 5). The folder front fades from its colour to paper. Ink text. In dark mode the tabs run #0078B7 down to #03045E with white text.
 - **Stages.** Open stages step from light (early) to deep (far along): #CAF1F8, #91E0EF, #48CAE4, #00B4D7, #0096C8, #0078B7.
-- **The pipeline funnel:** #CAF1F8 → #033E8A across the stages (reversed in dark mode).
+- **The pixel pipeline** (folder front, D-053): a stack of small squares per stage, one per person who reached it, on a faint dot matrix. At the bottom, who is there now in their warmth colour (deeper when touched more recently); above, those who went further in the stage's blue, #91E0EF → #033E8A along the stages (reversed in dark mode); charcoal for those lost there. Conversion chips sit on a sand baseline. On big sheets a square stands for several people, and the caption says how many.
 - **Primary buttons:** #0078B7 with white text. The focus ring is #0078B7 (light) and #48CAE4 (dark).
 - **Today markers:** a sky gradient (#48CAE4 → #00B4D7 with ink text). The brand mark is the founders' logo (§3.4); the #6CC4F6 → #1C9BEA token remains for the open member and accents.
 
@@ -390,7 +390,7 @@ ua-crm/
     features/
       grid/                      SheetGrid (virtualised ARIA grid and keyboard layer), GridRow,
                                  cells, column model
-      sheet-summary/             folder front: figures, pipeline card and funnel
+      sheet-summary/             folder front: figures, pipeline card (pixel stacks)
       row-detail/                expanded row: tracker, warmth, next action, fields, history
       calendar-panel/            right panel: week strip, 30-day activity field, agenda
       calendar/                  Phase 2: Google Calendar states, the week page, next actions in the

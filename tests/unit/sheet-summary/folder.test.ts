@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest'
+import type { SummaryPerson, SummaryStage } from '@/domain/summary'
+import type { Warmth } from '@/domain/types'
 import {
-  capsuleGeometry,
   capsuleStep,
   faceBackground,
   folderNumber,
   lastReachedIndex,
+  pixelPipeline,
+  pixelStep,
   sheetNumber,
   tabGradient,
   warmthShade,
@@ -44,11 +47,37 @@ describe('folder colours', () => {
   })
 })
 
-describe('capsule', () => {
-  it('steps the capsule shades evenly from the first stage to the last', () => {
+describe('pixel pipeline', () => {
+  const person = (id: string, warmth: Warmth | null, recency: 0 | 1 | 2 = 0): SummaryPerson => ({
+    id,
+    name: id,
+    warmth,
+    recency,
+  })
+  const stage = (
+    index: number,
+    reached: number,
+    here: SummaryPerson[] = [],
+    stopped = 0,
+  ): SummaryStage => ({
+    id: `s${index}`,
+    name: `Stage ${index}`,
+    index,
+    reached,
+    here,
+    stopped,
+    isWin: false,
+  })
+
+  it('steps the blue ramp evenly from the first stage to the last', () => {
     expect([0, 1, 2, 3, 4, 5, 6].map((i) => capsuleStep(i, 7))).toEqual([1, 2, 3, 5, 6, 7, 8])
     expect([0, 1, 2].map((i) => capsuleStep(i, 3))).toEqual([1, 5, 8])
     expect(capsuleStep(0, 1)).toBe(5)
+  })
+
+  it('starts the went-further blue two steps in, so the first stage reads on the card', () => {
+    expect([0, 1, 2, 3, 4, 5, 6].map((i) => pixelStep(i, 7))).toEqual([3, 4, 5, 6, 6, 7, 8])
+    expect(pixelStep(0, 1)).toBe(6)
   })
 
   it('finds the last stage anyone reached', () => {
@@ -57,51 +86,61 @@ describe('capsule', () => {
     expect(lastReachedIndex([])).toBe(-1)
   })
 
-  it('draws nothing without width or without anyone in the pipeline', () => {
-    expect(capsuleGeometry([3, 1], 0, 56)).toBeNull()
-    expect(capsuleGeometry([0, 0, 0], 600, 56)).toBeNull()
-    expect(capsuleGeometry([], 600, 56)).toBeNull()
+  it('gives one square per person: who is here, who stopped here, who went on', () => {
+    const grid = pixelPipeline([
+      stage(0, 12, [person('cold', 'cold'), person('warm', 'warm', 1), person('warm2', 'warm', 2)]),
+      stage(1, 9, [person('none', null)], 1),
+      stage(2, 0),
+    ])
+    expect(grid).toMatchObject({ unit: 1, columns: 2, rows: 7 })
+    const first = grid.stages[0]?.cells ?? []
+    expect(first).toHaveLength(12)
+    // Warm first, the more recently touched first; then cold; then everyone who went on.
+    expect(first.slice(0, 3).map((c) => (c.kind === 'here' ? c.person?.id : c.kind))).toEqual([
+      'warm2',
+      'warm',
+      'cold',
+    ])
+    expect(first.slice(3).every((c) => c.kind === 'went-on')).toBe(true)
+    expect(grid.stages[1]?.cells.map((c) => c.kind)).toEqual([
+      'here',
+      'stopped',
+      ...Array(7).fill('went-on'),
+    ])
+    expect(grid.stages[2]?.cells).toEqual([])
+    expect(grid.stages.map((s) => s.step)).toEqual([3, 6, 8])
   })
 
-  it('has one band per stage up to the last reached stage, 1px apart', () => {
-    const geometry = capsuleGeometry([5, 3, 2, 1, 0, 0, 0], 700, 56)
-    if (!geometry) throw new Error('expected a capsule')
-    expect(geometry.bands.map((b) => b.index)).toEqual([0, 1, 2, 3])
-    expect(geometry.bands.map((b) => b.step)).toEqual([1, 2, 3, 5])
-    // 100px columns: the first band starts at 0, the others 1px in, each leaves a 1px gap.
-    expect(geometry.bands.map((b) => [b.x, b.width])).toEqual([
-      [0, 99],
-      [101, 98],
-      [201, 98],
-      [301, 99],
+  it('keeps bars tall: as few squares across as the busiest stage needs', () => {
+    expect(pixelPipeline([stage(0, 3)]).columns).toBe(2)
+    expect(pixelPipeline([stage(0, 30)]).columns).toBe(5)
+    expect(pixelPipeline([stage(0, 42)]).columns).toBe(6)
+  })
+
+  it('lets a square stand for several people when the busiest stage outgrows the grid', () => {
+    const here = [
+      ...Array.from({ length: 6 }, (_, i) => person(`w${i}`, 'warm', 2)),
+      ...Array.from({ length: 3 }, (_, i) => person(`c${i}`, 'cold')),
+    ]
+    const grid = pixelPipeline([stage(0, 100), stage(1, 40, here)])
+    expect(grid.unit).toBe(3)
+    expect(grid.columns).toBe(5)
+    expect(grid.stages[0]?.cells).toHaveLength(33)
+    const cells = grid.stages[1]?.cells ?? []
+    expect(cells).toHaveLength(13)
+    // Nine people in three squares, shared by warmth: two warm, one cold.
+    expect(cells.slice(0, 3)).toEqual([
+      { kind: 'here', warmth: 'warm', recency: 2, person: null },
+      { kind: 'here', warmth: 'warm', recency: 2, person: null },
+      { kind: 'here', warmth: 'cold', recency: 0, person: null },
     ])
   })
 
-  it('is a funnel: a flat full-height mouth, sides that only narrow, and a round spout', () => {
-    const geometry = capsuleGeometry([12, 10, 8, 6, 3, 2, 1], 700, 56)
-    if (!geometry) throw new Error('expected a funnel')
-    const { path } = geometry
-    // The mouth: everyone reached the first stage, so the left edge is the full 56px height.
-    expect(path.startsWith('M 0 0 ')).toBe(true)
-    expect(path.endsWith(' 0 56 Z')).toBe(true)
-    // The spout: 70% of the last stage's half-thickness (6 + 1/12 × 22 ≈ 7.83), so ≈ 5.48,
-    // ending 2px before the column edge.
-    expect(path).toContain('A 5.48 5.48 0 0 1 692.52 33.48')
-    // The top edge only ever moves down (narrows) from the mouth to the spout.
-    const top = path.split(' A ')[0] ?? ''
-    const ys = [...top.matchAll(/ ([\d.]+) ([\d.]+)(?= C| *$)/g)].map((m) => Number(m[2]))
-    expect(ys.length).toBeGreaterThan(5)
-    for (let i = 1; i < ys.length; i++) expect(ys[i]).toBeGreaterThanOrEqual(ys[i - 1] as number)
-    expect(geometry.bands).toHaveLength(7)
-  })
-
-  it('never runs backwards in narrow space', () => {
-    const geometry = capsuleGeometry([10, 10, 10], 60, 56)
-    if (!geometry) throw new Error('expected a capsule')
-    const xs = [...geometry.path.matchAll(/C [\d.]+ [\d.]+ [\d.]+ [\d.]+ ([\d.]+) /g)].map((m) =>
-      Number(m[1]),
-    )
-    const top = xs.slice(0, xs.length / 2)
-    for (let i = 1; i < top.length; i++) expect(top[i]).toBeGreaterThan(top[i - 1] as number)
+  it('never draws more squares than the grid holds, and nothing for an empty pipeline', () => {
+    const grid = pixelPipeline([stage(0, 5, [], 9)])
+    expect(grid.stages[0]?.cells.length).toBeLessThanOrEqual(grid.rows * grid.columns)
+    expect(
+      pixelPipeline([stage(0, 0), stage(1, 0)]).stages.every((s) => s.cells.length === 0),
+    ).toBe(true)
   })
 })

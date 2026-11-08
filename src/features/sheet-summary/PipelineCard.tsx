@@ -1,18 +1,30 @@
-import { type CSSProperties, useMemo } from 'react'
+import {
+  type CSSProperties,
+  type ReactNode,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import { exactDate, formatFuzzyDate, istDateOf } from '@/domain/dates'
 import { formatNumber, pluralise } from '@/domain/format'
 import { conversion, recencyOf, type SheetSummary, type SummaryPerson } from '@/domain/summary'
 import type { ColumnDef, Row, Warmth } from '@/domain/types'
 import { cn } from '@/lib/cn'
-import { lastReachedIndex, warmthShade } from './folder'
-import { PipelineCapsule } from './PipelineCapsule'
+import {
+  lastReachedIndex,
+  type PixelCell,
+  type PixelPipeline,
+  type PixelStage,
+  pixelPipeline,
+  warmthShade,
+} from './folder'
 
 /** Mono caps labels on the folder front and the pipeline card. */
 export const capsLabel = 'font-mono text-[10.5px] font-semibold uppercase tracking-[0.08em]'
 
 /** More people than this in one column show as "+N" after the squares. */
 const MAX_SQUARES = 18
-const MAX_LOST_DOTS = 6
 
 const WARMTH_GROUPS: readonly { warmth: Warmth | null; label: string }[] = [
   { warmth: 'warm', label: 'Warm' },
@@ -87,13 +99,185 @@ function columns(count: number): CSSProperties {
   return { gridTemplateColumns: `repeat(${count}, minmax(0, 1fr))` }
 }
 
+/** A square is 9px with 2px between, so seven rows stand 75px tall. */
+const CELL = 9
+const GAP = 2
+
+function stackStyle(cols: number, rows: number): CSSProperties {
+  return {
+    display: 'grid',
+    gridTemplateColumns: `repeat(${cols}, ${CELL}px)`,
+    gridTemplateRows: `repeat(${rows}, ${CELL}px)`,
+    gap: `${GAP}px`,
+  }
+}
+
+const CELL_BASE = 'block rounded-[2.5px] origin-bottom motion-safe:animate-pop-in'
+
+/** One square: a person here (warmth, deeper when recent), lost here, went on (blue), or empty. */
+function Cell({
+  cell,
+  step,
+  delay,
+  titleOf,
+  unit,
+}: {
+  cell: PixelCell | undefined
+  step: number
+  delay: number
+  titleOf: TitleOf
+  unit: number
+}) {
+  const motion: CSSProperties = { animationDelay: `${delay}ms`, animationFillMode: 'both' }
+  if (!cell) return <span className={cn(CELL_BASE, 'bg-stage-track')} style={motion} />
+  if (cell.kind === 'went-on') {
+    return (
+      <span
+        data-cell="went-on"
+        className={CELL_BASE}
+        style={{ ...motion, backgroundColor: `var(--capsule${step})` }}
+      />
+    )
+  }
+  if (cell.kind === 'stopped') {
+    return (
+      <span
+        data-cell="stopped"
+        title={unit > 1 ? `About ${formatNumber(unit)} lost at this stage` : 'Lost at this stage'}
+        className={CELL_BASE}
+        style={{
+          ...motion,
+          backgroundColor: 'color-mix(in srgb, var(--lost-dot) 55%, transparent)',
+        }}
+      />
+    )
+  }
+  return (
+    <span
+      data-cell="here"
+      data-person={cell.person?.id}
+      title={cell.person ? titleOf(cell.person) : `About ${formatNumber(unit)} people here now`}
+      className={cn(CELL_BASE, !cell.warmth && SAND)}
+      style={
+        cell.warmth
+          ? { ...motion, backgroundColor: warmthShade(cell.warmth, cell.recency) }
+          : motion
+      }
+    />
+  )
+}
+
+/** A stage's stack, drawn top-down so the squares fill from the bottom row up. Past the bar's own
+ * width the row continues as empty cells, so the stages read as one dot matrix. */
+function Stack({
+  stage,
+  grid,
+  slotsPerRow,
+  titleOf,
+}: {
+  stage: PixelStage
+  grid: PixelPipeline
+  slotsPerRow: number
+  titleOf: TitleOf
+}) {
+  const { columns: cols, rows } = grid
+  const slots: ReactNode[] = []
+  for (let r = 0; r < rows; r++) {
+    const fromBottom = rows - 1 - r
+    for (let c = 0; c < slotsPerRow; c++) {
+      slots.push(
+        <Cell
+          key={`${r}-${c}`}
+          cell={c < cols ? stage.cells[fromBottom * cols + c] : undefined}
+          step={stage.step}
+          delay={stage.index * 45 + fromBottom * 22 + c * 6}
+          titleOf={titleOf}
+          unit={grid.unit}
+        />,
+      )
+    }
+  }
+  return (
+    <div
+      data-stage-people={stage.index}
+      style={stackStyle(slotsPerRow, rows)}
+      className="transition-opacity duration-(--duration-fast) ease-out group-hover/pixels:opacity-45 hover:opacity-100!"
+    >
+      {slots}
+    </div>
+  )
+}
+
+function LostStack({
+  people,
+  grid,
+  titleOf,
+}: {
+  people: readonly SummaryPerson[]
+  grid: PixelPipeline
+  titleOf: TitleOf
+}) {
+  const { columns: cols, rows, unit } = grid
+  // Like the stages: one dot per person, or per `unit` people on a big sheet.
+  const dots =
+    unit === 1
+      ? people.slice(0, cols * rows).map((person) => titleOf(person))
+      : Array.from(
+          {
+            length: Math.min(
+              cols * rows,
+              people.length > 0 ? Math.max(1, Math.round(people.length / unit)) : 0,
+            ),
+          },
+          () => `About ${formatNumber(unit)} people lost`,
+        )
+  const slots: ReactNode[] = []
+  for (let r = 0; r < rows; r++) {
+    const fromBottom = rows - 1 - r
+    for (let c = 0; c < cols; c++) {
+      const title = dots[fromBottom * cols + c]
+      slots.push(
+        title ? (
+          <span key={`${r}-${c}`} title={title} className="block rounded-full bg-lost-dot" />
+        ) : (
+          <span key={`${r}-${c}`} className="block rounded-full bg-stage-track" />
+        ),
+      )
+    }
+  }
+  return (
+    <div data-testid="lost-people" style={stackStyle(cols, rows)}>
+      {slots}
+    </div>
+  )
+}
+
+/** How many cells fit across one stage's column, measured so the matrix fills the card. */
+function useSlotsPerRow(count: number, minimum: number) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [slots, setSlots] = useState(minimum)
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el || count === 0) return
+    const measure = () => {
+      const fit = Math.floor((el.clientWidth / count - 6 + GAP) / (CELL + GAP))
+      const next = Math.max(minimum, fit)
+      setSlots((prev) => (prev === next ? prev : next))
+    }
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [count, minimum])
+  return { ref, slots }
+}
+
 function StagePipeline({ summary, titleOf }: { summary: SheetSummary; titleOf: TitleOf }) {
   const { stages, lostPeople } = summary
   const count = stages.length
-  const reached = useMemo(() => stages.map((s) => s.reached), [stages])
-  const last = lastReachedIndex(reached)
-  const lostShown = lostPeople.slice(0, MAX_LOST_DOTS)
-  const lostMore = lostPeople.length - lostShown.length
+  const grid = useMemo(() => pixelPipeline(stages), [stages])
+  const last = lastReachedIndex(stages.map((s) => s.reached))
+  const { ref, slots } = useSlotsPerRow(count, grid.columns)
 
   return (
     <>
@@ -116,8 +300,20 @@ function StagePipeline({ summary, titleOf }: { summary: SheetSummary; titleOf: T
               </div>
             ))}
           </div>
-          <div className="relative mb-2 mt-1.5">
-            <PipelineCapsule reached={reached} />
+          <div
+            ref={ref}
+            className="group/pixels mt-2 grid items-end"
+            style={columns(count)}
+            data-testid="pipeline-pixels"
+          >
+            {grid.stages.map((stage) => (
+              <div key={stage.index} className="min-w-0 overflow-hidden">
+                <Stack stage={stage} grid={grid} slotsPerRow={slots} titleOf={titleOf} />
+              </div>
+            ))}
+          </div>
+          <div className="relative mt-1.5 h-[18px]">
+            <span className="absolute inset-x-0 top-0 h-px bg-sand-line" />
             {stages.slice(0, Math.max(0, last)).map((stage, i) => {
               const pct = conversion(stages, i)
               if (pct === null) return null
@@ -125,41 +321,22 @@ function StagePipeline({ summary, titleOf }: { summary: SheetSummary; titleOf: T
                 <span
                   key={stage.id}
                   data-testid="conversion-pill"
-                  className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-chip bg-bg px-[5px] py-px font-mono text-[10px] font-medium text-secondary shadow-[0_0_0_1px_var(--border)]"
-                  style={{ left: `${((i + 1) / count) * 100}%` }}
+                  className="absolute top-0 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-chip bg-bg px-[5px] py-px font-mono text-[10px] font-medium text-secondary shadow-[0_0_0_1px_var(--border)]"
+                  style={{ left: `calc(${((i + 1) / count) * 100}% - 8px)` }}
                 >
                   {pct}%
                 </span>
               )
             })}
           </div>
-          <div className="grid" style={columns(count)}>
-            {stages.map((stage) => (
-              <div key={stage.id} className="min-w-0 pr-1.5" data-stage-people={stage.index}>
-                <Squares people={stage.here} titleOf={titleOf} />
-              </div>
-            ))}
-          </div>
         </div>
-        <div className="flex w-[54px] flex-none flex-col border-l border-border pl-3">
+        <div className="flex flex-none flex-col border-l border-border pl-3">
           <div className="text-[10.5px] text-lost">Lost</div>
           <div className="mt-0.5 font-mono text-[17px] font-medium tracking-[-0.02em] tabular-nums">
             {formatNumber(lostPeople.length)}
           </div>
-          <div className="flex-1" />
-          <div className="flex flex-wrap items-center gap-0.5" data-testid="lost-people">
-            {lostShown.map((person) => (
-              <span
-                key={person.id}
-                title={titleOf(person)}
-                className="inline-block size-[13px] rounded-full bg-lost-dot"
-              />
-            ))}
-            {lostMore > 0 ? (
-              <span className="font-mono text-[10px] text-secondary">
-                +{formatNumber(lostMore)}
-              </span>
-            ) : null}
+          <div className="mt-2">
+            <LostStack people={lostPeople} grid={grid} titleOf={titleOf} />
           </div>
         </div>
       </div>
@@ -171,9 +348,12 @@ function StagePipeline({ summary, titleOf }: { summary: SheetSummary; titleOf: T
         ))}
         <li>{`Lost: ${formatNumber(lostPeople.length)}`}</li>
       </ul>
-      <p className="mt-2.5 text-[10.5px] text-secondary">
-        The band is everyone who reached a stage. Squares are who is there now; deeper means touched
-        more recently.
+      <p className="mt-1 text-[10.5px] text-secondary">
+        {grid.unit > 1
+          ? `Each square is ${formatNumber(grid.unit)} people. `
+          : 'Each square is a person who reached the stage. '}
+        Who is there now in their warmth (deeper is more recent); blue went further; charcoal was
+        lost there.
       </p>
     </>
   )
@@ -231,8 +411,8 @@ function groupHeading(column: ColumnDef | null): string {
 }
 
 /**
- * The frosted card on the folder front. Sheets with stages show the pipeline funnel with the
- * people at each stage; sheets without stages show people grouped by their first dropdown
+ * The frosted card on the folder front. Sheets with stages show the pixel pipeline (D-053): a
+ * stack of squares per stage, the people there now at the bottom; sheets without stages show people grouped by their first dropdown
  * column (or by warmth when there is none).
  */
 export function PipelineCard({

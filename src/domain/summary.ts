@@ -3,7 +3,7 @@
  *
  * - Reached: everyone who got to a stage or beyond. Lost rows count up to the stage they stopped
  *   at, so the pipeline capsule tapers honestly.
- * - Here: who is at a stage now (not lost).
+ * - Here: who is at a stage now (not lost). Stopped: who was lost at that stage.
  * - Recency: how recently a person was touched (2 within 7 days, 1 within 14, 0 older or never).
  *   The warmth squares use it as their shade: deeper means touched more recently.
  */
@@ -28,6 +28,8 @@ export interface SummaryStage {
   reached: number
   /** Who is at this stage now, in sheet order. */
   here: SummaryPerson[]
+  /** How many were lost at this stage (they count in `reached`, not in `here`). */
+  stopped: number
   /** The last stage: the win. */
   isWin: boolean
 }
@@ -130,6 +132,7 @@ export function summariseSheet(sheet: Sheet, rows: readonly Row[], now: Date): S
     index,
     reached: rows.filter((row) => (effectiveStageIndex(row) ?? -1) >= index).length,
     here: rows.filter((row) => !row.lost && row.stageIndex === index).map((r) => person(r, now)),
+    stopped: rows.filter((row) => row.lost && effectiveStageIndex(row) === index).length,
     isWin: index === sheet.stages.length - 1,
   }))
 

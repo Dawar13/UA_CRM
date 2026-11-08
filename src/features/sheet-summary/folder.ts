@@ -1,9 +1,10 @@
 /**
- * Folder colours and pipeline geometry for the sheet tabs and the folder front. Pure.
+ * Folder colours and the pixel pipeline for the sheet tabs and the folder front. Pure.
  *
  * Each sheet is a coloured folder: its tab and the top of its front share one of five gradients
  * (`--folder1-top` … `--folder5-bottom`), picked by the sheet's position in the member's list.
  */
+import type { Recency, SummaryPerson, SummaryStage } from '@/domain/summary'
 import type { Warmth } from '@/domain/types'
 
 export const FOLDER_COUNT = 5
@@ -52,7 +53,7 @@ export function faceBackground(folder: FolderNumber, open: boolean): string {
 /** Number of capsule shades, `--capsule1` (lightest in light mode) to `--capsule8`. */
 export const CAPSULE_STEPS = 8
 
-/** Funnel band shade (1 to 8) for stage `index` of `count`: evenly from first to last. */
+/** A stage's shade of the blue ramp (1 to 8) for stage `index` of `count`: evenly first to last. */
 export function capsuleStep(index: number, count: number): number {
   if (count <= 1) return 5
   return Math.round((index * (CAPSULE_STEPS - 1)) / (count - 1)) + 1
@@ -72,108 +73,121 @@ export function lastReachedIndex(reached: readonly number[]): number {
   return last
 }
 
-export interface CapsuleBand {
+/**
+ * The blue for those who went further at stage `index` of `count`: `--capsule3` to `--capsule8`.
+ * The palest two steps are left out, so even the first stage's squares read against the card.
+ */
+export function pixelStep(index: number, count: number): number {
+  if (count <= 1) return 6
+  return 3 + Math.round((index * (CAPSULE_STEPS - 3)) / (count - 1))
+}
+
+/** Rows of squares in the pixel pipeline: its height. */
+export const PIXEL_ROWS = 7
+/** At most this many squares across one stage; wider data makes each square stand for more people. */
+export const PIXEL_MAX_COLUMNS = 6
+
+const WARMTH_ORDER: readonly (Warmth | null)[] = ['warm', 'waiting', 'cold', null]
+
+export type PixelCell =
+  /** Someone at this stage now (or, when a square stands for several, a group of them). */
+  | { kind: 'here'; warmth: Warmth | null; recency: Recency; person: SummaryPerson | null }
+  /** Someone lost at this stage. */
+  | { kind: 'stopped' }
+  /** Someone who reached this stage and went further. */
+  | { kind: 'went-on' }
+
+export interface PixelStage {
   index: number
-  x: number
-  width: number
+  /** Bottom-up, filling each row left to right: who is here, who stopped here, who went on. */
+  cells: PixelCell[]
+  /** The stage's shade of the blue ramp (`--capsule3` … `--capsule8`), for those who went on. */
   step: number
 }
 
-export interface CapsuleGeometry {
-  /** Outline of the funnel, used as a clip path. */
-  path: string
-  /** One band per stage up to the last reached stage, 1px apart. */
-  bands: CapsuleBand[]
+export interface PixelPipeline {
+  /** People per square: 1 unless the busiest stage outgrows the grid. */
+  unit: number
+  /** Squares across each stage: as few as fit the busiest stage in the rows, so bars stay tall. */
+  columns: number
+  rows: number
+  stages: PixelStage[]
 }
 
-const MIN_HALF = 6
+function byWarmthThenRecency(a: SummaryPerson, b: SummaryPerson): number {
+  return WARMTH_ORDER.indexOf(a.warmth) - WARMTH_ORDER.indexOf(b.warmth) || b.recency - a.recency
+}
 
-function round(value: number): number {
-  return Math.round(value * 100) / 100
+/** `people` as `count` squares, shared between warmth groups by largest remainder. */
+function groupedSquares(people: readonly SummaryPerson[], count: number): PixelCell[] {
+  if (count <= 0) return []
+  const groups = WARMTH_ORDER.map((warmth) => {
+    const members = people.filter((p) => p.warmth === warmth)
+    const exact = (members.length / people.length) * count
+    return {
+      warmth,
+      recency: Math.max(0, ...members.map((p) => p.recency)) as Recency,
+      squares: Math.floor(exact),
+      remainder: exact - Math.floor(exact),
+    }
+  })
+  let left = count - groups.reduce((sum, g) => sum + g.squares, 0)
+  for (const g of [...groups].sort((a, b) => b.remainder - a.remainder)) {
+    if (left <= 0) break
+    if (g.remainder > 0) {
+      g.squares += 1
+      left -= 1
+    }
+  }
+  return groups.flatMap((g) =>
+    Array.from({ length: g.squares }, () => ({
+      kind: 'here' as const,
+      warmth: g.warmth,
+      recency: g.recency,
+      person: null,
+    })),
+  )
 }
 
 /**
- * The pipeline as a horizontal funnel across `width` × `height`. Each stage owns an equal column.
- * The funnel opens with a flat, full-height mouth on the left (everyone who reached the first
- * stage) and narrows through each stage boundary in proportion to how many reached that stage,
- * along monotone curves (Fritsch–Carlson) so the sides never bulge, to a rounded spout at the end
- * of the last stage anyone reached. Nothing is drawn past it. Null when there is nothing to draw.
+ * The pipeline as stacks of squares (D-053), one stack per stage, read like a pixel bar chart:
+ * a stage's height is everyone who reached it. At the bottom sit the people there now in their
+ * warmth colour, then those lost there, then those who went further, in the stage's blue.
  */
-export function capsuleGeometry(
-  reached: readonly number[],
-  width: number,
-  height: number,
-): CapsuleGeometry | null {
-  const count = reached.length
-  const last = lastReachedIndex(reached)
-  if (count === 0 || last < 0 || !(width > 0) || !(height > 0)) return null
-
-  const cy = height / 2
-  const max = Math.max(1, ...reached)
-  const col = width / count
-  const half = (value: number) => Math.min(cy, MIN_HALF + (value / max) * (cy - MIN_HALF))
-  const end = (last + 1) * col - 2
-  const tip = Math.max(MIN_HALF * 0.75, half(reached[last] ?? 0) * 0.7)
-
-  // The top edge at each stage boundary: [x, half-thickness], then the spout.
-  const points: [number, number][] = []
-  for (let i = 0; i <= last; i++) points.push([i * col, half(reached[i] ?? 0)])
-  points.push([Math.max(end - tip, last * col + 1), tip])
-  const n = points.length
-  const xs = points.map((p) => p[0])
-  const hs = points.map((p) => p[1])
-
-  // Monotone cubic slopes (Fritsch–Carlson).
-  const secants: number[] = []
-  for (let k = 0; k < n - 1; k++) {
-    const dx = (xs[k + 1] as number) - (xs[k] as number)
-    secants.push(dx > 0 ? ((hs[k + 1] as number) - (hs[k] as number)) / dx : 0)
+export function pixelPipeline(
+  stages: readonly SummaryStage[],
+  rows = PIXEL_ROWS,
+  maxColumns = PIXEL_MAX_COLUMNS,
+): PixelPipeline {
+  const busiest = stages.reduce((max, s) => Math.max(max, s.reached), 0)
+  const unit = Math.max(1, Math.ceil(busiest / (rows * maxColumns)))
+  const squares = (people: number) => (people > 0 ? Math.max(1, Math.round(people / unit)) : 0)
+  const columns = Math.max(2, Math.min(maxColumns, Math.ceil(squares(busiest) / rows)))
+  return {
+    unit,
+    columns,
+    rows,
+    stages: stages.map((stage) => {
+      const here: PixelCell[] =
+        unit === 1
+          ? [...stage.here].sort(byWarmthThenRecency).map((person) => ({
+              kind: 'here' as const,
+              warmth: person.warmth,
+              recency: person.recency,
+              person,
+            }))
+          : groupedSquares(stage.here, squares(stage.here.length))
+      const stopped = squares(stage.stopped)
+      const wentOn = Math.max(0, squares(stage.reached) - here.length - stopped)
+      return {
+        index: stage.index,
+        step: pixelStep(stage.index, stages.length),
+        cells: [
+          ...here,
+          ...Array.from({ length: stopped }, () => ({ kind: 'stopped' as const })),
+          ...Array.from({ length: wentOn }, () => ({ kind: 'went-on' as const })),
+        ].slice(0, rows * columns),
+      }
+    }),
   }
-  const slopes: number[] = new Array(n).fill(0)
-  slopes[0] = secants[0] ?? 0
-  slopes[n - 1] = secants[n - 2] ?? 0
-  for (let k = 1; k < n - 1; k++) {
-    const a = secants[k - 1] as number
-    const b = secants[k] as number
-    slopes[k] = a * b <= 0 ? 0 : (a + b) / 2
-  }
-  for (let k = 0; k < n - 1; k++) {
-    const s = secants[k] as number
-    if (s === 0) {
-      slopes[k] = 0
-      slopes[k + 1] = 0
-      continue
-    }
-    const a = (slopes[k] as number) / s
-    const b = (slopes[k + 1] as number) / s
-    const r = a * a + b * b
-    if (r > 9) {
-      const t = 3 / Math.sqrt(r)
-      slopes[k] = t * a * s
-      slopes[k + 1] = t * b * s
-    }
-  }
-
-  const x = (k: number) => xs[k] as number
-  const h = (k: number) => hs[k] as number
-  const m = (k: number) => slopes[k] as number
-  let d = `M ${round(x(0))} ${round(cy - h(0))}`
-  for (let k = 0; k < n - 1; k++) {
-    const third = (x(k + 1) - x(k)) / 3
-    d += ` C ${round(x(k) + third)} ${round(cy - (h(k) + m(k) * third))} ${round(x(k + 1) - third)} ${round(cy - (h(k + 1) - m(k + 1) * third))} ${round(x(k + 1))} ${round(cy - h(k + 1))}`
-  }
-  d += ` A ${round(h(n - 1))} ${round(h(n - 1))} 0 0 1 ${round(x(n - 1))} ${round(cy + h(n - 1))}`
-  for (let k = n - 1; k > 0; k--) {
-    const third = (x(k) - x(k - 1)) / 3
-    d += ` C ${round(x(k) - third)} ${round(cy + (h(k) - m(k) * third))} ${round(x(k - 1) + third)} ${round(cy + (h(k - 1) + m(k - 1) * third))} ${round(x(k - 1))} ${round(cy + h(k - 1))}`
-  }
-  d += ' Z'
-
-  const bands: CapsuleBand[] = []
-  for (let i = 0; i <= last; i++) {
-    const x = i * col + (i > 0 ? 1 : 0)
-    const w = col - (i > 0 ? 1 : 0) - (i < last ? 1 : 0)
-    bands.push({ index: i, x: round(x), width: round(Math.max(0, w)), step: capsuleStep(i, count) })
-  }
-  return { path: d, bands }
 }

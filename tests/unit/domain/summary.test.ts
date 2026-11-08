@@ -79,6 +79,8 @@ describe('summariseSheet with stages', () => {
     expect(summary.stages[3]?.here).toEqual([])
     expect(summary.stages[6]?.isWin).toBe(true)
     expect(summary.lostPeople.map((p) => p.id)).toEqual(['b'])
+    // b was lost at Plant visit (stage 4): counted there as stopped, not as here.
+    expect(summary.stages.map((s) => s.stopped)).toEqual([0, 0, 0, 1, 0, 0, 0])
     expect(summary.groups).toBeNull()
   })
 
