@@ -65,6 +65,10 @@ export function route(handler: Handler) {
       try {
         return await handler(deps, request)
       } catch (error) {
+        if (error instanceof StoreError && error.keyRefused) {
+          deps.log('calendar.config.secret_refused', { detail: error.message })
+          return json({ error: 'not_configured' }, 503)
+        }
         deps.log('calendar.error', {
           path: new URL(request.url).pathname,
           name: error instanceof Error ? error.name : 'unknown',

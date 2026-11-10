@@ -28,21 +28,32 @@ const CHUNK = 100
 type Row = Record<string, unknown>
 
 export class StoreError extends Error {
-  constructor(operation: string, code: string | undefined) {
-    super(`Calendar store: ${operation} failed (${code ?? 'unknown'})`)
+  /** The HTTP status of the failed call: 401 means the database refused the secret key. */
+  readonly status: number | undefined
+  constructor(operation: string, code: string | undefined, status?: number) {
+    super(`Calendar store: ${operation} failed (${code ?? status ?? 'unknown'})`)
     this.name = 'StoreError'
+    this.status = status
+  }
+
+  /** The key is not a secret key of this project (or not a key at all). */
+  get keyRefused(): boolean {
+    return this.status === 401 || this.status === 403
   }
 }
 
-function check<T>(operation: string, result: { data: T; error: { code?: string } | null }): T {
-  if (result.error) throw new StoreError(operation, result.error.code)
+function check<T>(
+  operation: string,
+  result: { data: T; error: { code?: string } | null; status?: number },
+): T {
+  if (result.error) throw new StoreError(operation, result.error.code, result.status)
   return result.data
 }
 
 /** A list result: never null once the query succeeded. */
 function many<T>(
   operation: string,
-  result: { data: T[] | null; error: { code?: string } | null },
+  result: { data: T[] | null; error: { code?: string } | null; status?: number },
 ): T[] {
   return check(operation, result) ?? []
 }

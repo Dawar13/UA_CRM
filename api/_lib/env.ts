@@ -52,8 +52,9 @@ function key(base64: string, name: string): Buffer {
  *
  * Supabase: the server must use the project the app signs in to, so it takes the app's own
  * `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` first (both public), and the secret key
- * from `CALENDAR_SUPABASE_SECRET_KEY` first. A Vercel Supabase integration may also define
- * `SUPABASE_URL` and its keys for another project; those are only the fallback.
+ * from `CALENDAR_SUPABASE_SECRET_KEY` only. A Vercel Supabase integration may define `SUPABASE_URL`
+ * and keys for another project: the URL and publishable key are a fallback for local runs, but
+ * its secret key is never used, so a missing setting is named instead of failing obscurely.
  */
 export function readEnv(source: Record<string, string | undefined> = process.env): ServerEnv {
   const get = (name: string) => source[name]?.trim() ?? ''
@@ -66,10 +67,7 @@ export function readEnv(source: Record<string, string | undefined> = process.env
   const missing = required.filter((name) => get(name) === '')
   const supabaseUrl = get('VITE_SUPABASE_URL') || get('SUPABASE_URL')
   const publishableKey = get('VITE_SUPABASE_PUBLISHABLE_KEY') || get('SUPABASE_PUBLISHABLE_KEY')
-  const secretKey =
-    get('CALENDAR_SUPABASE_SECRET_KEY') ||
-    get('SUPABASE_SECRET_KEY') ||
-    get('SUPABASE_SERVICE_ROLE_KEY')
+  const secretKey = get('CALENDAR_SUPABASE_SECRET_KEY')
   if (supabaseUrl === '') missing.push('VITE_SUPABASE_URL')
   if (publishableKey === '') missing.push('VITE_SUPABASE_PUBLISHABLE_KEY')
   if (secretKey === '') missing.push('CALENDAR_SUPABASE_SECRET_KEY')

@@ -17,7 +17,9 @@ import {
   handleSync,
   handleWebhook,
 } from '../../api/_lib/handlers'
+import { StoreError } from '../../api/_lib/supabaseStore'
 import { syncMember } from '../../api/_lib/sync'
+import { keyKind } from '../../api/calendar/health'
 import { DAWAR, DHRUV, meeting, setup, TOKENS } from './harness'
 
 const GMAIL = 'dawar.personal@gmail.example'
@@ -59,7 +61,7 @@ describe('token encryption', () => {
       APP_BASE_URL: 'https://crm.example/',
       SUPABASE_URL: 'https://x.supabase.co',
       SUPABASE_PUBLISHABLE_KEY: 'p',
-      SUPABASE_SERVICE_ROLE_KEY: 's',
+      CALENDAR_SUPABASE_SECRET_KEY: 's',
     })
     expect(env).toMatchObject({
       supabaseUrl: 'https://x.supabase.co',
@@ -89,6 +91,22 @@ describe('token encryption', () => {
       supabasePublishableKey: 'app-publishable',
       supabaseSecretKey: 'app-secret',
     })
+    // An integration's secret key (another project) is never used: the missing name is reported.
+    try {
+      readEnv({
+        GOOGLE_CLIENT_ID: 'id',
+        GOOGLE_CLIENT_SECRET: 'secret',
+        CALENDAR_TOKEN_KEY: key,
+        APP_BASE_URL: 'https://crm.example',
+        VITE_SUPABASE_URL: 'https://app.supabase.co',
+        VITE_SUPABASE_PUBLISHABLE_KEY: 'p',
+        SUPABASE_SECRET_KEY: 'integration-secret',
+        SUPABASE_SERVICE_ROLE_KEY: 'integration-service-role',
+      })
+      throw new Error('expected a ConfigError')
+    } catch (error) {
+      expect((error as ConfigError).missing).toEqual(['CALENDAR_SUPABASE_SECRET_KEY'])
+    }
     try {
       readEnv({ GOOGLE_CLIENT_ID: 'x' })
     } catch (error) {
@@ -692,6 +710,27 @@ describe('disconnecting and privacy', () => {
   it('reports Google failures by code', () => {
     expect(new GoogleError('rate_limited', 429).message).toBe(
       'Google request failed: rate_limited (429)',
+    )
+  })
+})
+
+describe('the settings check', () => {
+  it('names the kind of key without showing it', () => {
+    const claims = Buffer.from(JSON.stringify({ role: 'service_role', ref: 'abc123' })).toString(
+      'base64url',
+    )
+    expect(keyKind('')).toBe('missing')
+    expect(keyKind('sb_secret_xyz')).toBe('secret key')
+    expect(keyKind('sb_publishable_xyz')).toMatch(/^publishable key/)
+    expect(keyKind(`h.${claims}.s`)).toBe('legacy service_role key for project abc123')
+    expect(keyKind('hello')).toBe('not a Supabase key')
+  })
+
+  it('treats a refused key as a setting problem', () => {
+    expect(new StoreError('listConnections', undefined, 401).keyRefused).toBe(true)
+    expect(new StoreError('listConnections', 'PGRST205', 404).keyRefused).toBe(false)
+    expect(new StoreError('listConnections', undefined, 401).message).toBe(
+      'Calendar store: listConnections failed (401)',
     )
   })
 })
