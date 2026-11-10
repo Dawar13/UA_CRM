@@ -85,11 +85,47 @@ test.describe('cell formatting', () => {
     await expect.poll(() => rowHeight(gridRow(page, ids.rohanMehta))).toBe(36)
   })
 
+  test('the format bar on the quick-add line fills, wraps and sets the height', async ({
+    page,
+  }) => {
+    await openSheet(page, 'dawar', 'customers')
+    await cell(gridRow(page, ids.rohanMehta), 'company').click()
+    const bar = page.getByTestId('format-bar')
+    await bar.getByRole('button', { name: 'Fill colour for Company' }).click()
+    await page.getByRole('menuitem', { name: 'Fill Teal' }).click()
+    await expect(cell(gridRow(page, ids.rohanMehta), 'company')).toHaveAttribute(
+      'data-fill',
+      'teal',
+    )
+    await expect(grid(page)).toBeFocused()
+
+    const wrap = bar.getByRole('button', { name: 'Wrap text in Company' })
+    await expect(wrap).toHaveAttribute('aria-pressed', 'false')
+    await wrap.click()
+    await expect(wrap).toHaveAttribute('aria-pressed', 'true')
+
+    await bar.getByRole('button', { name: 'Row height' }).click()
+    await page.getByRole('menuitemradio', { name: 'Taller' }).click()
+    await expect.poll(() => rowHeight(gridRow(page, ids.rohanMehta))).toBeGreaterThanOrEqual(96)
+
+    await reloadApp(page)
+    await expect(cell(gridRow(page, ids.rohanMehta), 'company')).toHaveAttribute(
+      'data-fill',
+      'teal',
+    )
+    await expect.poll(() => rowHeight(gridRow(page, ids.rohanMehta))).toBeGreaterThanOrEqual(96)
+    await cell(gridRow(page, ids.rohanMehta), 'company').click()
+    await page.getByTestId('format-bar').getByRole('button', { name: 'Row height' }).click()
+    await page.getByRole('menuitemradio', { name: 'Normal' }).click()
+    await expect.poll(() => rowHeight(gridRow(page, ids.rohanMehta))).toBeLessThan(96)
+  })
+
   test("another member's tab has no format menu and no row handles", async ({ page }) => {
     await openSheet(page, 'dhruv', 'customers')
     const first = grid(page).locator('[role="row"][data-row-id]').first()
     await expect(first.locator('[data-row-resize]')).toHaveCount(0)
     await first.locator('[role="gridcell"]').nth(1).click({ button: 'right' })
     await expect(page.getByTestId('cell-menu')).toHaveCount(0)
+    await expect(page.getByTestId('format-bar')).toHaveCount(0)
   })
 })

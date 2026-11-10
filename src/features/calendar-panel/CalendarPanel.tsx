@@ -21,7 +21,7 @@ import {
 import type { CalendarEvent, IsoDate, Member } from '@/domain/types'
 import {
   ConnectCalendarCard,
-  PrivateCalendar,
+  NotConnectedYet,
   ReconnectBanner,
   SyncStatus,
 } from '@/features/calendar/CalendarStatus'
@@ -248,6 +248,7 @@ function PanelSkeleton() {
 }
 
 function Agenda({ memberId, now }: { memberId: string; now: Date }) {
+  // Whose calendar it is: suggestions only on your own (they change your links).
   const today = todayIst(now)
   const range = useMemo(
     () => ({
@@ -257,7 +258,7 @@ function Agenda({ memberId, now }: { memberId: string; now: Date }) {
     [today],
   )
   const { data: events, isPending } = useCalendarEvents(memberId, range)
-  const { data: matches } = useEventContacts(events)
+  const { data: matches } = useEventContacts(events, memberId)
   const days = useMemo(() => groupEventsByDay(events ?? []), [events])
   const strip = useMemo(() => {
     const counts = new Map(days.map((d) => [d.date, d.events.length]))
@@ -333,8 +334,9 @@ export function CalendarPanel({ member }: { member: Member }) {
   const today = todayIst(now)
   const lastDay = addDaysIso(today, PANEL_DAYS - 1)
   const own = actor?.id === member.id
-  const { data: connection } = useCalendarConnection()
-  const state = own ? (connection?.state ?? 'loading') : 'private'
+  // Calendars are shared, view only (D-054): another member's week shows in their tab.
+  const { data: connection } = useCalendarConnection(member.id)
+  const state = connection?.state ?? 'loading'
 
   return (
     <section aria-labelledby="calendar-panel-title" className="flex min-h-0 flex-1 flex-col">
@@ -357,7 +359,7 @@ export function CalendarPanel({ member }: { member: Member }) {
                   aria-label="Open the calendar"
                   tooltip="Open the calendar"
                   size="sm"
-                  onClick={() => navigate('/calendar')}
+                  onClick={() => navigate(own ? '/calendar' : `/calendar?member=${member.slug}`)}
                 >
                   <Maximize2 />
                 </IconButton>
@@ -365,23 +367,18 @@ export function CalendarPanel({ member }: { member: Member }) {
             </span>
           </header>
 
-          {state === 'private' ? (
-            <>
-              <ActivityOnly memberId={member.id} />
-              <PrivateCalendar member={member} />
-            </>
-          ) : state === 'loading' ? (
+          {state === 'loading' ? (
             <PanelSkeleton />
           ) : state === 'not_connected' ? (
             <>
               <ActivityOnly memberId={member.id} />
-              <ConnectCalendarCard />
+              {own ? <ConnectCalendarCard /> : <NotConnectedYet member={member} />}
             </>
           ) : (
             <>
-              {state === 'needs_reconnect' ? <ReconnectBanner /> : null}
-              {connection && state === 'active' ? (
-                <SyncStatus connection={connection} now={now} />
+              {own && state === 'needs_reconnect' ? <ReconnectBanner /> : null}
+              {connection && (state === 'active' || !own) ? (
+                <SyncStatus connection={connection} now={now} owner={own ? undefined : member} />
               ) : null}
               <Agenda memberId={member.id} now={now} />
             </>

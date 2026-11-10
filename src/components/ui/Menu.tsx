@@ -107,6 +107,19 @@ export function MenuSeparator({
   )
 }
 
+const swatchClassName = cn(
+  'grid size-7 cursor-default place-items-center rounded-control outline-none',
+  'data-[highlighted]:bg-surface-hover data-[highlighted]:ring-2 data-[highlighted]:ring-focus',
+)
+
+/** An item that is only a small square of colour (a swatch row); name it with aria-label. */
+export function MenuSwatch({
+  className,
+  ...props
+}: ComponentPropsWithRef<typeof DropdownMenu.Item>) {
+  return <DropdownMenu.Item className={cn(swatchClassName, className)} {...props} />
+}
+
 export const MenuRadioGroup = DropdownMenu.RadioGroup
 
 export interface MenuRadioItemProps extends ComponentPropsWithRef<typeof DropdownMenu.RadioItem> {
@@ -178,16 +191,7 @@ export function ContextMenuSwatch({
   className,
   ...props
 }: ComponentPropsWithRef<typeof RadixContextMenu.Item>) {
-  return (
-    <RadixContextMenu.Item
-      className={cn(
-        'grid size-7 cursor-default place-items-center rounded-control outline-none',
-        'data-[highlighted]:bg-surface-hover data-[highlighted]:ring-2 data-[highlighted]:ring-focus',
-        className,
-      )}
-      {...props}
-    />
-  )
+  return <RadixContextMenu.Item className={cn(swatchClassName, className)} {...props} />
 }
 
 export function ContextMenuLabel({

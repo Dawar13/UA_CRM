@@ -1380,8 +1380,8 @@ export class LocalRepository implements Repository {
     await this.db.meta.put({ key: calendarKey(memberId), value })
   }
 
-  async getCalendarConnection(ctx: MutationContext): Promise<CalendarConnection> {
-    return this.calendarOf(ctx.actorId)
+  async getCalendarConnection(ctx: MutationContext, memberId?: Id): Promise<CalendarConnection> {
+    return this.calendarOf(memberId ?? ctx.actorId)
   }
 
   async connectCalendar(returnPath: string, ctx: MutationContext): Promise<string> {
@@ -1502,9 +1502,9 @@ export class LocalRepository implements Repository {
     })
   }
 
-  async listEventLinks(ctx: MutationContext): Promise<EventLink[]> {
+  async listEventLinks(ctx: MutationContext, memberId?: Id): Promise<EventLink[]> {
     return (await this.db.meta.toArray())
-      .filter((m) => m.key.startsWith(`calendarLink:${ctx.actorId}:`))
+      .filter((m) => m.key.startsWith(`calendarLink:${memberId ?? ctx.actorId}:`))
       .map((m) => m.value as EventLink)
   }
 

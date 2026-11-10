@@ -129,16 +129,30 @@ describe('CalendarPanel', () => {
     expect(router.state.location.search).toBe(`?row=${seedIds.rows.rohanMehta}`)
   })
 
-  it('keeps another member’s calendar private', async () => {
+  it('shows another member’s calendar, view only (D-054)', async () => {
     renderPanel(await memberById(seedIds.members.dhruv))
-    expect(await screen.findByText('Dhruv’s calendar is private')).toBeInTheDocument()
-    expect(screen.getByText('Only Dhruv sees their meetings.')).toBeInTheDocument()
-    expect(screen.queryByTestId('calendar-event')).not.toBeInTheDocument()
+    const today = await screen.findByRole('region', { name: 'Today · Thu 5 Nov' })
+    expect(within(today).getByText('Coffee with Arvind Menon')).toBeInTheDocument()
+    const status = screen.getByTestId('calendar-sync-status')
+    expect(status).toHaveTextContent(/^Dhruv’s calendar, view only(Not synced yet|Synced )/)
+    // Nothing that changes Dhruv's calendar: no sync, connect, reconnect or suggestions.
+    expect(within(status).queryByRole('button', { name: 'Sync now' })).not.toBeInTheDocument()
     expect(
       screen.queryByRole('button', { name: /Connect Google Calendar/ }),
     ).not.toBeInTheDocument()
+    expect(screen.queryByTestId('event-suggestion')).not.toBeInTheDocument()
     // Their last 30 days of activity still shows.
     expect(await screen.findByRole('img', { name: /^Last 30 days: / })).toBeInTheDocument()
+  })
+
+  it('says when another member has not connected, without offering to connect', async () => {
+    await repo.disconnectCalendar({ actorId: seedIds.members.dhruv, now: new Date() })
+    renderPanel(await memberById(seedIds.members.dhruv))
+    expect(await screen.findByText('Dhruv has not connected Google Calendar')).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Connect Google Calendar' }),
+    ).not.toBeInTheDocument()
+    expect(screen.queryByTestId('calendar-event')).not.toBeInTheDocument()
   })
 
   it('invites the member to connect when their calendar is not connected', async () => {

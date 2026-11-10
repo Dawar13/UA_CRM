@@ -1,12 +1,13 @@
--- Google Calendar privacy and ownership at the database (Phase 2, D-050): a member's calendar is
--- theirs alone; only the server writes events, connections and secrets; calendar history goes
--- only into the connection owner's rows, once per event. Run with `supabase test db` (CI).
+-- Google Calendar sharing and ownership at the database (Phase 2, D-050, D-054): every member
+-- reads every calendar, view only; only the server writes events, connections and secrets; no
+-- client reads tokens; calendar history goes only into the connection owner's rows, once per
+-- event. Run with `supabase test db` (CI).
 begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
 set local timezone = 'UTC';
 
-select plan(30);
+select plan(33);
 
 -- ---------- Two members, a row each, and calendar data (as the service, before sign-in) ----------
 
@@ -33,19 +34,28 @@ insert into public.calendar_events (member_id, google_event_id, status, summary,
 insert into public.calendar_event_links (member_id, google_event_id, row_id, kind) values
   ('00000000-0000-0000-0000-00000000000b', 'evt-b', '30000000-0000-0000-0000-00000000000b', 'confirmed');
 
--- ---------- Dawar: their own calendar, nothing of Dhruv's ----------
+-- ---------- Dawar: every calendar to read (D-054), only their own to change ----------
 
 set local role authenticated;
 set local request.jwt.claims = '{"email":"dawar@example.test"}';
 
-select is((select count(*) from public.calendar_events), 1::bigint, 'A member reads only their own events');
+select is((select count(*) from public.calendar_events), 2::bigint, 'A member reads every member''s events');
 select is(
   (select count(*) from public.calendar_events where member_id = '00000000-0000-0000-0000-00000000000b'),
-  0::bigint,
-  'Another member''s events never reach them'
+  1::bigint,
+  'Another member''s events are visible, view only'
 );
-select is((select count(*) from public.calendar_connections), 1::bigint, 'A member reads only their own connection');
-select is((select count(*) from public.calendar_event_links), 0::bigint, 'Another member''s links stay hidden');
+select is((select count(*) from public.calendar_connections), 2::bigint, 'A member reads every connection status');
+select is((select count(*) from public.calendar_event_links), 1::bigint, 'Another member''s links are visible');
+select lives_ok(
+  $$ delete from public.calendar_event_links where member_id = '00000000-0000-0000-0000-00000000000b' $$,
+  'Deleting another member''s links runs'
+);
+select is(
+  (select count(*) from public.calendar_event_links where member_id = '00000000-0000-0000-0000-00000000000b'),
+  1::bigint,
+  '... and removes nothing: links are changed only by their owner'
+);
 select throws_like($$ select * from public.calendar_secrets $$, '%permission denied%',
   'No member can read token ciphertext');
 select throws_like($$ select * from public.oauth_states $$, '%permission denied%',
@@ -183,13 +193,21 @@ select is(
   'and the app reads the state with the row'
 );
 
+set local role authenticated;
+set local request.jwt.claims = '{"email":"stranger@example.test"}';
+select is(
+  (select count(*) from public.calendar_events),
+  0::bigint,
+  'Someone who is not a member reads no calendar'
+);
+
 reset role;
 select is(
   (select count(*) from pg_publication_tables
    where pubname = 'supabase_realtime' and schemaname = 'public'
      and tablename in ('calendar_connections', 'calendar_events', 'calendar_event_links')),
   3::bigint,
-  'Calendar changes are published to Realtime, which delivers them only under the owner-only policies'
+  'Calendar changes are published to Realtime, which delivers them under the members-only policies'
 );
 
 select * from finish();

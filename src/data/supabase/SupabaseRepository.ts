@@ -284,9 +284,9 @@ export class SupabaseRepository implements Repository {
     )
   }
 
-  /** The member's own Google events (Phase 2); declined and cancelled ones are left out. */
+  /** A member's Google events (Phase 2); declined and cancelled ones are left out. */
   async listCalendarEvents(memberId: Id, range: DateRange): Promise<CalendarEvent[]> {
-    // Policies return the member's own calendar only: another member's is private (empty).
+    // Every member reads every calendar (D-054); only the server writes events.
     const result = await this.client
       .from('calendar_events')
       .select('*')
@@ -996,13 +996,13 @@ export class SupabaseRepository implements Repository {
     return saved
   }
 
-  // ---------- Phase 2: Google Calendar (the actor's own) ----------
+  // ---------- Phase 2: Google Calendar (changes: the actor's own) ----------
 
-  async getCalendarConnection(ctx: MutationContext): Promise<CalendarConnection> {
+  async getCalendarConnection(ctx: MutationContext, memberId?: Id): Promise<CalendarConnection> {
     const result = await this.client
       .from('calendar_connections')
       .select('status, google_email, connected_at, last_synced_at, last_error_code')
-      .eq('member_id', ctx.actorId)
+      .eq('member_id', memberId ?? ctx.actorId)
       .maybeSingle()
     // Before the calendar migration is applied the table is missing: nothing is connected.
     if (result.error && ['PGRST205', '42P01'].includes(result.error.code ?? '')) {
@@ -1050,11 +1050,11 @@ export class SupabaseRepository implements Repository {
     await calendarApi(this.client, 'next-action-event', { rowId, op: 'remove' })
   }
 
-  async listEventLinks(ctx: MutationContext): Promise<EventLink[]> {
+  async listEventLinks(ctx: MutationContext, memberId?: Id): Promise<EventLink[]> {
     const result = await this.client
       .from('calendar_event_links')
       .select('google_event_id, recurring_event_id, row_id, kind')
-      .eq('member_id', ctx.actorId)
+      .eq('member_id', memberId ?? ctx.actorId)
     return (this.check(result, 'view') ?? []).map((l) => ({
       googleEventId: (l.google_event_id as string | null) ?? null,
       recurringEventId: (l.recurring_event_id as string | null) ?? null,

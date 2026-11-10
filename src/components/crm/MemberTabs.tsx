@@ -1,4 +1,5 @@
 import { Tabs } from 'radix-ui'
+import { Fragment } from 'react'
 import { cn } from '@/lib/cn'
 
 export interface MemberTabsProps {
@@ -35,6 +36,8 @@ export function MemberTabs({
     ...(withCalendar ? [{ id: CALENDAR_TAB, name: 'Calendar' }] : []),
     ...members,
   ]
+  // A hairline between your own views (Today, Calendar) and the members' tabs.
+  const firstMember = withToday || withCalendar ? members[0]?.id : undefined
   return (
     <Tabs.Root
       value={value}
@@ -47,23 +50,31 @@ export function MemberTabs({
         className="flex items-center gap-0.5 rounded-[8px] bg-surface-hover p-[3px]"
       >
         {items.map((member) => (
-          <Tabs.Trigger
-            key={member.id}
-            value={member.id}
-            // Navigation tabs without panels: no aria-controls to a missing element.
-            aria-controls={undefined}
-            data-testid={`member-tab-${member.id}`}
-            className={cn(
-              'group/member flex h-7 shrink-0 cursor-default select-none items-center gap-2 rounded-control px-3',
-              'text-sm font-medium whitespace-nowrap text-secondary',
-              'transition-[background-color,color,box-shadow] duration-(--duration-fast) ease-out',
-              'hover:bg-bg/60 hover:text-text',
-              'data-[state=active]:bg-bg data-[state=active]:font-semibold data-[state=active]:text-text',
-              'data-[state=active]:shadow-[0_1px_2px_var(--shadow),0_0_0_1px_var(--border)]',
-            )}
-          >
-            {member.name}
-          </Tabs.Trigger>
+          <Fragment key={member.id}>
+            {member.id === firstMember ? (
+              <span
+                aria-hidden="true"
+                data-testid="member-tabs-divider"
+                className="mx-1 h-4 w-px shrink-0 bg-border-strong/50"
+              />
+            ) : null}
+            <Tabs.Trigger
+              value={member.id}
+              // Navigation tabs without panels: no aria-controls to a missing element.
+              aria-controls={undefined}
+              data-testid={`member-tab-${member.id}`}
+              className={cn(
+                'group/member flex h-7 shrink-0 cursor-default select-none items-center gap-2 rounded-control px-3',
+                'text-sm font-medium whitespace-nowrap text-secondary',
+                'transition-[background-color,color,box-shadow] duration-(--duration-fast) ease-out',
+                'hover:bg-bg/60 hover:text-text',
+                'data-[state=active]:bg-bg data-[state=active]:font-semibold data-[state=active]:text-text',
+                'data-[state=active]:shadow-[0_1px_2px_var(--shadow),0_0_0_1px_var(--border)]',
+              )}
+            >
+              {member.name}
+            </Tabs.Trigger>
+          </Fragment>
         ))}
       </Tabs.List>
     </Tabs.Root>

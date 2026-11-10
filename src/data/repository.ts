@@ -166,7 +166,7 @@ export const TRASH_DAYS = 30
 
 // ---------- Phase 2: Google Calendar (D-050) ----------
 
-/** The signed-in member's own calendar connection. Another member's calendar is private. */
+/** A member's calendar connection. Calendars are shared, view only (D-054). */
 export interface CalendarConnection {
   state: 'not_connected' | 'active' | 'needs_reconnect'
   /** The Google account connected. */
@@ -365,8 +365,9 @@ export interface Repository {
    */
   importRows(batch: ImportBatch, ctx: MutationContext): Promise<Row[]>
 
-  // ---------- Phase 2: Google Calendar, the actor's own only ----------
-  getCalendarConnection(ctx: MutationContext): Promise<CalendarConnection>
+  // ---------- Phase 2: Google Calendar (changes: the actor's own only) ----------
+  /** The actor's connection, or another member's (view only, D-054). */
+  getCalendarConnection(ctx: MutationContext, memberId?: Id): Promise<CalendarConnection>
   /** Where to send the member for Google's consent; they come back to `returnPath`. */
   connectCalendar(returnPath: string, ctx: MutationContext): Promise<string>
   syncCalendar(reason: CalendarSyncReason, ctx: MutationContext): Promise<CalendarConnection>
@@ -375,7 +376,8 @@ export interface Repository {
   /** Creates or updates the event for the row's next action. */
   saveNextActionEvent(rowId: Id, input: NextActionEventInput, ctx: MutationContext): Promise<void>
   removeNextActionEvent(rowId: Id, ctx: MutationContext): Promise<void>
-  listEventLinks(ctx: MutationContext): Promise<EventLink[]>
+  /** The actor's event links, or another member's (view only). */
+  listEventLinks(ctx: MutationContext, memberId?: Id): Promise<EventLink[]>
   /** Confirms or dismisses a suggested contact for an event (or a whole series). */
   linkEvent(link: EventLink, ctx: MutationContext): Promise<void>
 }

@@ -1,7 +1,7 @@
 /**
  * Google Calendar in the app (Phase 2, D-050): the signed-in member's connection, the sync
- * triggers, and the calendar actions. A calendar is private, so everything here is the actor's
- * own; another member's tab says so instead of asking.
+ * triggers, and the calendar actions. Calendars are shared, view only (D-054): any member's
+ * connection and links can be read; every change is the actor's own.
  */
 import { skipToken, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef } from 'react'
@@ -77,12 +77,14 @@ export function connectErrorMessage(reason: string | null): string {
   }
 }
 
-export function useCalendarConnection() {
+/** The signed-in member's calendar connection, or another member's (view only, D-054). */
+export function useCalendarConnection(memberId?: Id) {
   const repository = useRepository()
   const actor = useActor()
+  const owner = memberId ?? actor?.id ?? ''
   return useQuery({
-    queryKey: calendarKeys.connection(actor?.id ?? ''),
-    queryFn: actor ? () => repository.getCalendarConnection(ctxOf(actor.id)) : skipToken,
+    queryKey: calendarKeys.connection(owner),
+    queryFn: actor ? () => repository.getCalendarConnection(ctxOf(actor.id), owner) : skipToken,
   })
 }
 
@@ -197,12 +199,13 @@ export function useCalendarReturn(): void {
   }, [location.pathname, location.search, navigate, queryClient])
 }
 
-export function useEventLinks() {
+export function useEventLinks(memberId?: Id) {
   const repository = useRepository()
   const actor = useActor()
+  const owner = memberId ?? actor?.id ?? ''
   return useQuery({
-    queryKey: calendarKeys.links(actor?.id ?? ''),
-    queryFn: actor ? () => repository.listEventLinks(ctxOf(actor.id)) : skipToken,
+    queryKey: calendarKeys.links(owner),
+    queryFn: actor ? () => repository.listEventLinks(ctxOf(actor.id), owner) : skipToken,
   })
 }
 

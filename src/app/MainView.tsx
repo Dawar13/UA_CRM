@@ -5,6 +5,7 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { useMembers, useRows, useSheets } from '@/data/hooks'
 import type { Member, Row, Sheet } from '@/domain/types'
+import { FormatBar } from '@/features/grid/FormatBar'
 import { SheetGrid } from '@/features/grid/SheetGrid'
 import { QuickAdd } from '@/features/quick-add/QuickAdd'
 import { ExpandedRow } from '@/features/row-detail/ExpandedRow'
@@ -163,7 +164,12 @@ function SheetContent({ member, sheet, index }: { member: Member; sheet: Sheet; 
         <ColumnsDialog sheet={sheet} open={columnsOpen} onOpenChange={setColumnsOpen} />
       ) : null}
       {gate.editable ? (
-        <QuickAdd member={member} sheet={sheet} selectedRowId={expandedRowId ?? activeRowId} />
+        <QuickAdd
+          member={member}
+          sheet={sheet}
+          selectedRowId={expandedRowId ?? activeRowId}
+          aside={<FormatBar sheet={sheet} />}
+        />
       ) : null}
       {/* The grid scrolls inside whatever height the front leaves. */}
       <div className="relative min-h-0 flex-1">

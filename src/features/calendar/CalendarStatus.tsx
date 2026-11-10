@@ -1,8 +1,8 @@
 /**
- * The calendar's states on screen (Phase 2): connect, reconnect, when it last synced, and the
- * note in another member's tab that their calendar is private.
+ * The calendar's states on screen (Phase 2): connect, reconnect, when it last synced, and, in
+ * another member's tab, whose calendar it is (view only, D-054) or that they have not connected.
  */
-import { CalendarPlus, Lock, RefreshCw, TriangleAlert } from 'lucide-react'
+import { CalendarOff, CalendarPlus, RefreshCw, TriangleAlert } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { IconButton } from '@/components/ui/IconButton'
@@ -68,16 +68,19 @@ export function ReconnectBanner() {
 export function SyncStatus({
   connection,
   now,
+  owner,
   className,
 }: {
   connection: CalendarConnection
   now: Date
+  /** Another member's calendar: named, view only, with no Sync now. */
+  owner?: Member
   className?: string
 }) {
   const sync = useSyncCalendar()
   const at = connection.lastSyncedAt
-  const failed = connection.lastErrorCode !== null
-  const label = sync.isPending
+  const failed = connection.lastErrorCode !== null || connection.state === 'needs_reconnect'
+  const status = sync.isPending
     ? 'Syncing…'
     : failed
       ? at
@@ -91,37 +94,44 @@ export function SyncStatus({
       className={cn('flex items-center justify-between gap-2', className)}
       data-testid="calendar-sync-status"
     >
+      {owner ? (
+        <span className="font-mono text-[11px] text-secondary">{`${owner.name}’s calendar, view only`}</span>
+      ) : null}
       <span
         className={cn('font-mono text-[11px] tabular-nums', failed ? 'text-waiting' : 'text-muted')}
         aria-live="polite"
       >
-        {label}
+        {status}
       </span>
-      <IconButton
-        aria-label="Sync now"
-        tooltip="Sync now"
-        size="sm"
-        variant="ghost"
-        onClick={() => sync.mutate('manual')}
-        disabled={sync.isPending}
-      >
-        <RefreshCw className={cn(sync.isPending && 'motion-safe:animate-spin')} />
-      </IconButton>
+      {owner ? null : (
+        <IconButton
+          aria-label="Sync now"
+          tooltip="Sync now"
+          size="sm"
+          variant="ghost"
+          onClick={() => sync.mutate('manual')}
+          disabled={sync.isPending}
+        >
+          <RefreshCw className={cn(sync.isPending && 'motion-safe:animate-spin')} />
+        </IconButton>
+      )}
     </div>
   )
 }
 
-export function PrivateCalendar({ member }: { member: Member }) {
+/** Another member's tab, before they connect Google Calendar. */
+export function NotConnectedYet({ member }: { member: Member }) {
   return (
     <EmptyState
       art={
         <span className="grid size-10 place-items-center rounded-card bg-surface-hover text-muted">
-          <Lock aria-hidden className="size-4" />
+          <CalendarOff aria-hidden className="size-4" />
         </span>
       }
-      title={`${member.name}’s calendar is private`}
-      description={`Only ${member.name} sees their meetings.`}
+      title={`${member.name} has not connected Google Calendar`}
+      description={`${member.name}’s week shows here once they connect it.`}
       className="py-6"
+      data-testid="calendar-not-connected"
     />
   )
 }

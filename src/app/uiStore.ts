@@ -22,6 +22,9 @@ interface UiState {
   /** The grid's active row, for logging a touch with `>` in quick add. */
   activeRowId: string | null
   setActiveRowId: (rowId: string | null) => void
+  /** The cells the format bar acts on: the active cell's column in the selected rows. */
+  formatTarget: FormatTarget | null
+  setFormatTarget: (target: FormatTarget | null) => void
   /** Bumped to open and focus quick add (the / key). */
   quickAddRequest: number
   requestQuickAdd: () => void
@@ -42,6 +45,23 @@ interface UiState {
   setShortcutsOpen: (open: boolean) => void
   flashRow: (rowId: string) => void
   clearFlash: () => void
+}
+
+export interface FormatTarget {
+  sheetId: string
+  columnKey: string
+  rowIds: readonly string[]
+}
+
+function sameTarget(a: FormatTarget | null, b: FormatTarget | null): boolean {
+  if (a === b) return true
+  if (!a || !b) return false
+  return (
+    a.sheetId === b.sheetId &&
+    a.columnKey === b.columnKey &&
+    a.rowIds.length === b.rowIds.length &&
+    a.rowIds.every((id, i) => id === b.rowIds[i])
+  )
 }
 
 /** Closed until someone opens it (the founders' default, 7 Nov 2026); the choice is kept. */
@@ -74,6 +94,12 @@ export const useUiStore = create<UiState>((set, get) => ({
   flashRowId: null,
   activeRowId: null,
   setActiveRowId: (rowId) => set({ activeRowId: rowId }),
+  formatTarget: null,
+  setFormatTarget: (target) => {
+    const current = get().formatTarget
+    if (sameTarget(current, target)) return
+    set({ formatTarget: target })
+  },
   quickAddRequest: 0,
   requestQuickAdd: () => set((s) => ({ quickAddRequest: s.quickAddRequest + 1 })),
   quickAddPaste: null,

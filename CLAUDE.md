@@ -164,10 +164,10 @@ For the signed-in member, with each section collapsible:
 - **Connecting:** each member connects their own Google Calendar through its own OAuth (sign-in stays email and password), from the side panel or the ⋯ menu. Scopes `openid email calendar.events.owned` (switchable to `calendar.events` by setting). Disconnect is in the ⋯ menu.
 - **Google app setup:** set the Google Cloud app to "In production" without verification. This avoids the 7-day refresh-token expiry of Testing mode. Members see Google's unverified-app screen once, and the app is limited to 100 users. Refresh tokens are sealed (AES-256-GCM, versioned key) in a Supabase table no client role can read; token exchange, refresh and every Google call run in Vercel functions (`api/`). Setup steps: `docs/RUNBOOK.md` §7.
 - **Sync window:** sync starts on **5 Nov 2026**. Nothing earlier is imported. The server keeps a window up to 60 days ahead, synced on open (if over 5 minutes old), every 15 minutes while the app is open, on Sync now, on Google push notifications (live), and by a daily job.
-- **Privacy:** a calendar is its member's alone. In another member's tab the panel says "Dhruv's calendar is private"; policies return only one's own events.
+- **Sharing (D-054):** calendars are shared, view only, like sheets. In another member's tab the panel shows their week ("Dhruv's calendar, view only"), without Sync now, connect or suggestions; before they connect it says "Dhruv has not connected Google Calendar". Policies let every member read every member's events, connection status and links; only the server writes events and connections, and only the owner writes their links. Tokens stay unreadable to every client.
 - **Matching events to contacts:** attendee email first; when none matches, a title naming one of your own contacts suggests "Rohan Mehta?" with yes or no. A matched meeting in the next week shows as a mark beside the name in the grid and as Next meeting in the expanded row. After it ends, a Meeting history entry is added automatically, to your own rows only.
 - **Creating events:** "Add to calendar" on a next action with an exact day creates the event in the member's calendar (all day, or a time for 30 minutes). Adding the contact as a guest is off by default. CRM edits update or remove the event; a move in Google updates the next action with a note; a deletion in Google offers Add again.
-- **The calendar page** (`/calendar`, the Calendar item after Today): the member's week like Google Calendar's week view, with contacts on events. It reads and links; changing events stays in Google Calendar.
+- **The calendar page** (`/calendar`, the Calendar item after Today, set apart from the member tabs by a hairline): "Dawar's calendar", a week like Google Calendar's week view, with contacts on events. A switch beside the title opens another member's week, view only (`/calendar?member=dhruv`). It reads and links; changing events stays in Google Calendar.
 
 ### 2.11 Import and export (Phase 1)
 
@@ -209,7 +209,7 @@ Everything runs in the browser, in a Web Worker.
 
 - **Tags** are one shared vocabulary. Any member can create a tag and apply it to their own rows. Only the creator can rename, recolour or delete a tag, and only while no other member's rows use it; otherwise the action is refused with a message naming whose rows use it.
 - **Members.** A member is an admin or a regular member; both founders start as admins. Admins can add a member (name and email; their login is created in the Supabase dashboard), deactivate and reactivate. Admins get no extra rights over anyone's data. A deactivated member cannot sign in; their tab stays visible to everyone, marked inactive and view only. Transferring sheet ownership is in the backlog.
-- **Calendar (Phase 2):** a calendar writes history only into its owner's rows. An event that matches a row in someone else's tab is shown as a read-only hint, and nothing is written.
+- **Calendar (Phase 2):** every member can see every calendar (D-054); a calendar writes history only into its owner's rows. An event that matches a row in someone else's tab is shown as a read-only hint, and nothing is written.
 - **View only, in behaviour.** In another member's tab no editing controls exist (no quick-add, no add row, no edit items in column or sheet menus, no responsive stage or warmth controls). The tab says so quietly and always ("Dhruv's tab, view only"). Edit keystrokes (typing into a cell, Enter to edit, Delete, paste, `W`, `]`, `[`) do nothing; the first attempt in a session shows one short toast ("Dhruv's sheets are view only"), later ones are silent. Every reading action keeps working: expand, search, copy, contact buttons, export, follow links. "Copy to my sheet" is available on any row: it asks which of your sheets, runs the duplicate check and creates a linked row in your tab. Other members' changes appear live without moving your focus or scroll.
 - **Enforced three times.** Every write path has a UI check through `can(member, action, target)` in `domain/`, a database policy, and a test proving another member is refused.
 
@@ -250,6 +250,8 @@ Everything runs in the browser, in a Web Worker.
 | `?`                           | Shortcut sheet                                             |
 
 `W`, `N`, `[`, `]`, `/` and `?` are shortcuts, never typed into a cell; to start a cell with one of them, press Enter or F2 first.
+
+The same fill, wrap and height are on the format bar at the right of the quick-add line (your own tab).
 
 ### 3.2 Visual identity
 

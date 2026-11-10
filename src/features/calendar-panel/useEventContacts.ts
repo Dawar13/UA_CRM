@@ -11,7 +11,7 @@ import { useAfterIdle } from './useAfterIdle'
 export interface EventMatches {
   /** Contacts on each event: guests by email (any member's tab), confirmed links, the CRM's own. */
   contacts: Map<string, RowLocation[]>
-  /** "Possibly <name>?": one of the member's own rows the title names, when nothing else matched. */
+  /** "Possibly <name>?": one of your own rows the title names (your own calendar only). */
   suggestions: Map<string, RowLocation>
 }
 
@@ -28,17 +28,21 @@ function linksOf(event: CalendarEvent, links: readonly EventLink[]): EventLink[]
 
 /**
  * Contacts matched to each event, across every member and sheet, keyed by event id. Matching
- * reads every row, so it waits until the browser is idle after the grid has rendered.
+ * reads every row, so it waits until the browser is idle after the grid has rendered. `ownerId`
+ * is whose calendar it is (default: yours); another member's gets no suggestions, since
+ * answering one changes their links.
  */
-export function useEventContacts(events: readonly CalendarEvent[] | undefined) {
+export function useEventContacts(events: readonly CalendarEvent[] | undefined, ownerId?: string) {
   const repository = useRepository()
   const actor = useActor()
   const idle = useAfterIdle()
-  const { data: links } = useEventLinks()
+  const owner = ownerId ?? actor?.id
+  const suggest = owner !== undefined && owner === actor?.id
+  const { data: links } = useEventLinks(owner)
   const ids = (events ?? []).map((e) => e.id).join(',')
   const linkIds = (links ?? []).map((l) => `${l.kind}:${l.rowId}:${l.googleEventId}`).join(',')
   return useQuery({
-    queryKey: ['eventContacts', ids, linkIds, actor?.id ?? ''],
+    queryKey: ['eventContacts', ids, linkIds, owner ?? '', suggest],
     enabled: idle && events !== undefined,
     queryFn: async (): Promise<EventMatches> => {
       const members = await repository.listMembers()
@@ -70,6 +74,7 @@ export function useEventContacts(events: readonly CalendarEvent[] | undefined) {
           contacts.set(event.id, matched)
           continue
         }
+        if (!suggest) continue
         const suggested = suggestRowForTitle(event.title, ownRows)
         const location = suggested ? byRowId.get(suggested) : undefined
         if (location && !dismissed.has(location.row.id)) suggestions.set(event.id, location)

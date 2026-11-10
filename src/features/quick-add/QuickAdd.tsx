@@ -7,7 +7,7 @@
  */
 import { useQueryClient } from '@tanstack/react-query'
 import { ChevronRight } from 'lucide-react'
-import { type KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react'
+import { type KeyboardEvent, type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { useUiStore } from '@/app/uiStore'
 import { useActor } from '@/auth/AuthContext'
@@ -68,11 +68,14 @@ export function QuickAdd({
   member,
   sheet,
   selectedRowId,
+  aside,
 }: {
   member: Member
   sheet: Sheet
   /** The opened or active row, for `>` touches. */
   selectedRowId: string | null
+  /** Shown at the right end of the closed line (the format bar). */
+  aside?: ReactNode
 }) {
   const actor = useActor()
   const repo = useRepository()
@@ -308,13 +311,13 @@ export function QuickAdd({
   if (!open) {
     return (
       <div
-        className="shrink-0 border-b border-grid-line bg-surface-subtle px-3 py-1.5"
+        className="flex shrink-0 items-center border-b border-grid-line bg-surface-subtle px-3 py-1.5"
         data-testid="quick-add"
       >
         <button
           type="button"
           onClick={focusEditor}
-          className="flex h-7 w-full min-w-0 items-center gap-2 rounded-control px-1.5 text-left text-sm text-muted hover:bg-surface-hover hover:text-secondary"
+          className="flex h-7 min-w-0 flex-1 items-center gap-2 rounded-control px-1.5 text-left text-sm text-muted hover:bg-surface-hover hover:text-secondary"
         >
           <ChevronRight aria-hidden className="size-4 shrink-0" />
           <span className="truncate">
@@ -324,6 +327,7 @@ export function QuickAdd({
           </span>
           <Kbd keys={['/']} className="ml-auto" />
         </button>
+        {aside}
       </div>
     )
   }

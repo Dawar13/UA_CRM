@@ -95,6 +95,7 @@ import {
   visibleColumns,
 } from './columnModel'
 import { GridRow, type GridRowHandlers } from './GridRow'
+import { useCellFormat } from './useCellFormat'
 
 /** Row height in px (the --row-height token). */
 export const ROW_HEIGHT = layout.rowHeight
@@ -242,6 +243,7 @@ export function SheetGrid({
   const pasteRows = usePasteRows()
   const repo = useRepository()
   const updateColumn = useUpdateColumn()
+  const format = useCellFormat(sheet)
   const reorderColumns = useReorderColumns()
   /** A column being resized: its id and the width so far. */
   const [resizing, setResizing] = useState<{ id: string; width: number } | null>(null)
@@ -448,7 +450,7 @@ export function SheetGrid({
 
   const resetRowHeight = (row: Row) => {
     if (!editable || row.height == null) return
-    updateRow.mutate({ row, sheet, patch: { height: null }, actorId, label: 'Row height' })
+    format.setHeight([row], null)
   }
 
   /** The rows a format action applies to: the selection when it holds this row, else the row. */
@@ -457,23 +459,28 @@ export function SheetGrid({
       ? tableRows.map((r) => r.original).filter((r) => selected.has(r.id))
       : [row]
 
-  const applyFill = (row: Row, key: string, colour: TagColour | null) => {
-    for (const target of formatTargets(row)) {
-      const next = { ...(target.cellColours ?? {}) }
-      if (colour) next[key] = colour
-      else delete next[key]
-      updateRow.mutate({
-        row: target,
-        sheet,
-        patch: { cellColours: next },
-        actorId,
-        label: colour ? `Fill ${colourName(colour)}` : 'No fill',
-      })
-    }
-  }
+  const applyFill = (row: Row, key: string, colour: TagColour | null) =>
+    format.fill(formatTargets(row), key, colour)
 
-  const toggleWrap = (def: ColumnDef) =>
-    updateColumn.mutate({ sheet, column: def, patch: { wrap: !def.wrap }, actorId })
+  const toggleWrap = (def: ColumnDef) => format.toggleWrap(def)
+
+  // The format bar on the quick-add line acts on the active cell (and the selected rows).
+  const setFormatTarget = useUiStore((s) => s.setFormatTarget)
+  const formatRow = editable ? tableRows[active.row]?.original : undefined
+  const formatKey = formatRow ? defs[active.col]?.key : undefined
+  const formatRowIds = formatRow
+    ? formatTargets(formatRow)
+        .map((r) => r.id)
+        .join(' ')
+    : ''
+  useEffect(() => {
+    setFormatTarget(
+      formatKey && formatRowIds
+        ? { sheetId: sheet.id, columnKey: formatKey, rowIds: formatRowIds.split(' ') }
+        : null,
+    )
+  }, [sheet.id, formatKey, formatRowIds, setFormatTarget])
+  useEffect(() => () => setFormatTarget(null), [setFormatTarget])
 
   /** A right-click: the format menu opens on the cell under the pointer, or the active cell. */
   const onGridContextMenu = (event: ReactMouseEvent<HTMLDivElement>) => {

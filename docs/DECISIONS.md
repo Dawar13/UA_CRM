@@ -623,3 +623,15 @@ Container jobs first make sure git is installed (otherwise checkout falls back t
 - `SummaryStage` gains `stopped`, the people lost at that stage, so they are not drawn as having gone further. The funnel geometry and `PipelineCapsule` are removed.
 
 **Consequences.** The folder front's visual baselines change. The screen-reader list of stages is unchanged.
+
+## D-054 · 10 Nov 2026 · Calendars shared, view only; the format bar
+
+**Context.** The founders want to see each other's calendars, with each calendar page clearly marked as whose it is (replacing the privacy rule in D-052). They also could not find fill colour, wrap text and row height, which sat only on right-click and a thin drag edge.
+
+**Decision.**
+
+- **Shared calendars.** A migration (`20261110090000_shared_calendars.sql`) replaces the owner-only select policies on `calendar_connections`, `calendar_events` and `calendar_event_links` with members-only ones: any active member reads them; someone who is not a member reads nothing. Writing is unchanged (events and connections only from the server, links only by their owner on their own rows); `calendar_secrets` and `oauth_states` stay closed to every client role. Realtime follows the same policies.
+- **On screen.** In another member's tab the side panel shows their week with "Dhruv's calendar, view only" and the sync time, but no Sync now, no reconnect and no "Rohan Mehta?" suggestions (answering one writes their links); before they connect it says "Dhruv has not connected Google Calendar". Grid meeting marks and Next meeting use the tab owner's calendar. The page title is "Dawar's calendar"; a switch beside it ("Dawar (you)", "Dhruv") opens a member's week at `/calendar?member=<slug>`, and the week arrows keep it. In the header, a hairline separates your own views (Today, Calendar) from the member tabs.
+- **The format bar.** Fill (swatches), Wrap (pressed when on) and Height (Normal 36px, Tall 56px, Taller 96px) sit at the right end of the closed quick-add line, in your own tab only. They act on the active cell's column, in every selected row when the selection holds the active row, like the right-click menu, which stays. Both share `useCellFormat`; the grid publishes its target through the UI store. Focus returns to the grid afterwards.
+
+**Consequences.** The repository's `getCalendarConnection` and `listEventLinks` take an optional member. pgTAP, component and browser tests now assert view-only sharing instead of privacy. Visual baselines change (header divider, format bar, calendar page). The migration must be applied before the code ships.

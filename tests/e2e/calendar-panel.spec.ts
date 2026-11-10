@@ -51,16 +51,20 @@ test.describe('calendar panel', () => {
     await expect(panel(page)).not.toContainText('GST registration checklist')
   })
 
-  test('Dhruv’s calendar is private to Dhruv', async ({ page }) => {
+  test('Dhruv’s calendar shows in his tab, view only', async ({ page }) => {
     await openSheet(page, 'dawar', 'customers')
     await memberTab(page, 'Dhruv').click()
     await expect(page).toHaveURL(/\/m\/dhruv\//)
-    // Dawar sees Dhruv's tab, but not his meetings.
-    await expect(panel(page).getByText('Dhruv’s calendar is private')).toBeVisible()
-    await expect(events(page)).toHaveCount(0)
+    // Dawar sees Dhruv's week (D-054), and nothing that changes it.
+    await expect(panel(page).getByTestId('calendar-sync-status')).toContainText(
+      'Dhruv’s calendar, view only',
+    )
+    await expect(events(page)).toHaveCount(4)
+    await expect(panel(page).getByRole('button', { name: 'Sync now' })).toHaveCount(0)
 
     await page.evaluate(() => window.__uaTest?.signInAs('dhruv'))
     await expect(events(page)).toHaveCount(4)
+    await expect(panel(page).getByRole('button', { name: 'Sync now' })).toBeVisible()
     const coffee = events(page).filter({ hasText: 'Coffee with Arvind Menon' })
     await expect(coffee).toContainText('12:00 pm')
     await expect(panel(page).getByRole('region', { name: 'Today · Thu 5 Nov' })).toContainText(

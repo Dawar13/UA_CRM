@@ -1,5 +1,4 @@
 import { useMemo } from 'react'
-import { useActor } from '@/auth/AuthContext'
 import { useCalendarEvents } from '@/data/hooks'
 import { addDaysIso, istInstant, todayIst } from '@/domain/dates'
 import type { CalendarEvent, Id, Row } from '@/domain/types'
@@ -11,18 +10,18 @@ import { useCalendarConnection, useEventLinks } from './useCalendar'
 export const UPCOMING_DAYS = 7
 
 /**
- * Each of the member's own rows with a meeting in the next week: its earliest one, by guest email
- * or a confirmed link. Empty in another member's tab (a calendar is private) or when not connected.
+ * Each of a member's rows with a meeting in the next week, from that member's own calendar: its
+ * earliest one, by guest email or a confirmed link. Calendars are shared, view only (D-054), so
+ * this works in any tab; empty when that member has not connected.
  */
 export function useUpcomingMeetings(
   memberId: Id,
   rows: readonly Row[],
 ): ReadonlyMap<Id, CalendarEvent> {
-  const actor = useActor()
   const now = useNow()
   const today = todayIst(now)
-  const { data: connection } = useCalendarConnection()
-  const own = actor?.id === memberId && connection?.state === 'active'
+  const { data: connection } = useCalendarConnection(memberId)
+  const own = connection?.state === 'active'
   const range = useMemo(
     () => ({
       from: istInstant(today).toISOString(),
@@ -31,7 +30,7 @@ export function useUpcomingMeetings(
     [today],
   )
   const { data: events } = useCalendarEvents(own ? memberId : undefined, range)
-  const { data: links } = useEventLinks()
+  const { data: links } = useEventLinks(memberId)
 
   return useMemo(() => {
     const result = new Map<Id, CalendarEvent>()

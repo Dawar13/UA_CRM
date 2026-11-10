@@ -459,3 +459,13 @@ Part 1 ends with the founders' first connections and a week of use. Part 2 (PDF 
 
 - **The folder front's pipeline** is now stacks of small squares on a faint dot matrix (D-053): one square per person who reached each stage, those there now at the bottom in their warmth colour, those who went further in the stage's blue, those lost there in charcoal, with conversion chips on a sand baseline. Hover a stage to bring it forward. Try it: open Dawar's Customers; then ⋯ → Load 2,000-row sheet to see each square stand for 48 people. Screenshots: `docs/screenshots/p2-pipeline-light.png` and `-dark.png`.
 - **Production check:** both migrations are on the hosted database (the calendar tables exist; no connections yet). The calendar code reaches production with the next push.
+
+### Founder feedback, 10 Nov 2026: live calendar, shared calendars, the format bar
+
+- **Live:** Dawar's Google Calendar is connected on production: active, the first sync fetched and stored 5 events, and Google's push channel is open (renewed daily). The 500s on connect came from a missing `CALENDAR_SUPABASE_SECRET_KEY`; the server now uses only that setting, says "not set up" when it is missing or refused, and `/api/calendar/health` shows which settings it sees (never a value).
+- **Shared calendars, view only (D-054):** Dhruv's tab shows Dhruv's week ("Dhruv's calendar, view only"), without Sync now or suggestions. The page is titled "Dawar's calendar", with a switch to Dhruv's (`/calendar?member=dhruv`); a hairline in the header sets Today and Calendar apart from the member tabs. Needs `20261110090000_shared_calendars.sql` on the hosted database first.
+- **The format bar:** Fill, Wrap and Height at the right of the quick-add line, for the active cell (or that column in the selected rows). Right-click still works.
+
+**Try this:** open Dawar's Customers, click a Company cell, choose Fill → Teal, Wrap, Height → Taller; reload, and all three are kept. Open Dhruv's tab with the side panel open (Ctrl+.): his week, view only. Expand it: "Dhruv's calendar"; switch to Dawar (you).
+
+**Checks:** typecheck and lint clean; the calendar and formatting browser tests pass (19); calendar panel and summary component tests pass (36). The pgTAP file is updated for sharing and runs in CI (the hosted run needs the founders' go-ahead).

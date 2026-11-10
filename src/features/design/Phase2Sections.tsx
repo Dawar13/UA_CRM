@@ -9,7 +9,7 @@ import type { CalendarConnection, RowLocation } from '@/data/repository'
 import type { CalendarEvent, Member, Row, Sheet } from '@/domain/types'
 import {
   ConnectCalendarCard,
-  PrivateCalendar,
+  NotConnectedYet,
   ReconnectBanner,
   SyncStatus,
 } from '@/features/calendar/CalendarStatus'
@@ -57,19 +57,20 @@ export function CalendarSection() {
     <Section
       id="calendar"
       title="Calendar"
-      caption="Google Calendar in the side panel and the row (Phase 2): connect, synced, a failed sync, access ended, another member's calendar, a contact the title suggests, and a next action in the calendar."
+      caption="Google Calendar in the side panel and the row (Phase 2): connect, synced, a failed sync, access ended, another member's calendar (view only), a contact the title suggests, and a next action in the calendar."
     >
       <div className="grid grid-cols-2 gap-6">
         <Specimen title="Not connected">
           <ConnectCalendarCard />
         </Specimen>
-        <Specimen title="Another member's calendar">
-          <PrivateCalendar member={sample.dhruv} />
+        <Specimen title="Another member's calendar, not connected">
+          <NotConnectedYet member={sample.dhruv} />
         </Specimen>
         <Specimen title="Synced, and a failed sync">
           <div className="flex flex-col gap-3">
             <SyncStatus connection={synced} now={NOW} />
             <SyncStatus connection={{ ...synced, lastErrorCode: 'network' }} now={NOW} />
+            <SyncStatus connection={synced} now={NOW} owner={sample.dhruv} />
           </div>
         </Specimen>
         <Specimen title="Google access ended">

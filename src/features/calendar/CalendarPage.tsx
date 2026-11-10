@@ -1,10 +1,12 @@
 /**
- * The calendar, expanded (Phase 2): the signed-in member's week as Google Calendar's week view
- * shows it, seven days by the hours of the day in IST, with each event's contacts on it. It reads
- * and links; changing events stays in Google Calendar. Opens from the side panel and the member
- * switch. Left and right arrows move a week.
+ * The calendar, expanded (Phase 2): a member's week as Google Calendar's week view shows it,
+ * seven days by the hours of the day in IST, with each event's contacts on it. Yours by default;
+ * a switch opens another member's, view only (D-054, `?member=<slug>`). It reads and links;
+ * changing events stays in Google Calendar. Opens from the side panel and the member switch.
+ * Left and right arrows move a week.
  */
 import { ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react'
+import { Tabs } from 'radix-ui'
 import { useEffect, useMemo, useRef } from 'react'
 import { useSearchParams } from 'react-router'
 import { Header } from '@/app/Header'
@@ -30,13 +32,13 @@ import {
   parseIsoDate,
   todayIst,
 } from '@/domain/dates'
-import type { CalendarEvent, IsoDate } from '@/domain/types'
+import type { CalendarEvent, IsoDate, Member } from '@/domain/types'
 import { weekRangeLabel } from '@/features/calendar-panel/CalendarPanel'
 import { useEventContacts } from '@/features/calendar-panel/useEventContacts'
 import { cn } from '@/lib/cn'
 import { isTypingTarget } from '@/lib/platform'
 import { useNow } from '@/lib/useNow'
-import { ConnectCalendarCard, ReconnectBanner, SyncStatus } from './CalendarStatus'
+import { ConnectCalendarCard, NotConnectedYet, ReconnectBanner, SyncStatus } from './CalendarStatus'
 import { useCalendarConnection } from './useCalendar'
 
 /** One hour is this tall. */
@@ -143,7 +145,7 @@ function WeekGrid({ start, memberId, now }: { start: IsoDate; memberId: string; 
     [start],
   )
   const { data: events = [] } = useCalendarEvents(memberId, range)
-  const { data: matches } = useEventContacts(events)
+  const { data: matches } = useEventContacts(events, memberId)
   const today = todayIst(now)
   const scroller = useRef<HTMLDivElement>(null)
 
@@ -280,13 +282,61 @@ function WeekGrid({ start, memberId, now }: { start: IsoDate; memberId: string; 
   )
 }
 
+/** Whose calendar the page shows: a segmented switch, yours first. */
+function OwnerSwitch({
+  members,
+  actorId,
+  value,
+  onChange,
+}: {
+  members: readonly Member[]
+  actorId: string
+  value: string
+  onChange: (slug: string) => void
+}) {
+  const ordered = [
+    ...members.filter((m) => m.id === actorId),
+    ...members.filter((m) => m.id !== actorId),
+  ]
+  return (
+    <Tabs.Root value={value} onValueChange={onChange} activationMode="automatic">
+      <Tabs.List
+        aria-label="Whose calendar"
+        className="flex items-center gap-0.5 rounded-[8px] bg-surface-hover p-[3px]"
+      >
+        {ordered.map((m) => (
+          <Tabs.Trigger
+            key={m.id}
+            value={m.slug}
+            aria-controls={undefined}
+            data-testid={`calendar-owner-${m.slug}`}
+            className={cn(
+              'flex h-7 shrink-0 cursor-default select-none items-center rounded-control px-3',
+              'text-sm font-medium whitespace-nowrap text-secondary',
+              'transition-[background-color,color,box-shadow] duration-(--duration-fast) ease-out',
+              'hover:bg-bg/60 hover:text-text',
+              'data-[state=active]:bg-bg data-[state=active]:font-semibold data-[state=active]:text-text',
+              'data-[state=active]:shadow-[0_1px_2px_var(--shadow),0_0_0_1px_var(--border)]',
+            )}
+          >
+            {m.id === actorId ? `${m.name} (you)` : m.name}
+          </Tabs.Trigger>
+        ))}
+      </Tabs.List>
+    </Tabs.Root>
+  )
+}
+
 export function CalendarPage() {
   const actor = useActor()
   const now = useNow()
   const { data: members, isPending } = useMembers()
   const member = members?.find((m) => m.id === actor?.id)
-  const { data: connection } = useCalendarConnection()
   const [params, setParams] = useSearchParams()
+  // Yours, or another member's week, view only (D-054).
+  const owner = members?.find((m) => m.slug === params.get('member')) ?? member
+  const own = owner !== undefined && owner.id === member?.id
+  const { data: connection } = useCalendarConnection(owner?.id)
   const thisWeek = weekStartOf(todayIst(now))
   const asked = params.get('week')
   const start = isIsoDate(asked) ? weekStartOf(asked) : thisWeek
@@ -295,7 +345,13 @@ export function CalendarPage() {
     if (connection) document.documentElement.dataset.appReady = 'true'
   }, [connection])
 
-  const go = (week: IsoDate) => setParams(week === thisWeek ? {} : { week }, { replace: true })
+  const show = (week: IsoDate, slug: string | undefined) => {
+    const next: Record<string, string> = {}
+    if (slug && slug !== member?.slug) next.member = slug
+    if (week !== thisWeek) next.week = week
+    setParams(next, { replace: true })
+  }
+  const go = (week: IsoDate) => show(week, owner?.slug)
   const goRef = useRef(go)
   goRef.current = go
   const startRef = useRef(start)
@@ -317,7 +373,7 @@ export function CalendarPage() {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [])
 
-  if (isPending || !members || !member) return <ShellSkeleton />
+  if (isPending || !members || !member || !owner) return <ShellSkeleton />
 
   const connected = connection?.state === 'active' || connection?.state === 'needs_reconnect'
 
@@ -329,9 +385,19 @@ export function CalendarPage() {
         data-testid="calendar-page"
       >
         <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-[20px] font-semibold tracking-[-0.01em] text-text">Calendar</h1>
+          <h1 className="text-[20px] font-semibold tracking-[-0.01em] text-text">
+            {`${owner.name}’s calendar`}
+          </h1>
+          {members.length > 1 ? (
+            <OwnerSwitch
+              members={members}
+              actorId={member.id}
+              value={owner.slug}
+              onChange={(slug) => show(start, slug)}
+            />
+          ) : null}
           <p className="font-mono text-xs font-medium tracking-[0.06em] text-muted uppercase tabular-nums">
-            {weekRangeLabel(start, addDaysIso(start, 6), now)} · {member.name}
+            {weekRangeLabel(start, addDaysIso(start, 6), now)}
           </p>
           {connected ? (
             <div className="flex items-center gap-1">
@@ -357,16 +423,21 @@ export function CalendarPage() {
             </div>
           ) : null}
           <span className="flex-1" />
-          {connection?.state === 'active' ? (
-            <SyncStatus connection={connection} now={now} className="justify-end gap-1" />
+          {connection && (connection.state === 'active' || (!own && connected)) ? (
+            <SyncStatus
+              connection={connection}
+              now={now}
+              owner={own ? undefined : owner}
+              className="justify-end gap-3"
+            />
           ) : null}
         </div>
-        {connection?.state === 'needs_reconnect' ? <ReconnectBanner /> : null}
+        {own && connection?.state === 'needs_reconnect' ? <ReconnectBanner /> : null}
         {!connection ? null : connected ? (
-          <WeekGrid start={start} memberId={member.id} now={now} />
+          <WeekGrid key={owner.id} start={start} memberId={owner.id} now={now} />
         ) : (
           <div className="grid flex-1 place-items-center">
-            <ConnectCalendarCard />
+            {own ? <ConnectCalendarCard /> : <NotConnectedYet member={owner} />}
           </div>
         )}
       </main>

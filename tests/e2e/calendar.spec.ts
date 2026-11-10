@@ -29,8 +29,9 @@ test.describe('the calendar page', () => {
     await openSheet(page, 'dawar', 'customers')
     await memberTab(page, 'Calendar').click()
     await expect(page).toHaveURL(/\/calendar$/)
-    await expect(page.getByRole('heading', { name: 'Calendar', level: 1 })).toBeVisible()
-    await expect(page.getByText('2–8 Nov · Dawar')).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Dawar’s calendar', level: 1 })).toBeVisible()
+    await expect(page.getByText('2–8 Nov', { exact: true })).toBeVisible()
+    await expect(page.getByTestId('member-tabs-divider')).toHaveCount(1)
 
     const thursday = day(page, 'Thu 5 Nov')
     await expect(thursday.getByTestId('week-event')).toHaveCount(2)
@@ -57,6 +58,28 @@ test.describe('the calendar page', () => {
     await panel(page).getByRole('button', { name: 'Open the calendar' }).click()
     await expect(page).toHaveURL(/\/calendar$/)
     await expect(day(page, 'Thu 5 Nov')).toContainText('Founders sync')
+  })
+
+  test('shows another member’s week, view only (D-054)', async ({ page }) => {
+    await openSheet(page, 'dhruv', 'investors')
+    await panel(page).getByRole('button', { name: 'Open the calendar' }).click()
+    await expect(page).toHaveURL(/\/calendar\?member=dhruv$/)
+    await expect(page.getByRole('heading', { name: 'Dhruv’s calendar', level: 1 })).toBeVisible()
+    await expect(page.getByTestId('calendar-owner-dhruv')).toHaveAttribute('aria-selected', 'true')
+    await expect(day(page, 'Thu 5 Nov')).toContainText('Coffee with Arvind Menon')
+    await expect(day(page, 'Thu 5 Nov')).not.toContainText('Call with Rohan Mehta')
+    await expect(page.getByTestId('calendar-sync-status')).toContainText(
+      'Dhruv’s calendar, view only',
+    )
+    await expect(page.getByRole('button', { name: 'Sync now' })).toHaveCount(0)
+
+    // The week moves and stays on Dhruv's calendar; the switch goes back to yours.
+    await page.keyboard.press('ArrowRight')
+    await expect(page).toHaveURL(/\/calendar\?member=dhruv&week=2026-11-09$/)
+    await page.getByTestId('calendar-owner-dawar').click()
+    await expect(page).toHaveURL(/\/calendar\?week=2026-11-09$/)
+    await expect(page.getByRole('heading', { name: 'Dawar’s calendar', level: 1 })).toBeVisible()
+    await expect(day(page, 'Mon 9 Nov')).toContainText('Pitch practice')
   })
 })
 
