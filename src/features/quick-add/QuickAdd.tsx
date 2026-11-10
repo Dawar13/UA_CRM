@@ -4,15 +4,26 @@
  * parser is, with any possible duplicates), and Enter again to save. Esc goes back to editing.
  * A line starting with > logs a touch on the selected row instead. The draft is kept in the
  * browser until it is saved.
+ *
+ * Read with AI (Ctrl+Enter), Upload file, or a file dropped on it (D-055): the AI writes the
+ * contacts it finds as quick-add text, which then previews and saves the same way.
  */
 import { useQueryClient } from '@tanstack/react-query'
-import { ChevronRight } from 'lucide-react'
-import { type KeyboardEvent, type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
+import { ChevronRight, Paperclip, Sparkles } from 'lucide-react'
+import {
+  type DragEvent,
+  type KeyboardEvent,
+  type ReactNode,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import { toast } from 'sonner'
 import { useUiStore } from '@/app/uiStore'
 import { useActor } from '@/auth/AuthContext'
 import { Button } from '@/components/ui/Button'
-import { Kbd } from '@/components/ui/Kbd'
+import { ariaKeyShortcuts, Kbd } from '@/components/ui/Kbd'
 import { usePeople, useRows, useTags } from '@/data/hooks'
 import { saveErrorMessage } from '@/data/hooks/rowEdits'
 import { useRepository } from '@/data/RepositoryContext'
@@ -27,9 +38,12 @@ import {
   type QuickAddResult,
 } from '@/domain/quickadd/parse'
 import type { Member, Row, Sheet } from '@/domain/types'
+import { cn } from '@/lib/cn'
+import { isModKey } from '@/lib/platform'
 import { readStorage, STORAGE_PREFIX, writeStorage } from '@/lib/storage'
 import { useUndoStack } from '@/lib/undoStack'
 import { type DuplicateChoice, DuplicateChoices } from './DuplicateChoices'
+import { AI_FILE_ACCEPT, type AiSource, aiErrorMessage, useReadWithAi } from './useReadWithAi'
 
 const draftKey = (sheetId: string) => `${STORAGE_PREFIX}quick-add:${sheetId}`
 
@@ -94,6 +108,11 @@ export function QuickAdd({
   const [saving, setSaving] = useState(false)
   const textRef = useRef<HTMLTextAreaElement>(null)
   const previewRef = useRef<HTMLButtonElement>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
+  const ai = useReadWithAi(sheet)
+  /** What the AI read ("your text" or a file name), and what was typed before it. */
+  const [aiRead, setAiRead] = useState<{ from: string; original: string } | null>(null)
+  const [dragging, setDragging] = useState(false)
   const selectedRow = useMemo(
     () => rows.find((r) => r.id === selectedRowId) ?? null,
     [rows, selectedRowId],
@@ -145,6 +164,65 @@ export function QuickAdd({
         )
     })
   }
+
+  const readWithAi = async (source: AiSource) => {
+    if (ai.isPending) return
+    const before = text
+    setOpen(true)
+    setMode('edit')
+    try {
+      const filled = await ai.mutateAsync(source)
+      setAiRead({ from: 'text' in source ? 'your text' : source.file.name, original: before })
+      setText(filled)
+      preview(filled)
+    } catch (error) {
+      toast.error(aiErrorMessage(error), { id: 'quick-add-ai' })
+      requestAnimationFrame(() => textRef.current?.focus())
+    }
+  }
+
+  const restoreOriginal = () => {
+    if (!aiRead) return
+    setText(aiRead.original)
+    setAiRead(null)
+    focusEditor()
+  }
+
+  const onFiles = (files: FileList | null | undefined) => {
+    const file = files?.[0]
+    if (file) void readWithAi({ file })
+  }
+
+  const dropHandlers = {
+    onDragOver: (event: DragEvent<HTMLDivElement>) => {
+      if (!event.dataTransfer.types.includes('Files')) return
+      event.preventDefault()
+      setDragging(true)
+    },
+    onDragLeave: () => setDragging(false),
+    onDrop: (event: DragEvent<HTMLDivElement>) => {
+      if (!event.dataTransfer.types.includes('Files')) return
+      event.preventDefault()
+      setDragging(false)
+      onFiles(event.dataTransfer.files)
+    },
+  }
+
+  const fileInput = (
+    <input
+      ref={fileRef}
+      type="file"
+      accept={AI_FILE_ACCEPT}
+      tabIndex={-1}
+      aria-hidden="true"
+      className="sr-only"
+      data-testid="quick-add-file"
+      onChange={(event) => {
+        onFiles(event.target.files)
+        event.target.value = ''
+      }}
+    />
+  )
 
   // The latest handlers, for effects that run only when a request arrives.
   const latest = useRef({ focusEditor, preview })
@@ -271,6 +349,7 @@ export function QuickAdd({
         )
       }
       setText('')
+      setAiRead(null)
       setResult(null)
       setMode('edit')
       setOpen(false)
@@ -291,7 +370,10 @@ export function QuickAdd({
   }, [pending, checking, blocked])
 
   const onEditorKey = (event: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (event.key === 'Enter' && !event.shiftKey) {
+    if (event.key === 'Enter' && isModKey(event)) {
+      event.preventDefault()
+      if (text.trim()) void readWithAi({ text })
+    } else if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault()
       preview(text)
     } else if (event.key === 'Escape') {
@@ -311,9 +393,14 @@ export function QuickAdd({
   if (!open) {
     return (
       <div
-        className="flex shrink-0 items-center border-b border-grid-line bg-surface-subtle px-3 py-1.5"
+        className={cn(
+          'flex shrink-0 items-center border-b border-grid-line bg-surface-subtle px-3 py-1.5',
+          dragging && 'bg-brand-50 outline-2 -outline-offset-2 outline-focus outline-dashed',
+        )}
         data-testid="quick-add"
+        {...dropHandlers}
       >
+        {fileInput}
         <button
           type="button"
           onClick={focusEditor}
@@ -323,7 +410,7 @@ export function QuickAdd({
           <span className="truncate">
             {text
               ? 'Quick add: draft kept. Press / to carry on.'
-              : 'Quick add: Name / Title @ Company, Location'}
+              : 'Quick add: Name / Title @ Company, Location, or drop a PDF or photo'}
           </span>
           <Kbd keys={['/']} className="ml-auto" />
         </button>
@@ -334,9 +421,14 @@ export function QuickAdd({
 
   return (
     <div
-      className="shrink-0 border-b border-grid-line bg-surface-subtle px-3 py-2.5"
+      className={cn(
+        'shrink-0 border-b border-grid-line bg-surface-subtle px-3 py-2.5',
+        dragging && 'bg-brand-50 outline-2 -outline-offset-2 outline-focus outline-dashed',
+      )}
       data-testid="quick-add"
+      {...dropHandlers}
     >
+      {fileInput}
       {mode === 'edit' ? (
         <div className="flex flex-col gap-1.5">
           <textarea
@@ -346,23 +438,64 @@ export function QuickAdd({
             onChange={(e) => setText(e.target.value)}
             onKeyDown={onEditorKey}
             placeholder={PLACEHOLDER}
+            readOnly={ai.isPending}
+            aria-busy={ai.isPending || undefined}
             rows={Math.min(8, Math.max(2, text.split('\n').length + 1))}
             spellCheck={false}
-            className="w-full resize-none rounded-control border border-border bg-surface-raised px-2.5 py-2 font-mono text-[13px] leading-[1.55] text-text outline-none placeholder:text-muted focus-visible:border-focus"
+            className="w-full resize-none rounded-control border border-border bg-surface-raised px-2.5 py-2 font-mono text-[13px] leading-[1.55] text-text outline-none placeholder:text-muted focus-visible:border-focus read-only:opacity-60"
           />
-          <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
-            <span>
-              <Kbd keys={['Enter']} /> preview
+          {aiRead ? (
+            <p className="flex flex-wrap items-center gap-x-2 text-xs text-secondary">
+              <Sparkles aria-hidden className="size-3.5 text-link" />
+              Filled in by AI from {aiRead.from}. Check it, then press Enter.
+              {aiRead.original.trim() ? (
+                <button
+                  type="button"
+                  onClick={restoreOriginal}
+                  className="rounded-chip text-link underline-offset-2 hover:underline"
+                >
+                  Restore what I typed
+                </button>
+              ) : null}
+            </p>
+          ) : null}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <p className="flex flex-1 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
+              <span>
+                <Kbd keys={['Enter']} /> preview
+              </span>
+              <span>
+                <Kbd keys={['Shift', 'Enter']} /> new line
+              </span>
+              <span>A blank line starts the next contact</span>
+              <span>&gt; logs a touch on the selected row</span>
+              <span>
+                <Kbd keys={['Esc']} /> close (the draft is kept)
+              </span>
+            </p>
+            <span className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => void readWithAi({ text })}
+                disabled={!text.trim() || ai.isPending}
+                aria-keyshortcuts={ariaKeyShortcuts(['Mod', 'Enter'])}
+              >
+                <Sparkles aria-hidden className="text-link" />
+                {ai.isPending ? 'Reading…' : 'Read with AI'}
+                <Kbd keys={['Mod', 'Enter']} tone="subtle" className="ml-0.5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => fileRef.current?.click()}
+                disabled={ai.isPending}
+              >
+                <Paperclip aria-hidden />
+                Upload file
+              </Button>
             </span>
-            <span>
-              <Kbd keys={['Shift', 'Enter']} /> new line
-            </span>
-            <span>A blank line starts the next contact</span>
-            <span>&gt; logs a touch on the selected row</span>
-            <span>
-              <Kbd keys={['Esc']} /> close (the draft is kept)
-            </span>
-          </p>
+          </div>
         </div>
       ) : (
         <section
@@ -370,6 +503,12 @@ export function QuickAdd({
           className="flex flex-col gap-3"
           data-testid="quick-add-preview"
         >
+          {aiRead ? (
+            <p className="flex items-center gap-2 text-xs text-secondary">
+              <Sparkles aria-hidden className="size-3.5 text-link" />
+              Read by AI from {aiRead.from}. Check each field before saving.
+            </p>
+          ) : null}
           {result?.kind === 'touch' ? (
             <div className="rounded-card border border-border bg-surface-raised p-3 shadow-card">
               <p className="mb-2 text-sm font-medium">

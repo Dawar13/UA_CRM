@@ -49,7 +49,7 @@ function apiDev(): Plugin {
         if (!name.startsWith('VITE_') && process.env[name] === undefined) process.env[name] = value
       }
       server.middlewares.use(async (req, res, next) => {
-        const path = /^\/api\/((?:calendar|cron)\/[a-z-]+)(?:\?|$)/.exec(req.url ?? '')?.[1]
+        const path = /^\/api\/((?:calendar|cron|ai)\/[a-z-]+)(?:\?|$)/.exec(req.url ?? '')?.[1]
         if (!path) return next()
         if (!existsSync(fileURLToPath(new URL(`./api/${path}.ts`, import.meta.url)))) {
           res.statusCode = 404

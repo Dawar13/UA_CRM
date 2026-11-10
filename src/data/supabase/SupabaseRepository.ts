@@ -5,11 +5,13 @@
  * can() first, using the membership of the signed-in user; row-level security refuses it again
  * in the database.
  */
+
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { scoreDuplicate } from '@/domain/dedupe/score'
 import { formatPhone, normalisePhone, searchTokens } from '@/domain/identity'
 import { cleanMemberEmail, cleanMemberName, MemberRuleError } from '@/domain/members'
 import { type Action, type Actor, assertCan } from '@/domain/permissions'
+import type { AiContact } from '@/domain/quickadd/fromAi'
 import { copiedRowValues, newRow, patchRow, type RowPatch, RowValidationError } from '@/domain/rows'
 import {
   convertColumn as domainConvertColumn,
@@ -58,6 +60,8 @@ import type {
 import { setWarmth } from '@/domain/warmth'
 import { NextActionFollowUps } from '../calendarFollowUps'
 import {
+  AiReadError,
+  type AiReadInput,
   type CalendarConnection,
   type CalendarSyncReason,
   type ColumnPatch,
@@ -84,7 +88,7 @@ import {
   type SearchResult,
   type TrashItem,
 } from '../repository'
-import { calendarApi, toCalendarEvent, toConnection } from './calendar'
+import { calendarApi, postApi, toCalendarEvent, toConnection } from './calendar'
 import { type RemoteErrorLike, toDomainError } from './errors'
 import {
   type HistoryRecord,
@@ -1048,6 +1052,16 @@ export class SupabaseRepository implements Repository {
     await this.ownRow(rowId, ctx)
     this.followUps.forget(rowId)
     await calendarApi(this.client, 'next-action-event', { rowId, op: 'remove' })
+  }
+
+  async readWithAi(input: AiReadInput, _ctx: MutationContext): Promise<AiContact[]> {
+    const result = await postApi(
+      this.client,
+      '/api/ai/read',
+      { ...input },
+      (code) => new AiReadError(code),
+    )
+    return Array.isArray(result.contacts) ? (result.contacts as AiContact[]) : []
   }
 
   async listEventLinks(ctx: MutationContext, memberId?: Id): Promise<EventLink[]> {

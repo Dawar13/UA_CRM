@@ -10,6 +10,7 @@
  * Stage, warmth and history changes are one operation: each mutation writes the row and appends
  * its history entry atomically, and updates `row.lastTouchAt`.
  */
+import type { AiContact } from '@/domain/quickadd/fromAi'
 import type { NewRowValues, RowPatch } from '@/domain/rows'
 import type { StageMoves } from '@/domain/sheetEdits'
 import type {
@@ -205,6 +206,27 @@ export interface EventLink {
   kind: 'confirmed' | 'dismissed'
 }
 
+// ---------- Reading contacts with AI (D-055) ----------
+
+/** Free text or a file (base64), with what the AI needs to know about the sheet. */
+export interface AiReadInput {
+  text?: string
+  file?: { name: string; mimeType: string; data: string }
+  sheet: { name: string; stages: string[]; columns: { label: string; options: string[] }[] }
+  /** Today in IST, "Tue 10 Nov 2026". */
+  today: string
+}
+
+/** AI reading refused: not set up, busy (the free quota), too large, unreadable, ... */
+export class AiReadError extends Error {
+  readonly code: string
+  constructor(code: string) {
+    super(`AI: ${code}`)
+    this.name = 'AiReadError'
+    this.code = code
+  }
+}
+
 /** A calendar action refused: not connected, needs reconnecting, a fuzzy date, no email, ... */
 export class CalendarError extends Error {
   readonly code: string
@@ -378,6 +400,10 @@ export interface Repository {
   removeNextActionEvent(rowId: Id, ctx: MutationContext): Promise<void>
   /** The actor's event links, or another member's (view only). */
   listEventLinks(ctx: MutationContext, memberId?: Id): Promise<EventLink[]>
+
+  // ---------- Reading contacts with AI (D-055) ----------
+  /** Contacts in free text or a file, read by the AI on the server; nothing is saved. */
+  readWithAi(input: AiReadInput, ctx: MutationContext): Promise<AiContact[]>
   /** Confirms or dismisses a suggested contact for an event (or a whole series). */
   linkEvent(link: EventLink, ctx: MutationContext): Promise<void>
 }

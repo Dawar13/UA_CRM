@@ -125,3 +125,55 @@ test.describe('quick add', () => {
     ).toHaveCount(1)
   })
 })
+
+test.describe('reading with AI (D-055; sample mode stands in for the AI)', () => {
+  test('Read with AI fills quick add, previews, and Restore brings back the typing', async ({
+    page,
+  }) => {
+    await openSheet(page, 'dawar', 'customers')
+    await focusGrid(page)
+    await page.keyboard.press('/')
+    const box = page.getByLabel('Quick add', { exact: true })
+    await box.fill('Kavita Iyer\nruns quality at Nashik Gears')
+    await box.press('Control+Enter')
+    await expect(page.getByTestId('quick-add-preview')).toContainText('Read by AI from your text')
+    await expect(previewField(page, 'Name')).toHaveText('Kavita Iyer')
+    await expect(previewField(page, 'Notes')).toHaveText('runs quality at Nashik Gears')
+
+    await page.keyboard.press('Escape')
+    await expect(box).toHaveValue('Kavita Iyer\nnote: runs quality at Nashik Gears')
+    await page.getByRole('button', { name: 'Restore what I typed' }).click()
+    await expect(box).toHaveValue('Kavita Iyer\nruns quality at Nashik Gears')
+  })
+
+  test('an uploaded file is read into a contact and saved', async ({ page }) => {
+    await openSheet(page, 'dawar', 'customers')
+    await focusGrid(page)
+    await page.keyboard.press('/')
+    await page.getByTestId('quick-add-file').setInputFiles({
+      name: 'visiting-card.pdf',
+      mimeType: 'application/pdf',
+      buffer: Buffer.from('%PDF-1.4 sample'),
+    })
+    await expect(page.getByTestId('quick-add-preview')).toContainText(
+      'Read by AI from visiting-card.pdf',
+    )
+    await expect(previewField(page, 'Name')).toHaveText('Asha Rao')
+    await page.getByRole('button', { name: /^Save/ }).click()
+    await expect(toast(page, 'Added Asha Rao')).toBeVisible()
+  })
+
+  test('a file it cannot read says so', async ({ page }) => {
+    await openSheet(page, 'dawar', 'customers')
+    await focusGrid(page)
+    await page.keyboard.press('/')
+    await page.getByTestId('quick-add-file').setInputFiles({
+      name: 'notes.zip',
+      mimeType: 'application/zip',
+      buffer: Buffer.from('PK'),
+    })
+    await expect(
+      toast(page, /can’t be read\. Use a PDF, a photo, a CSV or a text file/),
+    ).toBeVisible()
+  })
+})

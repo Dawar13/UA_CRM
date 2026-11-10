@@ -190,6 +190,23 @@ function isKnownKey(phrase: string, sheet: Sheet): boolean {
   return sheet.columns.some((c) => !c.deletedAt && c.label.toLowerCase() === phrase)
 }
 
+/**
+ * The key that fills this column when written as `key: value`, or null if none does: its whole
+ * label when that is plain words ("Plant location"), otherwise its first word when that alone
+ * points to it ("Ticket" for "Ticket estimate (₹ L/yr)").
+ */
+export function quickAddKeyFor(column: ColumnDef, sheet: Sheet): string | null {
+  const label = column.label.trim()
+  if (/^[\p{L}\p{N}]+( [\p{L}\p{N}]+)*$/u.test(label)) {
+    const whole = resolveKey(label, sheet)
+    if (whole.kind === 'column' && whole.column.id === column.id) return label
+  }
+  const first = /^[\p{L}\p{N}]+/u.exec(label)?.[0]
+  if (!first) return null
+  const resolved = resolveKey(first, sheet)
+  return resolved.kind === 'column' && resolved.column.id === column.id ? first : null
+}
+
 // ---------- Lines into parts ----------
 
 interface LineParts {

@@ -21,7 +21,7 @@ None of the three is optional. A screen that works but looks rough is not done, 
 
 **Hard constraints:**
 - **₹0 running cost.** Free tiers and open-source libraries only, with permissive or OSI licences (MIT, Apache-2.0, BSD, ISC, MPL-2.0, OFL). Check the licence before adding any dependency and log it in `docs/DECISIONS.md`.
-- **No AI or LLM APIs.** All parsing (quick-add, PDFs, OCR, field mapping) is deterministic code and open-source models running in the browser.
+- **No AI or LLM APIs, with one exception.** All parsing (quick-add, field mapping, import) is deterministic code. The exception, chosen by the founders on 10 Nov 2026 (D-055): **Read with AI** in quick add sends free text, a PDF, a photo or a small CSV to Google's Gemini API on its free tier, through a server function that holds the key. Nothing else uses AI, and the rule-based parser stays the default and the fallback.
 - **Real contact data never goes into git.** Fixtures and seed data are invented. Imports of real files happen at runtime from `data/import/`, which is gitignored.
 
 ---
@@ -176,7 +176,10 @@ For the signed-in member, with each section collapsible:
 
 ### 2.12 PDF and photo import (Phase 2)
 
-Everything runs in the browser, in a Web Worker.
+**Built (D-055):** PDFs, photos (visiting cards), small CSVs (up to 60 rows) and text files go through **Read with AI** in quick add: Upload file, or drop the file on the quick-add line. The server (`api/ai/read`) asks Gemini (free tier, `gemini-flash-lite-latest` by default, `AI_MODEL` to change it) for the contacts, with the sheet's columns and stages; they come back as quick-add text, so they preview, check for duplicates and save as typed contacts do, and can be edited first. Photos are scaled to 1600px in the browser; files are limited to 3 MB. Free text works the same way with Ctrl+Enter. Long CSVs go through Import.
+
+**The in-browser plan below is not built** (the founders chose the free AI instead). Dropping a file on a row to fill its empty fields is not built either.
+
 1. **Digital PDFs:** pdfjs-dist reads the text layer. Layout cues from font sizes give the name (largest text on page 1) and title (the next line). There is a dedicated template for LinkedIn "Save to PDF" exports.
 2. **Scans and photos:** `@paddleocr/paddleocr-js` (PP-OCRv5 mobile, ONNX Runtime Web). The fallback is tesseract.js.
 3. **Mapping fields:** the same extractors as quick-add. Company names already in the CRM are matched first.
@@ -361,7 +364,7 @@ Versions are the latest stable on npm as of 5 Nov 2026. Several are new majors, 
 **Banned:**
 - Handsontable (its free licence is non-commercial).
 - Canvas-rendered grids.
-- Any paid API, any LLM or AI API.
+- Any paid API; any LLM or AI API other than Gemini's free tier for Read with AI (D-055).
 - Third-party analytics or trackers.
 - Google Fonts CDN (self-host instead).
 
@@ -418,7 +421,8 @@ ua-crm/
     unit/  component/  support/  e2e/  a11y/  visual/  perf/  fixtures/
     contract/  e2e-live/         Phase 1 (the Supabase contract run is the integration layer)
   api/                           Phase 2: Vercel functions for Google Calendar (_lib/ holds the server
-                                 code: OAuth, sync, sealed tokens, the Supabase store)
+                                 code: OAuth, sync, sealed tokens, the Supabase store) and ai/read
+                                 (Read with AI, D-055)
   supabase/                      Phase 1: config, migrations/, tests/ (pgTAP)
   scripts/                       token generation, visual baselines; Phase 1: backup/ (dump,
                                  restore check, Storage mirror and restore)

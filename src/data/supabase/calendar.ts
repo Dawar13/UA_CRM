@@ -9,32 +9,40 @@ import { type CalendarConnection, CalendarError, NOT_CONNECTED } from '../reposi
 
 type Record_ = Record<string, unknown>
 
-/** POSTs to /api/calendar/<path> as the signed-in member; a refusal throws its code. */
-export async function calendarApi(
+/** POSTs to one of the app's /api functions as the signed-in member; a refusal throws its code. */
+export async function postApi(
   client: SupabaseClient,
-  path: string,
-  body: Record_ = {},
+  url: string,
+  body: Record_,
+  refused: (code: string) => Error,
 ): Promise<Record_> {
   const { data } = await client.auth.getSession()
   const token = data.session?.access_token
-  if (!token) throw new CalendarError('unauthorized')
+  if (!token) throw refused('unauthorized')
   let response: Response
   try {
-    response = await fetch(`/api/calendar/${path}`, {
+    response = await fetch(url, {
       method: 'POST',
       headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
       body: JSON.stringify(body),
     })
   } catch {
-    throw new CalendarError('network')
+    throw refused('network')
   }
   const result = (await response.json().catch(() => ({}))) as Record_
   if (!response.ok) {
-    throw new CalendarError(
-      typeof result.error === 'string' ? result.error : `http_${response.status}`,
-    )
+    throw refused(typeof result.error === 'string' ? result.error : `http_${response.status}`)
   }
   return result
+}
+
+/** POSTs to /api/calendar/<path> as the signed-in member; a refusal throws its code. */
+export function calendarApi(
+  client: SupabaseClient,
+  path: string,
+  body: Record_ = {},
+): Promise<Record_> {
+  return postApi(client, `/api/calendar/${path}`, body, (code) => new CalendarError(code))
 }
 
 export function toConnection(row: Record_ | null): CalendarConnection {

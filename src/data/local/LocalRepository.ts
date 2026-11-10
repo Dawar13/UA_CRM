@@ -3,12 +3,14 @@
  * actor with the same `can()` the UI uses, so a permission leak in the UI fails in local mode
  * too. Methods of later milestones throw NotAvailableYet.
  */
+
 import { Dexie } from 'dexie'
 import { addDaysIso, istInstant } from '@/domain/dates'
 import { findDuplicateMatches, pairKey } from '@/domain/dedupe/score'
 import { formatPhone, normaliseName, searchTokens } from '@/domain/identity'
 import { cleanMemberEmail, cleanMemberName, MemberRuleError } from '@/domain/members'
 import { type Actor, assertCan } from '@/domain/permissions'
+import type { AiContact } from '@/domain/quickadd/fromAi'
 import { copiedRowValues, newRow, patchRow, type RowPatch, RowValidationError } from '@/domain/rows'
 import {
   convertColumn as domainConvertColumn,
@@ -57,6 +59,8 @@ import type {
 import { setWarmth } from '@/domain/warmth'
 import { NextActionFollowUps } from '../calendarFollowUps'
 import {
+  AiReadError,
+  type AiReadInput,
   type CalendarConnection,
   CalendarError,
   type CalendarSyncReason,
@@ -1500,6 +1504,53 @@ export class LocalRepository implements Repository {
       const current = await db.rows.get(row.id)
       if (current) await db.rows.put({ ...current, nextActionEvent: null })
     })
+  }
+
+  /**
+   * Sample mode has no AI: a stand-in that reads each block's first line as the name and keeps
+   * the rest as notes, and reads any file as one sample person. Enough to try the flow.
+   */
+  async readWithAi(input: AiReadInput, ctx: MutationContext): Promise<AiContact[]> {
+    const member = await this.db.members.get(ctx.actorId)
+    if (!member?.active) throw new AiReadError('unauthorized')
+    const blank: AiContact = {
+      name: '',
+      title: '',
+      company: '',
+      location: '',
+      phones: [],
+      emails: [],
+      linkedin: '',
+      links: [],
+      warmth: '',
+      stage: '',
+      tags: [],
+      introducedBy: '',
+      nextAction: '',
+      nextDate: '',
+      notes: '',
+      fields: [],
+    }
+    if (input.file) {
+      return [
+        {
+          ...blank,
+          name: 'Asha Rao',
+          title: 'Plant Head',
+          company: 'Sample Forgings',
+          notes: `Read from ${input.file.name} (sample mode has no AI)`,
+        },
+      ]
+    }
+    return (input.text ?? '')
+      .split(/\n\s*\n/)
+      .map((block) => block.trim().split('\n'))
+      .filter((lines) => (lines[0] ?? '').trim() !== '')
+      .map(([first = '', ...rest]) => ({
+        ...blank,
+        name: first.trim(),
+        notes: rest.join(' ').trim(),
+      }))
   }
 
   async listEventLinks(ctx: MutationContext, memberId?: Id): Promise<EventLink[]> {

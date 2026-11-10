@@ -469,3 +469,10 @@ Part 1 ends with the founders' first connections and a week of use. Part 2 (PDF 
 **Try this:** open Dawar's Customers, click a Company cell, choose Fill → Teal, Wrap, Height → Taller; reload, and all three are kept. Open Dhruv's tab with the side panel open (Ctrl+.): his week, view only. Expand it: "Dhruv's calendar"; switch to Dawar (you).
 
 **Checks:** typecheck and lint clean; the calendar and formatting browser tests pass (19); calendar panel and summary component tests pass (36). The pgTAP file is updated for sharing and runs in CI (the hosted run needs the founders' go-ahead).
+
+### Read with AI (D-055), 10 Nov 2026
+
+- **Free text, PDFs, photos, small CSVs:** in quick add, Ctrl+Enter (Read with AI) or Upload file, or drop a file on the quick-add line. The server asks Gemini (free tier) for the contacts with the sheet's columns and stages; they come back as quick-add text, previewed at once, with the duplicate check as usual. "Restore what I typed" undoes the AI's version. A CSV over 60 rows goes through Import.
+- **Setup on production:** a free Gemini key as `GEMINI_API_KEY` in Vercel (RUNBOOK §8). Until then the app says "AI reading is not set up on the server yet."
+- **Try this (sample mode):** press `/`, type two lines, Ctrl+Enter: the first line becomes the name and the rest notes (sample mode has no AI). Upload any PDF: a sample person appears.
+- **Checks:** 62 server tests (13 for the AI function, against a fake Gemini); 24 unit tests for the conversion and file helpers, including a round trip through the quick-add parser; 10 quick-add browser tests (3 new). Not yet run against the real Gemini API: the first call with the founders' key is the real test.

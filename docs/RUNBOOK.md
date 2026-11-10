@@ -209,3 +209,12 @@ Then check these, and tell Claude what you saw:
 
 - Everything stays on free tiers: Google's Calendar API quota is far above two members' use, and Vercel Hobby allows the one daily job and these functions.
 - A database restore (§5) brings the calendar tables back with the tokens still sealed; the same `CALENDAR_TOKEN_KEY` opens them. If the production address changes, update `APP_BASE_URL` and the redirect URI in 7.1, and each member disconnects and connects again so Google's push uses the new address.
+
+## 8. Read with AI (Gemini, free tier)
+
+1. Sign in at https://aistudio.google.com with a Google account the founders control, open **Get API key** → **Create API key**, and create it in a new or existing Google Cloud project. Keep it on the free tier: do not attach billing to that project.
+2. Vercel → the project → **Settings** → **Environment Variables** → add `GEMINI_API_KEY` with that key, **Production** ticked, **Sensitive** on. Optionally `AI_MODEL` (default `gemini-flash-lite-latest`).
+3. Redeploy (or push). `https://<your domain>/api/calendar/health` lists `GEMINI_API_KEY: true` once the deployment sees it.
+4. Try it: open your own sheet, press `/`, paste an email signature, press Ctrl+Enter. The quick-add box fills with the contact and the preview opens.
+5. Limits: Google shows the free quota per model at https://aistudio.google.com (rate limits). When it runs out the app says the allowance is used up; quick add still works without AI.
+6. If the key leaks: delete it in AI Studio, create a new one, update Vercel and redeploy.

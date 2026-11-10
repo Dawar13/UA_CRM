@@ -16,6 +16,8 @@ const NAMES = [
   'VITE_SUPABASE_URL',
   'VITE_SUPABASE_PUBLISHABLE_KEY',
   'CALENDAR_SUPABASE_SECRET_KEY',
+  // Reading contacts with AI (D-055); not needed by the calendar itself.
+  'GEMINI_API_KEY',
 ] as const
 
 /** What kind of key a value is, from its shape alone. */
