@@ -28,15 +28,34 @@ export function BrandMark({
   )
 }
 
-/** Brand mark, "Utopian Autonomy" wordmark and the "Internal CRM" label, for the header. */
-export function BrandLockup({ className }: { className?: string }) {
+/**
+ * Brand mark, "Utopian Autonomy" wordmark and the "Internal CRM" label, for the header. With
+ * `collapse`, a phone shows the mark alone (the name stays for screen readers).
+ */
+export function BrandLockup({
+  className,
+  collapse = false,
+}: {
+  className?: string
+  collapse?: boolean
+}) {
   return (
     <div className={cn('flex shrink-0 items-center gap-2.5', className)}>
       <BrandMark />
-      <span className="text-[15px] leading-none font-semibold tracking-[-0.015em] whitespace-nowrap text-text">
+      <span
+        className={cn(
+          'text-[15px] leading-none font-semibold tracking-[-0.015em] whitespace-nowrap text-text',
+          collapse && 'max-md:sr-only',
+        )}
+      >
         Utopian Autonomy
       </span>
-      <span className="inline-flex h-[21px] items-center rounded-chip border border-brand-tint-strong px-1.5 font-mono text-[10.5px] leading-none font-semibold tracking-[0.08em] whitespace-nowrap text-brand-tint-fg uppercase">
+      <span
+        className={cn(
+          'inline-flex h-[21px] items-center rounded-chip border border-brand-tint-strong px-1.5 font-mono text-[10.5px] leading-none font-semibold tracking-[0.08em] whitespace-nowrap text-brand-tint-fg uppercase',
+          collapse && 'max-md:hidden',
+        )}
+      >
         Internal CRM
       </span>
     </div>

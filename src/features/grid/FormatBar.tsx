@@ -98,8 +98,8 @@ function FormatControls({
         <MenuTrigger asChild>
           <Button variant="ghost" size="sm" aria-label={`Fill colour for ${where}`}>
             {fill ? <FillSquare colour={fill} /> : <NoFillSquare />}
-            Fill
-            <ChevronDown aria-hidden className="text-muted" />
+            <span className="max-md:hidden">Fill</span>
+            <ChevronDown aria-hidden className="text-muted max-md:hidden" />
           </Button>
         </MenuTrigger>
         <MenuContent
@@ -146,7 +146,7 @@ function FormatControls({
         className={cn(def.wrap && 'bg-surface-hover text-text')}
       >
         <WrapText aria-hidden />
-        Wrap
+        <span className="max-md:hidden">Wrap</span>
       </Button>
       <Menu>
         <MenuTrigger asChild>
@@ -156,8 +156,8 @@ function FormatControls({
             aria-label={many ? `Row height for ${targets.length} rows` : 'Row height'}
           >
             <MoveVertical aria-hidden />
-            Height
-            <ChevronDown aria-hidden className="text-muted" />
+            <span className="max-md:hidden">Height</span>
+            <ChevronDown aria-hidden className="text-muted max-md:hidden" />
           </Button>
         </MenuTrigger>
         <MenuContent

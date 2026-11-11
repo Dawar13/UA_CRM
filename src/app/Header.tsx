@@ -107,9 +107,12 @@ export function Header({
   const me = members.find((m) => m.id === actor?.id)
 
   return (
-    <header className="flex h-(--header-height) shrink-0 items-center gap-6 border-b border-border bg-bg px-5">
-      <BrandLockup />
-      <nav aria-label="Members" className="flex min-w-0 items-center">
+    <header className="flex h-(--header-height) shrink-0 items-center gap-6 border-b border-border bg-bg px-5 max-md:gap-2 max-md:px-3">
+      <BrandLockup collapse />
+      <nav
+        aria-label="Members"
+        className="flex min-w-0 items-center max-md:flex-1 max-md:overflow-x-auto max-md:[scrollbar-width:none]"
+      >
         <MemberTabs
           members={members.map((m) => ({ id: m.id, name: m.name }))}
           value={open === 'today' ? TODAY_TAB : open === 'calendar' ? CALENDAR_TAB : member.id}
@@ -130,24 +133,25 @@ export function Header({
         />
       </nav>
 
-      <div className="ml-auto flex min-w-0 items-center gap-2">
+      <div className="ml-auto flex min-w-0 items-center gap-2 max-md:shrink-0 max-md:gap-1">
         <OfflineNotice />
         <Tooltip content="Search and commands" shortcut={['Mod', 'K']}>
           {/* A soft pill: no border, the input fill, the shortcut on a paper keycap. */}
           <button
             type="button"
             onClick={() => setPaletteOpen(true)}
-            className="inline-flex h-[34px] w-[300px] min-w-0 shrink items-center gap-2 rounded-[8px] bg-surface-hover pr-1.5 pl-2.5 text-sm text-muted transition-colors duration-(--duration-fast) ease-out hover:bg-tile hover:text-secondary"
+            className="inline-flex h-[34px] w-[300px] min-w-0 shrink items-center gap-2 rounded-[8px] bg-surface-hover pr-1.5 pl-2.5 text-sm text-muted transition-colors duration-(--duration-fast) ease-out hover:bg-tile hover:text-secondary max-md:w-[34px] max-md:justify-center max-md:p-0"
             data-testid="search-trigger"
           >
             <Search aria-hidden className="size-4 shrink-0" />
-            <span className="min-w-0 flex-1 truncate text-left">
+            <span className="min-w-0 flex-1 truncate text-left max-md:sr-only">
               Search people, companies, tags
             </span>
-            <Kbd keys={['Mod', 'K']} joined />
+            <Kbd keys={['Mod', 'K']} joined className="max-md:hidden" />
           </button>
         </Tooltip>
-        <ThemeToggle variant="secondary" size="lg" />
+        {/* On a phone the theme is in the ⋯ menu only. */}
+        <ThemeToggle variant="secondary" size="lg" className="max-md:hidden" />
         <Menu>
           <MenuTrigger asChild>
             <IconButton aria-label="More" tooltip="More" variant="secondary" size="lg">

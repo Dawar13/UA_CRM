@@ -133,6 +133,31 @@ describe('signing in with email and password', () => {
     expect(screen.getByLabelText('Email')).toHaveAttribute('aria-invalid', 'true')
   })
 
+  it('shows and hides the password with the eye button, and still signs in', async () => {
+    const client = fakeClient()
+    renderWith(client)
+    const user = userEvent.setup()
+    const password = await screen.findByLabelText('Password')
+    expect(password).toHaveAttribute('type', 'password')
+    await user.type(password, 'right-password')
+    const eye = screen.getByRole('button', { name: 'Show password' })
+    expect(eye).toHaveAttribute('aria-pressed', 'false')
+    await user.click(eye)
+    expect(password).toHaveAttribute('type', 'text')
+    expect(password).toHaveValue('right-password')
+    expect(screen.getByRole('button', { name: 'Hide password' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    // The eye is its own button: pressing it never submits the form.
+    expect(client.auth.signInWithPassword).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: 'Hide password' }))
+    expect(password).toHaveAttribute('type', 'password')
+    await user.type(screen.getByLabelText('Email'), 'dawar@example.test')
+    await user.click(screen.getByRole('button', { name: 'Sign in' }))
+    expect(await screen.findByText('Signed in as Dawar')).toBeInTheDocument()
+  })
+
   it('says when the CRM cannot be reached', async () => {
     renderWith(fakeClient())
     await signIn('dawar@example.test', 'offline')

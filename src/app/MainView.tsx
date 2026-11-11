@@ -13,6 +13,7 @@ import { SheetSummary, SheetSummarySkeleton } from '@/features/sheet-summary/She
 import { ColumnsDialog } from '@/features/sheets/ColumnsDialog'
 import { NoSheets } from '@/features/sheets/NoSheets'
 import { StageEditorDialog } from '@/features/sheets/StageEditorDialog'
+import { isPhoneWidth } from '@/lib/platform'
 import { Header } from './Header'
 import { NotFound } from './NotFound'
 import { pickSheet, rememberLocation, sheetPath } from './navigation'
@@ -45,7 +46,8 @@ function GridSkeleton() {
 }
 
 /** The left column: folder tabs on top, then one folder holding the front and the grid. */
-const COLUMN = 'flex min-w-0 flex-1 flex-col px-5 pb-5 pt-[18px]'
+const COLUMN =
+  'flex min-w-0 flex-1 flex-col px-5 pb-5 pt-[18px] max-md:px-2 max-md:pb-2 max-md:pt-3'
 const FOLDER =
   'flex min-h-0 flex-1 flex-col overflow-hidden rounded-[0_10px_10px_10px] border border-t-0 border-border bg-bg'
 
@@ -225,10 +227,17 @@ export function MainView() {
   const { data: sheets, isPending: sheetsPending } = useSheets(member?.id)
   const sheet = sheets?.find((s) => s.slug === sheetSlug)
   const panelOpen = useUiStore((s) => s.panelOpen)
+  const [searchParams] = useSearchParams()
+  const openRowId = searchParams.get('row')
 
   useEffect(() => {
     if (member && sheet) rememberLocation(member.id, sheet.id)
   }, [member, sheet])
+
+  // On a phone the panel covers the sheet: opening a contact (from the agenda or search) shows it.
+  useEffect(() => {
+    if (openRowId && isPhoneWidth()) useUiStore.getState().setPanelOpen(false)
+  }, [openRowId])
 
   if (membersPending) return <ShellSkeleton />
   if (!members || !member) return <NotFound />

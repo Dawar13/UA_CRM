@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { isPhoneWidth } from '@/lib/platform'
 import { readStorage, STORAGE_PREFIX, storageKeys, writeStorage } from '@/lib/storage'
 
 /** Whether the folder front (the sheet summary) is open. Remembered across sessions. */
@@ -64,17 +65,24 @@ function sameTarget(a: FormatTarget | null, b: FormatTarget | null): boolean {
   )
 }
 
-/** Closed until someone opens it (the founders' default, 7 Nov 2026); the choice is kept. */
+/**
+ * Closed until someone opens it (the founders' default, 7 Nov 2026); the choice is kept. On a
+ * phone, where the panel covers the sheet, it always starts closed.
+ */
 function readPanelOpen(): boolean {
-  return readStorage(storageKeys.panelOpen) === 'true'
+  return !isPhoneWidth() && readStorage(storageKeys.panelOpen) === 'true'
 }
 
-/** Below this window height the folder front starts folded, so the grid keeps room. */
+/**
+ * Below this window height, or on a phone (narrower than 768px), the folder front starts folded,
+ * so the grid keeps room.
+ */
 export const SUMMARY_MIN_HEIGHT = 820
 
 /**
  * The member's last choice wins. With no choice yet, the front starts open on screens at least
- * SUMMARY_MIN_HEIGHT tall and folded on shorter ones (1024 × 768 keeps its rows visible).
+ * SUMMARY_MIN_HEIGHT tall and folded on shorter ones (1024 × 768 keeps its rows visible) and on
+ * phones.
  * `readStorage` never throws.
  */
 export function readSummaryOpen(): boolean {
@@ -82,7 +90,7 @@ export function readSummaryOpen(): boolean {
   if (saved === 'true') return true
   if (saved === 'false') return false
   if (typeof window.matchMedia !== 'function') return true
-  return window.matchMedia(`(min-height: ${SUMMARY_MIN_HEIGHT}px)`).matches
+  return window.matchMedia(`(min-height: ${SUMMARY_MIN_HEIGHT}px) and (min-width: 768px)`).matches
 }
 
 export const useUiStore = create<UiState>((set, get) => ({

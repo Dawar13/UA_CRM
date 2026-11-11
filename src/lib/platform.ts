@@ -28,3 +28,20 @@ export function isTypingTarget(target: EventTarget | null): boolean {
   }
   return false
 }
+
+/**
+ * True when the main pointer is a finger (phones, tablets): taps stand in for keys, so a second
+ * tap edits a cell and Enter in quick add starts a new line.
+ */
+export function isTouchFirst(): boolean {
+  return typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+    ? window.matchMedia('(pointer: coarse)').matches
+    : false
+}
+
+/** True on a phone-width screen (below Tailwind's md, 768px). */
+export function isPhoneWidth(): boolean {
+  return typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+    ? window.matchMedia('(max-width: 767.98px)').matches
+    : false
+}

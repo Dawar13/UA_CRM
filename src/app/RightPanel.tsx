@@ -1,4 +1,4 @@
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, X } from 'lucide-react'
 import { useMemo } from 'react'
 import { IconButton } from '@/components/ui/IconButton'
 import { Skeleton } from '@/components/ui/Skeleton'
@@ -52,12 +52,19 @@ function HistoryPanel({ rowId }: { rowId: string }) {
 
 export function RightPanel({ member }: { member: Member }) {
   const view = useUiStore((s) => s.panelView)
+  const setPanelOpen = useUiStore((s) => s.setPanelOpen)
   return (
     <aside
       aria-label="Side panel"
-      className="flex w-(--panel-width) shrink-0 flex-col border-l border-border bg-surface-subtle"
+      // On a phone the panel covers the screen, with its own close button.
+      className="flex w-(--panel-width) shrink-0 flex-col border-l border-border bg-surface-subtle max-md:fixed max-md:inset-0 max-md:z-40 max-md:w-full max-md:border-l-0"
       data-testid="right-panel"
     >
+      <div className="flex shrink-0 justify-end border-b border-border px-2 py-1.5 md:hidden">
+        <IconButton aria-label="Close side panel" onClick={() => setPanelOpen(false)}>
+          <X className="size-4" />
+        </IconButton>
+      </div>
       {view.kind === 'history' ? (
         <HistoryPanel rowId={view.rowId} />
       ) : view.kind === 'trash' ? (

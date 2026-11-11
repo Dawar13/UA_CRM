@@ -64,7 +64,7 @@ export function MemberTabs({
               aria-controls={undefined}
               data-testid={`member-tab-${member.id}`}
               className={cn(
-                'group/member flex h-7 shrink-0 cursor-default select-none items-center gap-2 rounded-control px-3',
+                'group/member flex h-7 shrink-0 cursor-default select-none items-center gap-2 rounded-control px-3 max-md:px-2.5',
                 'text-sm font-medium whitespace-nowrap text-secondary',
                 'transition-[background-color,color,box-shadow] duration-(--duration-fast) ease-out',
                 'hover:bg-bg/60 hover:text-text',

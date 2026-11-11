@@ -5,7 +5,7 @@
 import { type FormEvent, useId, useState } from 'react'
 import { BrandLockup } from '@/components/crm/BrandLockup'
 import { Button } from '@/components/ui/Button'
-import { Input } from '@/components/ui/Input'
+import { Input, PasswordInput } from '@/components/ui/Input'
 import { softGradient } from '@/styles/tokens'
 import { useAuth } from './AuthContext'
 
@@ -81,9 +81,8 @@ export function SignInScreen() {
             <label htmlFor={passwordId} className="text-sm font-medium text-text">
               Password
             </label>
-            <Input
+            <PasswordInput
               id={passwordId}
-              type="password"
               name="password"
               autoComplete="current-password"
               value={password}

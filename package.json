@@ -18,7 +18,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "test:e2e": "playwright test --project=desktop --project=narrow --project=webkit-smoke tests/e2e",
+    "test:e2e": "playwright test --project=desktop --project=narrow --project=webkit-smoke --project=phone tests/e2e",
     "test:a11y": "playwright test --project=desktop tests/a11y",
     "test:visual": "playwright test --project=desktop --project=narrow tests/visual",
     "test:visual:update": "tsx scripts/visual-update.ts",

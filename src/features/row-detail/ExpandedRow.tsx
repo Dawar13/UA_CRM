@@ -169,8 +169,8 @@ export function ExpandedRow({
       className="overflow-hidden"
       data-testid="expanded-row"
     >
-      <div className="flex flex-col gap-6 px-6 pt-[22px] pb-[26px]">
-        <div className="-mb-2 flex items-center justify-between gap-3 empty:hidden">
+      <div className="flex flex-col gap-6 px-6 pt-[22px] pb-[26px] max-md:gap-5 max-md:px-3 max-md:pt-4">
+        <div className="-mb-2 flex flex-wrap items-center justify-between gap-3 empty:hidden max-md:gap-2">
           <ContactButtons row={row} canLog={isMine && editable} />
           <span className="flex-1" />
           {isMine ? (

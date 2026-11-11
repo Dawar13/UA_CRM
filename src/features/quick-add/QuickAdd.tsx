@@ -39,7 +39,7 @@ import {
 } from '@/domain/quickadd/parse'
 import type { Member, Row, Sheet } from '@/domain/types'
 import { cn } from '@/lib/cn'
-import { isModKey } from '@/lib/platform'
+import { isModKey, isTouchFirst } from '@/lib/platform'
 import { readStorage, STORAGE_PREFIX, writeStorage } from '@/lib/storage'
 import { useUndoStack } from '@/lib/undoStack'
 import { type DuplicateChoice, DuplicateChoices } from './DuplicateChoices'
@@ -373,7 +373,8 @@ export function QuickAdd({
     if (event.key === 'Enter' && isModKey(event)) {
       event.preventDefault()
       if (text.trim()) void readWithAi({ text })
-    } else if (event.key === 'Enter' && !event.shiftKey) {
+    } else if (event.key === 'Enter' && !event.shiftKey && !isTouchFirst()) {
+      // On a touch screen Enter starts a new line; the Preview button previews.
       event.preventDefault()
       preview(text)
     } else if (event.key === 'Escape') {
@@ -412,7 +413,7 @@ export function QuickAdd({
               ? 'Quick add: draft kept. Press / to carry on.'
               : 'Quick add: Name / Title @ Company, Location, or drop a PDF or photo'}
           </span>
-          <Kbd keys={['/']} className="ml-auto" />
+          <Kbd keys={['/']} className="ml-auto pointer-coarse:hidden" />
         </button>
         {aside}
       </div>
@@ -460,7 +461,7 @@ export function QuickAdd({
             </p>
           ) : null}
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <p className="flex flex-1 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
+            <p className="flex flex-1 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted pointer-coarse:hidden">
               <span>
                 <Kbd keys={['Enter']} /> preview
               </span>
@@ -483,7 +484,11 @@ export function QuickAdd({
               >
                 <Sparkles aria-hidden className="text-link" />
                 {ai.isPending ? 'Reading…' : 'Read with AI'}
-                <Kbd keys={['Mod', 'Enter']} tone="subtle" className="ml-0.5" />
+                <Kbd
+                  keys={['Mod', 'Enter']}
+                  tone="subtle"
+                  className="ml-0.5 pointer-coarse:hidden"
+                />
               </Button>
               <Button
                 variant="ghost"
@@ -493,6 +498,24 @@ export function QuickAdd({
               >
                 <Paperclip aria-hidden />
                 Upload file
+              </Button>
+              {/* A touch screen has no Enter-to-preview or Esc: buttons instead. */}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setOpen(false)}
+                className="hidden pointer-coarse:inline-flex"
+              >
+                Close
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => preview(text)}
+                disabled={!text.trim() || ai.isPending}
+                className="hidden pointer-coarse:inline-flex"
+              >
+                Preview
               </Button>
             </span>
           </div>

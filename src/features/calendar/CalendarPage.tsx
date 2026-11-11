@@ -148,74 +148,108 @@ function WeekGrid({ start, memberId, now }: { start: IsoDate; memberId: string; 
   const { data: matches } = useEventContacts(events, memberId)
   const today = todayIst(now)
   const scroller = useRef<HTMLDivElement>(null)
+  const head = useRef<HTMLDivElement>(null)
+  const allDayRow = useRef<HTMLDivElement>(null)
+
+  // On a phone the hours scroll sideways too (about three days show); the day names and the
+  // all-day row follow, and the hour labels stay pinned on the left.
+  const followScroll = () => {
+    const left = scroller.current?.scrollLeft ?? 0
+    if (head.current) head.current.scrollLeft = left
+    if (allDayRow.current) allDayRow.current.scrollLeft = left
+  }
 
   useEffect(() => {
-    scroller.current?.scrollTo({ top: SCROLL_TO_HOUR * HOUR_PX - 12 })
+    const todayHead = head.current?.querySelector<HTMLElement>('[aria-current="date"]')
+    scroller.current?.scrollTo({
+      top: SCROLL_TO_HOUR * HOUR_PX - 12,
+      // Start at today (nothing moves when the whole week fits).
+      left: todayHead
+        ? Math.max(0, todayHead.offsetLeft - (todayHead.parentElement?.offsetLeft ?? 0) - 56)
+        : 0,
+    })
   }, [])
 
   const nowMinute = (now.getTime() - istInstant(today).getTime()) / 60_000
   const allDay = days.map((day) => events.filter((e) => e.allDay && coversDay(e, day)))
   const hasAllDay = allDay.some((list) => list.length > 0)
-  const columns = 'grid-cols-[56px_repeat(7,minmax(0,1fr))]'
+  // On a phone each day keeps a readable width and the week scrolls sideways.
+  const columns = 'grid-cols-[56px_repeat(7,minmax(0,1fr))] max-md:min-w-[728px]'
+  const pinned = 'max-md:sticky max-md:left-0 max-md:z-20'
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-card border border-border bg-bg">
-      <div className={cn('grid shrink-0 border-b border-border bg-grid-header', columns)}>
-        <span />
-        {days.map((day) => {
-          const isToday = day === today
-          const [weekday] = formatDate(day, now, { weekday: true }).split(' ')
-          return (
-            <div
-              key={day}
-              aria-current={isToday ? 'date' : undefined}
-              className="flex items-center justify-center gap-1.5 border-l border-grid-line py-2"
-            >
-              <span className="font-mono text-[10.5px] tracking-[0.06em] text-muted uppercase">
-                {weekday}
-              </span>
-              <span
-                className={cn(
-                  'grid size-6 place-items-center rounded-[7px] text-[13px] font-semibold tabular-nums',
-                  isToday
-                    ? 'bg-[image:linear-gradient(160deg,var(--today-bg-top),var(--today-bg))] text-today-fg'
-                    : 'text-text',
-                )}
+      <div ref={head} className="shrink-0 overflow-hidden border-b border-border bg-grid-header">
+        <div className={cn('grid', columns)}>
+          <span className={cn(pinned, 'bg-grid-header')} />
+          {days.map((day) => {
+            const isToday = day === today
+            const [weekday] = formatDate(day, now, { weekday: true }).split(' ')
+            return (
+              <div
+                key={day}
+                aria-current={isToday ? 'date' : undefined}
+                className="flex items-center justify-center gap-1.5 border-l border-grid-line py-2"
               >
-                {parseIsoDate(day).day}
-              </span>
-            </div>
-          )
-        })}
+                <span className="font-mono text-[10.5px] tracking-[0.06em] text-muted uppercase">
+                  {weekday}
+                </span>
+                <span
+                  className={cn(
+                    'grid size-6 place-items-center rounded-[7px] text-[13px] font-semibold tabular-nums',
+                    isToday
+                      ? 'bg-[image:linear-gradient(160deg,var(--today-bg-top),var(--today-bg))] text-today-fg'
+                      : 'text-text',
+                  )}
+                >
+                  {parseIsoDate(day).day}
+                </span>
+              </div>
+            )
+          })}
+        </div>
       </div>
 
       {hasAllDay ? (
-        <div className={cn('grid shrink-0 border-b border-border', columns)}>
-          <span className="self-center pr-2 text-right font-mono text-[10px] text-muted uppercase">
-            All day
-          </span>
-          {days.map((day, i) => (
-            <ul
-              key={day}
-              aria-label={`${formatDate(day, now, { weekday: true })}, all day`}
-              className="flex min-w-0 flex-col gap-0.5 border-l border-grid-line p-0.5"
+        <div ref={allDayRow} className="shrink-0 overflow-hidden border-b border-border">
+          <div className={cn('grid', columns)}>
+            <span
+              className={cn(
+                pinned,
+                'self-center pr-2 text-right font-mono text-[10px] text-muted uppercase',
+                'max-md:flex max-md:items-center max-md:justify-end max-md:self-stretch max-md:bg-bg',
+              )}
             >
-              {(allDay[i] ?? []).map((event) => (
-                <EventBlock
-                  key={event.id}
-                  event={event}
-                  contacts={matches?.contacts.get(event.id) ?? []}
-                  compact
-                />
-              ))}
-            </ul>
-          ))}
+              All day
+            </span>
+            {days.map((day, i) => (
+              <ul
+                key={day}
+                aria-label={`${formatDate(day, now, { weekday: true })}, all day`}
+                className="flex min-w-0 flex-col gap-0.5 border-l border-grid-line p-0.5"
+              >
+                {(allDay[i] ?? []).map((event) => (
+                  <EventBlock
+                    key={event.id}
+                    event={event}
+                    contacts={matches?.contacts.get(event.id) ?? []}
+                    compact
+                  />
+                ))}
+              </ul>
+            ))}
+          </div>
         </div>
       ) : null}
 
-      <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto" data-testid="week-scroller">
+      <div
+        ref={scroller}
+        onScroll={followScroll}
+        className="min-h-0 flex-1 overflow-y-auto max-md:overflow-x-auto"
+        data-testid="week-scroller"
+      >
         <div className={cn('relative grid', columns)} style={{ height: 24 * HOUR_PX }}>
-          <div aria-hidden className="relative">
+          <div aria-hidden className={cn('relative', pinned, 'max-md:bg-bg')}>
             {HOURS.map((hour) => (
               <span
                 key={hour}

@@ -476,3 +476,16 @@ Part 1 ends with the founders' first connections and a week of use. Part 2 (PDF 
 - **Setup on production:** a free Gemini key as `GEMINI_API_KEY` in Vercel (RUNBOOK §8). Until then the app says "AI reading is not set up on the server yet."
 - **Try this (sample mode):** press `/`, type two lines, Ctrl+Enter: the first line becomes the name and the rest notes (sample mode has no AI). Upload any PDF: a sample person appears.
 - **Checks:** 62 server tests (13 for the AI function, against a fake Gemini); 24 unit tests for the conversion and file helpers, including a round trip through the quick-add parser; 10 quick-add browser tests (3 new). Not yet run against the real Gemini API: the first call with the founders' key is the real test.
+
+### Founder feedback, 11 Nov 2026: the password eye, phones, Read with AI live
+
+- **Password eye:** the sign-in and change-password fields have an eye button that shows or hides the password (`PasswordInput`, on `/design`).
+- **Phones (D-056):** every screen fits a phone. The header keeps the mark, the member tabs, search and ⋯; the folder front starts folded; the side panel covers the screen with a close button; Today stacks each follow-up; the calendar week opens at today with about three days showing and the hours pinned. On a touch screen a second tap edits a cell, and quick add has Preview and Close (Enter starts a new line). Desktop is unchanged, pixel for pixel.
+- **Read with AI, live (D-057):** the production key works. The first real calls found Gemini leaving out most fields; with every field required, a retry when Google is busy, the team's names left out and past dates kept out of the next date, a messy CSV, a visiting-card photo, a LinkedIn PDF, a scanned PDF and an attendee list all read correctly (invented people only).
+- **Production:** the shared-calendar migration is applied, `GEMINI_API_KEY` is set, and Dhruv has a login.
+
+**Try this:** on a phone, open the app: tap a Company cell, tap it again to edit. Tap a name to open the row. Tap the quick-add line, type a name, Enter, a phone number, then Preview and Save. Tap the panel button, then the cross. Open Calendar: today is first, with the hours on the left.
+
+**Checks:** typecheck and lint clean; unit, component and server tests pass (1139); the 7 new `@phone` browser tests pass on the `phone` project (Pixel 7, touch); desktop and 1024 browser and accessibility tests: 241 of 244 pass. The other three are "W cycles warmth" and "Copy to my sheet", which fail on and off on this machine with or without these changes (checked on the previous commit); CI retries once. Screenshots: `docs/screenshots/p2-phone-*`.
+
+**Known issue:** those two browser tests are timing-sensitive under load and should be made steadier.

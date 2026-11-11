@@ -20,7 +20,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/Dialog'
 import { IconButton } from '@/components/ui/IconButton'
-import { Input } from '@/components/ui/Input'
+import { Input, PasswordInput } from '@/components/ui/Input'
 import { Kbd } from '@/components/ui/Kbd'
 import {
   Menu,
@@ -418,6 +418,16 @@ export function InputsSection() {
           </Field>
           <Field id="design-input-disabled" label="Disabled">
             <Input id="design-input-disabled" defaultValue="Hosur" disabled />
+          </Field>
+        </div>
+      </Specimen>
+      <Specimen
+        title="Password"
+        caption="Sign-in and changing the password: the eye shows or hides what was typed"
+      >
+        <div className="grid gap-x-5 gap-y-5 sm:grid-cols-2 lg:grid-cols-5">
+          <Field id="design-password" label="Password">
+            <PasswordInput id="design-password" defaultValue="sample-password" />
           </Field>
         </div>
       </Specimen>

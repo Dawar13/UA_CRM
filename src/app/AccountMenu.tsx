@@ -9,7 +9,7 @@ import { useAuth } from '@/auth/AuthContext'
 import { OFFLINE_MESSAGE } from '@/auth/useCan'
 import { Button } from '@/components/ui/Button'
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/Dialog'
-import { Input } from '@/components/ui/Input'
+import { PasswordInput } from '@/components/ui/Input'
 import {
   MenuGroup,
   MenuItem,
@@ -120,9 +120,8 @@ export function ChangePasswordDialog({
             <label htmlFor={passwordId} className="text-sm font-medium">
               New password
             </label>
-            <Input
+            <PasswordInput
               id={passwordId}
-              type="password"
               autoComplete="new-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -132,9 +131,8 @@ export function ChangePasswordDialog({
             <label htmlFor={confirmId} className="text-sm font-medium">
               Type it again
             </label>
-            <Input
+            <PasswordInput
               id={confirmId}
-              type="password"
               autoComplete="new-password"
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}

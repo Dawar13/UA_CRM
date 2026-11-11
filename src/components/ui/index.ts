@@ -9,7 +9,7 @@ export {
 } from './Dialog'
 export { EmptyState, EmptyStateArt, type EmptyStateProps } from './EmptyState'
 export { IconButton, type IconButtonProps } from './IconButton'
-export { Input, type InputProps } from './Input'
+export { Input, type InputProps, PasswordInput } from './Input'
 export { ariaKeyShortcuts, formatKeys, Kbd, type KbdProps, type KeyName, keyLabel } from './Kbd'
 export {
   Menu,

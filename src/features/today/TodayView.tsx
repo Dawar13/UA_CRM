@@ -45,6 +45,8 @@ function Item({
         onClick={onToggle}
         className={cn(
           'grid w-full grid-cols-[minmax(0,1.2fr)_minmax(0,2fr)_auto] items-center gap-4 px-4 py-2.5 text-left hover:bg-row-hover',
+          // A phone: the name and warmth on top, the next action under them.
+          'max-md:grid-cols-[minmax(0,1fr)_auto] max-md:gap-x-3 max-md:gap-y-1 max-md:px-3',
           open && 'bg-row-selected hover:bg-row-selected',
         )}
       >
@@ -54,7 +56,7 @@ function Item({
             {[row.company, sheet?.name].filter(Boolean).join(' · ')}
           </span>
         </span>
-        <span className="flex min-w-0 items-center gap-2.5">
+        <span className="flex min-w-0 items-center gap-2.5 max-md:col-span-2 max-md:row-start-2">
           {next?.date ? (
             <DateText
               date={next.date}
@@ -168,7 +170,7 @@ export function TodayView() {
     <div className="flex h-dvh flex-col bg-bg">
       <Header members={members} member={member} today />
       <main className="flex min-h-0 flex-1">
-        <div className="flex min-w-0 flex-1 flex-col overflow-y-auto px-5 pt-[18px] pb-8">
+        <div className="flex min-w-0 flex-1 flex-col overflow-y-auto px-5 pt-[18px] pb-8 max-md:px-3">
           <div className="mb-4 flex items-baseline gap-3">
             <h1 className="text-[20px] font-semibold tracking-[-0.01em] text-text">Today</h1>
             <p className="font-mono text-xs font-medium tracking-[0.06em] text-muted uppercase">

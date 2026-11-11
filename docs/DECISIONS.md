@@ -649,3 +649,27 @@ Container jobs first make sure git is installed (otherwise checkout falls back t
 - **Sample mode** has no AI: the local repository stands in (each block's first line as the name, the rest as notes; any file as one sample person), so the flow can be tried and tested.
 
 **Consequences.** CLAUDE.md's hard constraint and banned list now name this exception. The in-browser PDF and OCR plan (§2.12) is not built. If Google ends or narrows the free tier, Read with AI says "busy" or "not set up" and quick add carries on without it.
+
+## D-056 · 11 Nov 2026 · A phone layout
+
+**Context.** The founders asked for the whole platform on a phone. §3.6 had phones in the backlog; the screens were built for 1024px and wider, and at 390px the header lost its controls, the folder front filled the screen and the expanded row ran off the edge.
+
+**Decision.** The same screens, arranged for a phone below 768px (Tailwind's `md`), with phone-only classes (`max-md:`) so desktop renders as before (checked pixel for pixel at 1440 and 1024, light and dark):
+
+- **Header:** the brand mark alone (the name stays for screen readers), the member tabs scroll sideways, search is an icon, the theme moves to the ⋯ menu.
+- **Sheet:** the grid stays a spreadsheet: it scrolls sideways with Name pinned, as it already did. The folder front starts folded on a phone (the member's choice is kept) and scrolls inside itself when open. The format bar keeps its icons and drops the words. The expanded row's buttons wrap and its stage bar scrolls sideways.
+- **Side panel:** covers the screen, with a close button; it starts closed on a phone and closes when a contact opens.
+- **Today** puts each follow-up's action under the name. **The calendar week** keeps a readable day width: about three days show, it opens at today, and the hour labels stay pinned.
+- **Touch:** a tap picks a cell and a second tap on it edits (no keyboard to type into a cell). In quick add, Enter starts a new line and Preview and Close buttons stand in for Enter and Esc; keycap hints are hidden on touch screens.
+
+**Rejected.** A card list instead of the grid on phones (a second way to show rows, more to build and test). A bottom tab bar (the header already holds the member tabs).
+
+**Consequences.** A `phone` Playwright project (Pixel 7, touch) runs the `@phone` tests: layout, tap to edit, quick add, the panel, Today, the calendar and an axe check in both themes. The visual baselines stay desktop and 1024. Installing the app on the home screen stays in the backlog.
+
+## D-057 · 11 Nov 2026 · Read with AI, after the first real calls
+
+**Context.** The first calls to Gemini with the founders' key (invented contacts: an email signature, a messy CSV, a visiting-card photo, a LinkedIn-style PDF, a scanned PDF with no text layer, an attendee list) showed four faults the fake had not: with only `name` required, Gemini left out nearly every other field; a 503 "overloaded" from the free tier failed the read; the writer of an email ("Hi Dawar") came back as a contact; and a past date ("met on 12 Oct") became the next date.
+
+**Decision.** Every field of a contact is required in the response schema, with `propertyOrdering` (name first); an empty field is "" or []. A 500 or 503 from Google is tried once more after 1.5 seconds. The browser sends the team's names, and the instructions leave them out as contacts (they can still be who introduced someone). The instructions say the next date is never before today; a past date goes to notes ("Met 12 Oct"), and a wish ("wants a pilot") is not a stage. Quick add keeps a dash inside a title ("General Manager – Works"), for typed text too.
+
+**Consequences.** After the changes all six inputs read correctly: every person found, with company, phone, email, location, warmth and notes where the input gave them. Gemini still adds a little of its own judgement (a role in the deal from a title such as "Owner"); the preview shows every field before saving.

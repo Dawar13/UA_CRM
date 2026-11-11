@@ -119,7 +119,7 @@ export function SheetSummary({
     return (
       <section
         {...common}
-        className="shrink-0 rounded-tr-card py-[11px] pl-6 pr-5 text-folder-fg"
+        className="shrink-0 rounded-tr-card py-[11px] pl-6 pr-5 text-folder-fg max-md:pl-3.5 max-md:pr-2.5"
         style={{ background: faceBackground(folder, false) }}
       >
         <div className="flex flex-wrap items-center gap-x-[22px] gap-y-1">
@@ -148,7 +148,7 @@ export function SheetSummary({
   return (
     <section
       {...common}
-      className="shrink-0 rounded-tr-card px-6 pb-6 pt-[18px] text-folder-fg"
+      className="shrink-0 rounded-tr-card px-6 pb-6 pt-[18px] text-folder-fg max-md:max-h-[55dvh] max-md:overflow-y-auto max-md:px-3.5 max-md:pb-4"
       style={{ background: faceBackground(folder, true) }}
     >
       <div className="flex items-center justify-between gap-4">

@@ -335,7 +335,7 @@ The browser tab title is "UA · Internal CRM", and the favicon is the same logo 
 
 ### 3.6 Responsiveness and accessibility
 
-- **Screen sizes:** desktop first. 1280px and wider is primary; 1024px must not break. Phone layout is backlog.
+- **Screen sizes:** desktop first. 1280px and wider is primary; 1024px must not break. Phones (narrower than 768px) get their own arrangement of the same screens (D-056): the header keeps the mark, the member tabs, search and ⋯; the folder front starts folded; the side panel covers the screen with a close button; Today stacks each follow-up; the calendar week and the stage bar scroll sideways. Phone-only styles use `max-md:`, so desktop is unchanged. On a touch screen a second tap edits a cell, and quick add has Preview and Close buttons (Enter starts a new line).
 - **Accessibility:** WCAG 2.2 AA. The grid uses `role="grid"` semantics with `aria-rowcount` and `aria-colindex`. Toasts go through a live region. Everything works by keyboard alone.
 
 ---
@@ -448,7 +448,7 @@ ua-crm/
 | ----------------- | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Unit              | Vitest                        | All of `domain/`, formatters, parsers, the dedupe scorer, repository behaviour on fake-indexeddb, token contrast                                                |
 | Component         | Vitest + Testing Library      | Every CRM component's states, keyboard behaviour and ARIA                                                                                                       |
-| End to end        | Playwright                    | Real user flows in the browser, with reload to prove persistence                                                                                                |
+| End to end        | Playwright                    | Real user flows in the browser, with reload to prove persistence; `@phone` tests on a touch phone (the `phone` project)                                         |
 | Accessibility     | @axe-core/playwright          | Main screens and `/design`, light and dark: zero serious or critical violations                                                                                 |
 | Visual            | Playwright `toHaveScreenshot` | Main screens and `/design`, light and dark. Baselines are generated in the official Playwright Docker image so fonts render the same locally and in CI          |
 | Performance smoke | Playwright                    | 2,000-row sheet: first rows visible quickly, scroll to bottom works, no long tasks over 200 ms while scrolling                                                  |
@@ -504,4 +504,4 @@ Google Calendar connect per member (OAuth, production-unverified), with sync fro
 
 ### Backlog (after Phase 2)
 
-Board view (kanban by stage), grouping customers by company, phone quick-add as an installable web app, daily email digest of follow-ups, change history (who edited what).
+Board view (kanban by stage), grouping customers by company, installing the app on a phone's home screen, daily email digest of follow-ups, change history (who edited what).

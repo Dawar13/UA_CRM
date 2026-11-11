@@ -1,5 +1,5 @@
 import { RotateCcw, X } from 'lucide-react'
-import { type KeyboardEvent, useId, useLayoutEffect, useRef } from 'react'
+import { type CSSProperties, type KeyboardEvent, useId, useLayoutEffect, useRef } from 'react'
 import { Kbd } from '@/components/ui/Kbd'
 import { exactDate, formatFuzzyDate } from '@/domain/dates'
 import { stageRampStep } from '@/domain/stages'
@@ -184,109 +184,117 @@ export function StageTracker({
         </div>
       </div>
 
-      <ol
-        aria-label="Stages"
-        className="grid gap-0.5"
-        style={{ gridTemplateColumns: `repeat(${count}, minmax(0, 1fr))` }}
-      >
-        {stages.map((stage, i) => {
-          const isCurrent = i === currentIndex
-          const kind = stageBlockKind(stage, isLost)
-          const step = stageRampStep(i, count)
-          const blockClassName = cn(
-            'relative flex h-[54px] w-full min-w-0 flex-col items-start justify-between px-[11px] py-[9px] text-left',
-            !readOnly &&
-              'transition-transform duration-(--duration-fast) ease-out hover:-translate-y-px motion-reduce:hover:translate-y-0',
-            i === 0 && 'rounded-l-control',
-            i === count - 1 && 'rounded-r-control',
-            isCurrent && !isLost && 'z-[1] shadow-[0_0_0_2px_var(--bg),0_0_0_3.5px_var(--text)]',
-          )
-          const blockStyle = {
-            background: stageFill(kind, step, true),
-            color: stageInk(kind, step),
+      {/* On a phone each stage keeps a readable width and the bar scrolls sideways. */}
+      <div className="max-md:-mx-3 max-md:overflow-x-auto max-md:px-3 max-md:py-1 max-md:[scrollbar-width:none]">
+        <ol
+          aria-label="Stages"
+          className="grid gap-0.5 max-md:min-w-[calc(var(--stage-count)*84px)]"
+          style={
+            {
+              gridTemplateColumns: `repeat(${count}, minmax(0, 1fr))`,
+              '--stage-count': count,
+            } as CSSProperties
           }
-          const nameText = (
-            <span className="max-w-full truncate text-[12.5px] leading-tight font-semibold">
-              {kind === 'lost' ? 'Lost' : stage.name}
-            </span>
-          )
-          const dateClassName =
-            'max-w-full truncate font-mono text-2xs leading-tight font-medium tabular-nums'
-          const dateText = blockSubText(stage, kind, lost, now)
-          const dateId = `${dateIdBase}-${i}`
-          return (
-            <li
-              key={stage.id}
-              aria-current={isCurrent ? 'step' : undefined}
-              data-state={stage.state}
-              data-kind={kind}
-              className="group relative flex min-w-0"
-            >
-              {isCurrent || readOnly ? (
-                <div
-                  // Focus lands here after a move so keyboard users keep their place.
-                  tabIndex={isCurrent && !readOnly ? -1 : undefined}
-                  data-current-stage={isCurrent && !readOnly ? '' : undefined}
-                  className={blockClassName}
-                  style={blockStyle}
-                >
-                  {nameText}
-                  <span className={dateClassName}>{dateText}</span>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  disabled={disabled}
-                  // The visible text inside the button is the stage name, which the name contains;
-                  // the date sits beside it in the same block and describes the button.
-                  aria-describedby={disabled ? undefined : dateId}
-                  aria-label={
-                    disabled
-                      ? // Not actionable: the name is exactly what the block shows.
-                        `${kind === 'lost' ? 'Lost' : stage.name} ${dateText}`
-                      : kind === 'lost'
-                        ? `Lost, move to ${stage.name}`
-                        : currentIndex >= 0 && i < currentIndex
-                          ? `Move back to ${stage.name}`
-                          : `Move to ${stage.name}`
-                  }
-                  onClick={() => {
-                    requestFocus('current')
-                    onMove(i)
-                  }}
-                  className={cn(
-                    blockClassName,
-                    'cursor-default disabled:pointer-events-none disabled:opacity-60',
-                  )}
-                  style={blockStyle}
-                >
-                  {nameText}
-                  {/* A disabled control is exempt from the name and contrast rules, so its date
+        >
+          {stages.map((stage, i) => {
+            const isCurrent = i === currentIndex
+            const kind = stageBlockKind(stage, isLost)
+            const step = stageRampStep(i, count)
+            const blockClassName = cn(
+              'relative flex h-[54px] w-full min-w-0 flex-col items-start justify-between px-[11px] py-[9px] text-left',
+              !readOnly &&
+                'transition-transform duration-(--duration-fast) ease-out hover:-translate-y-px motion-reduce:hover:translate-y-0',
+              i === 0 && 'rounded-l-control',
+              i === count - 1 && 'rounded-r-control',
+              isCurrent && !isLost && 'z-[1] shadow-[0_0_0_2px_var(--bg),0_0_0_3.5px_var(--text)]',
+            )
+            const blockStyle = {
+              background: stageFill(kind, step, true),
+              color: stageInk(kind, step),
+            }
+            const nameText = (
+              <span className="max-w-full truncate text-[12.5px] leading-tight font-semibold">
+                {kind === 'lost' ? 'Lost' : stage.name}
+              </span>
+            )
+            const dateClassName =
+              'max-w-full truncate font-mono text-2xs leading-tight font-medium tabular-nums'
+            const dateText = blockSubText(stage, kind, lost, now)
+            const dateId = `${dateIdBase}-${i}`
+            return (
+              <li
+                key={stage.id}
+                aria-current={isCurrent ? 'step' : undefined}
+                data-state={stage.state}
+                data-kind={kind}
+                className="group relative flex min-w-0"
+              >
+                {isCurrent || readOnly ? (
+                  <div
+                    // Focus lands here after a move so keyboard users keep their place.
+                    tabIndex={isCurrent && !readOnly ? -1 : undefined}
+                    data-current-stage={isCurrent && !readOnly ? '' : undefined}
+                    className={blockClassName}
+                    style={blockStyle}
+                  >
+                    {nameText}
+                    <span className={dateClassName}>{dateText}</span>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={disabled}
+                    // The visible text inside the button is the stage name, which the name contains;
+                    // the date sits beside it in the same block and describes the button.
+                    aria-describedby={disabled ? undefined : dateId}
+                    aria-label={
+                      disabled
+                        ? // Not actionable: the name is exactly what the block shows.
+                          `${kind === 'lost' ? 'Lost' : stage.name} ${dateText}`
+                        : kind === 'lost'
+                          ? `Lost, move to ${stage.name}`
+                          : currentIndex >= 0 && i < currentIndex
+                            ? `Move back to ${stage.name}`
+                            : `Move to ${stage.name}`
+                    }
+                    onClick={() => {
+                      requestFocus('current')
+                      onMove(i)
+                    }}
+                    className={cn(
+                      blockClassName,
+                      'cursor-default disabled:pointer-events-none disabled:opacity-60',
+                    )}
+                    style={blockStyle}
+                  >
+                    {nameText}
+                    {/* A disabled control is exempt from the name and contrast rules, so its date
                       can stay inside and dim with it. */}
-                  {disabled ? (
-                    <>
-                      {/* The space keeps the name and date apart in the accessible text. */}{' '}
-                      <span className={dateClassName}>{dateText}</span>
-                    </>
-                  ) : null}
-                </button>
-              )}
-              {isCurrent || disabled || readOnly ? null : (
-                <span
-                  id={dateId}
-                  className={cn(
-                    dateClassName,
-                    'pointer-events-none absolute right-[11px] bottom-[9px] left-[11px] transition-transform duration-(--duration-fast) ease-out group-hover:-translate-y-px motion-reduce:group-hover:translate-y-0',
-                  )}
-                  style={{ color: blockStyle.color }}
-                >
-                  {dateText}
-                </span>
-              )}
-            </li>
-          )
-        })}
-      </ol>
+                    {disabled ? (
+                      <>
+                        {/* The space keeps the name and date apart in the accessible text. */}{' '}
+                        <span className={dateClassName}>{dateText}</span>
+                      </>
+                    ) : null}
+                  </button>
+                )}
+                {isCurrent || disabled || readOnly ? null : (
+                  <span
+                    id={dateId}
+                    className={cn(
+                      dateClassName,
+                      'pointer-events-none absolute right-[11px] bottom-[9px] left-[11px] transition-transform duration-(--duration-fast) ease-out group-hover:-translate-y-px motion-reduce:group-hover:translate-y-0',
+                    )}
+                    style={{ color: blockStyle.color }}
+                  >
+                    {dateText}
+                  </span>
+                )}
+              </li>
+            )
+          })}
+        </ol>
+      </div>
     </div>
   )
 }

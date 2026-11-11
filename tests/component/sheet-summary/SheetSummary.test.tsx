@@ -107,7 +107,7 @@ describe('SheetSummary', () => {
     expect(window.localStorage.getItem(SUMMARY_OPEN_KEY)).toBe('true')
   })
 
-  it('starts open on tall screens and folded on short ones until the member chooses', () => {
+  it('starts open on tall screens and folded on short ones and phones until the member chooses', () => {
     const screenIs = (tall: boolean) =>
       vi.spyOn(window, 'matchMedia').mockImplementation(
         (query: string) =>
@@ -118,8 +118,10 @@ describe('SheetSummary', () => {
             removeEventListener() {},
           }) as unknown as MediaQueryList,
       )
-    screenIs(true)
+    const spy = screenIs(true)
     expect(readSummaryOpen()).toBe(true)
+    // Tall and wider than a phone.
+    expect(spy).toHaveBeenLastCalledWith('(min-height: 820px) and (min-width: 768px)')
     screenIs(false)
     expect(readSummaryOpen()).toBe(false)
     // A saved choice wins over the screen height.

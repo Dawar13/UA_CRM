@@ -79,7 +79,7 @@ import { nextWarmth } from '@/domain/warmth'
 import { useUpcomingMeetings } from '@/features/calendar/useUpcomingMeetings'
 import { reviewNewRows } from '@/features/quick-add/DuplicateReview'
 import { cn } from '@/lib/cn'
-import { isModKey } from '@/lib/platform'
+import { isModKey, isTouchFirst } from '@/lib/platform'
 import { readJson, storageKeys, writeJson } from '@/lib/storage'
 import { useNow } from '@/lib/useNow'
 import { layout, type TagColour } from '@/styles/tokens'
@@ -798,6 +798,9 @@ export function SheetGrid({
 
   // ---------- Mouse ----------
 
+  // A tap on the cell that is already active edits it (touch screens have no Enter or typing).
+  const tapOnActive = useRef(false)
+
   // Row handlers stay referentially stable; they read the latest state through a ref.
   const latest = useRef({
     toggleExpand,
@@ -852,12 +855,21 @@ export function SheetGrid({
         setSelected((s) => (s.size === 0 ? s : new Set()))
         setSelectionAnchor(null)
         // In your own tab a click picks the cell, and the Name opens the row; elsewhere any click
-        // opens it (there is nothing to edit).
+        // opens it (there is nothing to edit). On a touch screen a second tap edits the cell.
         const def = l.defs[colIndex]
-        if (!l.editable || (def?.system && def.key === 'name')) l.toggleExpand(row.id)
+        const isName = def?.system && def.key === 'name'
+        if (!l.editable || isName) l.toggleExpand(row.id)
+        else if (tapOnActive.current && isTouchFirst()) {
+          l.startEdit(index, colIndex, null)
+          return
+        }
         scrollRef.current?.focus({ preventScroll: true })
       },
-      onCellMouseDown: (rowIndex, colIndex) => setActive({ row: rowIndex, col: colIndex }),
+      onCellMouseDown: (rowIndex, colIndex) => {
+        const { active: current } = latest.current
+        tapOnActive.current = current.row === rowIndex && current.col === colIndex
+        setActive({ row: rowIndex, col: colIndex })
+      },
       onRowResizeStart: (event, row) => latest.current.startRowResize(event, row),
       onRowResizeReset: (row) => latest.current.resetRowHeight(row),
       onCellDoubleClick: (rowIndex, colIndex) => {
@@ -1330,7 +1342,7 @@ export function SheetGrid({
                   >
                     <Plus aria-hidden className="size-3.5 shrink-0" />
                     <span className="truncate">Add a contact</span>
-                    <Kbd keys={['N']} className="ml-auto" />
+                    <Kbd keys={['N']} className="ml-auto pointer-coarse:hidden" />
                   </div>
                 </div>
               </div>

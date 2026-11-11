@@ -52,10 +52,18 @@ export default defineConfig({
     {
       name: 'desktop',
       use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } },
+      grepInvert: /@phone/,
     },
     {
       name: 'narrow',
       use: { ...devices['Desktop Chrome'], viewport: { width: 1024, height: 768 } },
+      grepInvert: /@phone/,
+    },
+    {
+      // The phone layout (D-056): tests tagged @phone, on a touch phone.
+      name: 'phone',
+      use: { ...devices['Pixel 7'] },
+      grep: /@phone/,
     },
     {
       // The main flow only: tests tagged @smoke.
