@@ -215,6 +215,8 @@ export interface AiReadInput {
   sheet: { name: string; stages: string[]; columns: { label: string; options: string[] }[] }
   /** Today in IST, "Tue 10 Nov 2026". */
   today: string
+  /** The team's names: the writer or reader of an email is not a contact. */
+  team?: string[]
 }
 
 /** AI reading refused: not set up, busy (the free quota), too large, unreadable, ... */

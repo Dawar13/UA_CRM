@@ -82,6 +82,8 @@ export const readRequestSchema = z
     sheet: sheetSchema,
     /** Today in IST, "Tue 10 Nov 2026", for relative dates. */
     today: z.string().max(40),
+    /** The team's names, so the writer or reader of an email is not read as a contact. */
+    team: z.array(z.string().max(100)).max(30).optional(),
   })
   .refine((r) => (r.text?.trim() ?? '') !== '' || r.file !== undefined, 'nothing to read')
 
@@ -119,6 +121,30 @@ export type AiContact = z.infer<typeof aiContactSchema>
 const STRING = { type: 'STRING' } as const
 const STRINGS = { type: 'ARRAY', items: STRING } as const
 
+/**
+ * Every field, in the order the model should write them. All are required: when only the name
+ * was, Gemini left out nearly everything else (seen live, 11 Nov 2026), so an empty field is ""
+ * or [] instead of missing.
+ */
+const CONTACT_FIELDS = [
+  'name',
+  'title',
+  'company',
+  'location',
+  'phones',
+  'emails',
+  'linkedin',
+  'links',
+  'warmth',
+  'stage',
+  'tags',
+  'introducedBy',
+  'nextAction',
+  'nextDate',
+  'notes',
+  'fields',
+] as const
+
 /** The JSON Gemini must return (its OpenAPI subset). */
 export const RESPONSE_SCHEMA = {
   type: 'OBJECT',
@@ -149,10 +175,12 @@ export const RESPONSE_SCHEMA = {
               type: 'OBJECT',
               properties: { label: STRING, value: STRING },
               required: ['label', 'value'],
+              propertyOrdering: ['label', 'value'],
             },
           },
         },
-        required: ['name'],
+        required: CONTACT_FIELDS,
+        propertyOrdering: CONTACT_FIELDS,
       },
     },
   },
@@ -166,19 +194,23 @@ export function instructions(request: ReadRequest): string {
       c.options.length > 0 ? `- ${c.label} (one of: ${c.options.join(', ')})` : `- ${c.label}`,
     )
     .join('\n')
+  const team = request.team ?? []
   return [
-    `You read contacts for an Indian startup's CRM. The contacts go into the sheet "${sheet.name}". Today is ${request.today} (India time).`,
+    `You read contacts for the CRM of Utopian Autonomy, an Indian startup. The contacts go into the sheet "${sheet.name}". Today is ${request.today} (India time).`,
     'Return every person in the input, one entry each, in order. Skip entries that are only a company with no person.',
-    'Never invent anything: leave a field empty ("" or []) when the input does not say it.',
+    team.length > 0
+      ? `These people are Utopian Autonomy's own team, never contacts: ${team.join(', ')}. Leave them out, for example as the writer or reader of an email, but they can be the one who introduced someone.`
+      : 'Leave out the writer and the reader of a message unless the input is about them.',
+    'Never invent anything: leave a field empty ("" or []) when the input does not say it. Never put one person\'s details on another.',
     'name: the full name only, without titles like Mr, Dr or Shri. title: their job title. company: their organisation. location: city or plant location.',
     'phones: as written, with the country code if shown. emails, links: as written. linkedin: their linkedin.com/in/ address.',
     'warmth: "warm", "waiting" or "cold" only if the input clearly says how engaged they are; otherwise "".',
     sheet.stages.length > 0
-      ? `stage: one of ${sheet.stages.map((s) => `"${s}"`).join(', ')} if the input says how far things have gone; otherwise "".`
+      ? `stage: one of ${sheet.stages.map((s) => `"${s}"`).join(', ')}, only if the input says that step has happened (a stage named, or "first call done"); a wish such as "wants a pilot" is not a stage. Otherwise "".`
       : 'stage: always "".',
     'tags: a few short lowercase labels the input supports, such as an industry ("foundry", "pharma") or a network ("iit bombay alumni"). No more than four.',
     'introducedBy: the name of whoever introduced them, if said.',
-    'nextAction and nextDate: the one next step, if the input gives one. nextDate like "14 Nov", "Fri", "mid Nov", "early Dec" or "Nov 2026"; "" if no date.',
+    `nextAction and nextDate: the one next step still to do, if the input gives one. nextDate like "14 Nov", "Tue", "mid Nov", "early Dec" or "Nov 2026"; "" if no date. nextDate is never before today (${request.today}): a past date, such as when you met or last spoke, goes in notes ("Met 12 Oct"), and nextDate stays "".`,
     `fields: values for these columns of the sheet, using the label exactly as written here, only when the input says them:\n${columns || '- (none)'}`,
     "notes: everything else useful about the person or the relationship, in the input's own words, briefly. Do not repeat what is in other fields.",
   ].join('\n')
@@ -192,7 +224,11 @@ export interface AiDeps {
   log: Logger
   /** The member's id for a request's bearer token, or null. */
   authenticate: (request: Request) => Promise<string | null>
+  /** Waits before the retry; tests skip the pause. */
+  wait?: (ms: number) => Promise<void>
 }
+
+const pause = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
 
 export class AiError extends Error {
   readonly code: string
@@ -225,9 +261,8 @@ export async function callGemini(deps: AiDeps, request: ReadRequest): Promise<Ai
         : { inlineData: { mimeType: request.file.mimeType, data: request.file.data } },
     )
   }
-  const response = await deps.fetch(
-    `${GEMINI_BASE}/models/${encodeURIComponent(deps.env.model)}:generateContent`,
-    {
+  const send = () =>
+    deps.fetch(`${GEMINI_BASE}/models/${encodeURIComponent(deps.env.model)}:generateContent`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'x-goog-api-key': deps.env.geminiKey },
       body: JSON.stringify({
@@ -239,8 +274,13 @@ export async function callGemini(deps: AiDeps, request: ReadRequest): Promise<Ai
           responseSchema: RESPONSE_SCHEMA,
         },
       }),
-    },
-  )
+    })
+  let response = await send()
+  // The free tier is often briefly overloaded (500 or 503): one more try after a pause.
+  if (response.status === 500 || response.status === 503) {
+    await (deps.wait ?? pause)(1500)
+    response = await send()
+  }
   if (response.status === 429) throw new AiError('busy', 429, 429)
   if ([400, 401, 403, 404].includes(response.status)) {
     // A wrong or disabled key, or a model name Google does not know.

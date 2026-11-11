@@ -61,6 +61,7 @@ function setup(answer: () => Response | Promise<Response>) {
     }) as typeof fetch,
     authenticate: async (request) =>
       request.headers.get('authorization') === 'Bearer member-token' ? 'm-dawar' : null,
+    wait: async () => {},
   }
   return { deps, calls, log }
 }
@@ -223,20 +224,42 @@ describe('reading contacts', () => {
   })
 
   it.each([
-    [429, 'busy', 429],
-    [400, 'not_configured', 503],
-    [403, 'not_configured', 503],
-    [404, 'not_configured', 503],
-    [500, 'ai_unavailable', 502],
-  ])('Google answering %i is %s', async (googleStatus, code, status) => {
-    const { deps, log } = setup(() => new Response('{}', { status: googleStatus }))
+    [429, 'busy', 429, 1],
+    [400, 'not_configured', 503, 1],
+    [403, 'not_configured', 503, 1],
+    [404, 'not_configured', 503, 1],
+    [500, 'ai_unavailable', 502, 2],
+    [503, 'ai_unavailable', 502, 2],
+  ])('Google answering %i is %s', async (googleStatus, code, status, tries) => {
+    const { deps, log, calls } = setup(() => new Response('{}', { status: googleStatus }))
     const response = await handleRead(deps, post(TEXT_REQUEST))
     expect(response.status).toBe(status)
     expect(await response.json()).toEqual({ error: code })
+    expect(calls).toHaveLength(tries)
     expect(log.lines[0]).toMatchObject({
       event: 'ai.read.failed',
       fields: { code, google: googleStatus },
     })
+  })
+
+  it('tries once more when Google is briefly overloaded', async () => {
+    let n = 0
+    const { deps, calls } = setup(() =>
+      ++n === 1 ? new Response('{}', { status: 503 }) : geminiAnswer({ contacts: [ROHAN] }),
+    )
+    const response = await handleRead(deps, post(TEXT_REQUEST))
+    expect(response.status).toBe(200)
+    expect(calls).toHaveLength(2)
+  })
+
+  it('asks for every field, in order, so none is left out', async () => {
+    const { deps, calls } = setup(() => geminiAnswer({ contacts: [ROHAN] }))
+    await handleRead(deps, post(TEXT_REQUEST))
+    const item = JSON.parse(String(calls[0]?.init?.body)).generationConfig.responseSchema.properties
+      .contacts.items as { properties: object; required: string[]; propertyOrdering: string[] }
+    expect(item.required).toEqual(Object.keys(item.properties))
+    expect(item.propertyOrdering).toEqual(item.required)
+    expect(item.required[0]).toBe('name')
   })
 
   it('an answer that is not the JSON asked for, or a blocked input, is unreadable', async () => {
@@ -267,5 +290,12 @@ describe('reading contacts', () => {
     expect(text).toContain('Never invent anything')
     expect(text).toContain('stage: always "".')
     expect(text).toContain('- (none)')
+    expect(text).toContain('nextDate is never before today (Tue 10 Nov 2026)')
+  })
+
+  it('leaves the team out: the writer or reader of an email is not a contact', () => {
+    const text = instructions({ ...TEXT_REQUEST, team: ['Dawar', 'Dhruv'] })
+    expect(text).toContain("Utopian Autonomy's own team, never contacts: Dawar, Dhruv.")
+    expect(instructions(TEXT_REQUEST)).toContain('Leave out the writer and the reader')
   })
 })

@@ -149,6 +149,15 @@ describe('AI contacts as quick-add text', () => {
     expect(text).toBe('Meera Desai / Head & Ops @ Damanganga Pvt Ltd')
     const [c] = parsed(text)
     expect(c?.values).toMatchObject({ title: 'Head & Ops', company: 'Damanganga Pvt Ltd' })
+
+    // A dash inside a title stays (seen live on a visiting card).
+    const [gm] = parsed(
+      aiContactToQuickAdd(
+        contact({ name: 'Sanjay Kulkarni', title: 'General Manager – Works', company: 'VC' }),
+        customers,
+      ),
+    )
+    expect(gm?.values.title).toBe('General Manager – Works')
   })
 
   it('a location without a company goes in by key, and no stage on a sheet without stages', () => {

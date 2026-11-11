@@ -320,8 +320,12 @@ function findContacts(text: string): Found {
 
 /** Leftover text worth keeping: no lone separators or labels. */
 function tidy(text: string): string {
+  return tidyEnds(text.replace(/(^|\s)[|•·;,–-]+(?=\s|$)/g, ' '))
+}
+
+/** Separators off the ends only, so "General Manager – Works" keeps its dash. */
+function tidyEnds(text: string): string {
   return text
-    .replace(/(^|\s)[|•·;,–-]+(?=\s|$)/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
     .replace(/^[|•·;,:–-]+\s*/, '')
@@ -686,7 +690,7 @@ function parseContact(block: string, ctx: QuickAddContext): ParsedContact {
     }
     const slash = rest.split(/\s+\/\s+/)
     let name = (slash[0] ?? '').trim()
-    const title = tidy(slash.slice(1).join(' / '))
+    const title = tidyEnds(slash.slice(1).join(' / '))
     let extra = ''
     if (at.length === 1 && slash.length === 1) {
       // "Rohan Mehta, Plant Head" or "Rohan Mehta | HPF": the name is the first part.

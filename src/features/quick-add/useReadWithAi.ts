@@ -5,6 +5,7 @@
  */
 import { useMutation } from '@tanstack/react-query'
 import { useActor } from '@/auth/AuthContext'
+import { useMembers } from '@/data/hooks'
 import { useRepository } from '@/data/RepositoryContext'
 import { AiReadError, type AiReadInput } from '@/data/repository'
 import { aiContactsToQuickAdd } from '@/domain/quickadd/fromAi'
@@ -141,6 +142,7 @@ export type AiSource = { text: string } | { file: File }
 export function useReadWithAi(sheet: Sheet) {
   const repository = useRepository()
   const actor = useActor()
+  const { data: members = [] } = useMembers()
   return useMutation({
     mutationFn: async (source: AiSource): Promise<string> => {
       if (!actor) throw new AiReadError('unauthorized')
@@ -148,6 +150,7 @@ export function useReadWithAi(sheet: Sheet) {
         ...('text' in source ? { text: source.text } : { file: await fileForAi(source.file) }),
         sheet: sheetForAi(sheet),
         today: todayForAi(new Date()),
+        team: members.map((m) => m.name),
       }
       const contacts = await repository.readWithAi(input, { actorId: actor.id, now: new Date() })
       const text = aiContactsToQuickAdd(contacts, sheet)
