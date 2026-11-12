@@ -26,6 +26,7 @@
     "test:e2e:live": "playwright test --config playwright.live.config.ts",
     "test:all": "pnpm lint && pnpm typecheck && pnpm test:coverage && pnpm test:e2e && pnpm test:a11y && pnpm test:visual && pnpm test:perf && pnpm build",
     "tokens": "tsx scripts/generate-tokens.ts",
+    "og-image": "tsx scripts/og-image.ts",
     "prepare": "lefthook install"
   },
   "dependencies": {

@@ -5,7 +5,7 @@
  *
  * The files beside this one are cropped around the monogram from the 2000px original:
  * ua-mark.png (112px, the 28px mark at 4x) and ua-favicon.png (64px). To change the logo,
- * replace them; nothing else needs to change.
+ * replace them and run `pnpm og-image` to redraw the link preview (public/og.png, D-058).
  *
  * Kept free of asset imports so vite.config.ts can read it in Node.
  */

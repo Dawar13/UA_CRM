@@ -230,6 +230,19 @@ export function BrandSection() {
             ))}
           </div>
         </Specimen>
+        <Specimen
+          title="Link preview"
+          caption="What WhatsApp, Slack and email show for a shared link: 1200 × 630, drawn by pnpm og-image"
+          className="lg:col-span-2"
+        >
+          <img
+            src="/og.png"
+            alt="The link preview: the UA mark, Utopian Autonomy and Internal CRM on the soft wash"
+            width={1200}
+            height={630}
+            className="h-auto w-full max-w-[600px] rounded-card border border-border"
+          />
+        </Specimen>
       </div>
     </Section>
   )

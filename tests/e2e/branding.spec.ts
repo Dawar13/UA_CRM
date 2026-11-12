@@ -41,6 +41,35 @@ test.describe('branding', () => {
     expect(loaded).toEqual({ width: 64, height: 64 })
   })
 
+  // D-058: a shared link unfurls into a card. Crawlers need the image's full address, which
+  // points at production; here the same file is loaded from the app under test.
+  test('a shared link shows a preview card', async ({ page }) => {
+    await gotoApp(page, '/', { waitForReady: true })
+    const meta = (key: string) =>
+      page.locator(`head meta[property="${key}"], head meta[name="${key}"]`).getAttribute('content')
+
+    expect(await meta('og:title')).toBe('UA · Internal CRM')
+    expect(await meta('og:description')).toBe(await meta('description'))
+    expect(await meta('twitter:card')).toBe('summary_large_image')
+    const image = (await meta('og:image')) ?? ''
+    expect(image).toMatch(/^https:\/\/[^/]+\/og\.png$/)
+
+    const loaded = await page.evaluate(
+      (src) =>
+        new Promise<{ width: number; height: number }>((resolve, reject) => {
+          const img = new Image()
+          img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight })
+          img.onerror = () => reject(new Error('preview image failed to load'))
+          img.src = src
+        }),
+      new URL(image).pathname,
+    )
+    expect(loaded).toEqual({
+      width: Number(await meta('og:image:width')),
+      height: Number(await meta('og:image:height')),
+    })
+  })
+
   // M0.6 dropped the 3px gradient strip: the 56px header sits at the very top. The mark is the
   // founders' logo (D-044), loaded and drawn sharp at 4x.
   test("the 56px header sits at the very top, with the founders' mark", async ({ page }) => {

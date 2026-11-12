@@ -489,3 +489,9 @@ Part 1 ends with the founders' first connections and a week of use. Part 2 (PDF 
 **Checks:** typecheck and lint clean; unit, component and server tests pass (1139); the 7 new `@phone` browser tests pass on the `phone` project (Pixel 7, touch); desktop and 1024 browser and accessibility tests: 241 of 244 pass. The other three are "W cycles warmth" and "Copy to my sheet", which fail on and off on this machine with or without these changes (checked on the previous commit); CI retries once. Screenshots: `docs/screenshots/p2-phone-*`.
 
 **Known issue:** those two browser tests are timing-sensitive under load and should be made steadier.
+
+### Founder feedback, 12 Nov 2026: a link preview
+
+- **Link preview (D-058):** a shared link to the CRM unfurls into a card on WhatsApp, Slack, LinkedIn and email: "UA · Internal CRM", a one-line description, and an image in the sign-in screen's look (the mark, Utopian Autonomy, Internal CRM). Every link shows the same card, so no contact's details appear. The image is on `/design` under Brand; `pnpm og-image` redraws it.
+
+**Try this:** after the push deploys, send `https://ua-crm-zeta.vercel.app` to yourself on WhatsApp. The card appears under the link.

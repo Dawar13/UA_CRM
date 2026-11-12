@@ -324,7 +324,7 @@ From left to right:
 - **Label:** "INTERNAL CRM" in Geist Mono caps, 10.5px, link blue, with a light blue hairline (radius 4).
 - **Members:** a segmented control; the open member is a raised white pill.
 
-The browser tab title is "UA · Internal CRM", and the favicon is the same logo (`ua-favicon.png`, 64px). To change the logo, replace the files in `src/assets/brand/` only.
+The browser tab title is "UA · Internal CRM", and the favicon is the same logo (`ua-favicon.png`, 64px). A shared link unfurls into a preview card (`public/og.png`, 1200 × 630, D-058). To change the logo, replace the files in `src/assets/brand/` and run `pnpm og-image`.
 
 ### 3.5 Copy rules
 

@@ -673,3 +673,11 @@ Container jobs first make sure git is installed (otherwise checkout falls back t
 **Decision.** Every field of a contact is required in the response schema, with `propertyOrdering` (name first); an empty field is "" or []. A 500 or 503 from Google is tried once more after 1.5 seconds. The browser sends the team's names, and the instructions leave them out as contacts (they can still be who introduced someone). The instructions say the next date is never before today; a past date goes to notes ("Met 12 Oct"), and a wish ("wants a pilot") is not a stage. Quick add keeps a dash inside a title ("General Manager – Works"), for typed text too.
 
 **Consequences.** After the changes all six inputs read correctly: every person found, with company, phone, email, location, warmth and notes where the input gave them. Gemini still adds a little of its own judgement (a role in the deal from a title such as "Owner"); the preview shows every field before saving.
+
+## D-058 · 12 Nov 2026 · A link preview
+
+**Context.** A shared link to the CRM showed as a bare address on WhatsApp and Slack.
+
+**Decision.** `index.html` carries Open Graph and Twitter card tags: the title "UA · Internal CRM", a one-line description, and a 1200 × 630 image (`public/og.png`) in the sign-in screen's look: the soft wash, the founders' mark, the wordmark and the Internal CRM label, centred so that WhatsApp's square crop still shows the mark. `scripts/og-image.ts` (`pnpm og-image`) draws the image in Playwright's Chromium from the brand files, the self-hosted Geist fonts and the tokens; it is about 90 KB, under WhatsApp's limit. Crawlers need full addresses, so `og:url` and `og:image` name production (`https://ua-crm-zeta.vercel.app`); previews on sample data show the same card.
+
+**Consequences.** Every path opens the same page, so a shared link to a row or a calendar shows the same card and never a contact's details. A new domain means changing the two addresses in `index.html`; a new logo means running `pnpm og-image`. WhatsApp keeps a preview it has fetched for a while, so a changed card can take time to show on a link already shared. The card is on `/design` under Brand, and an end-to-end test checks the tags and the image size.
