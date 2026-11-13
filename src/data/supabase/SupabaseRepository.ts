@@ -7,6 +7,7 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js'
+import type { MeetingMark, MeetingOutcome } from '@/domain/calendar/meetings'
 import { scoreDuplicate } from '@/domain/dedupe/score'
 import { formatPhone, normalisePhone, searchTokens } from '@/domain/identity'
 import { cleanMemberEmail, cleanMemberName, MemberRuleError } from '@/domain/members'
@@ -1102,6 +1103,55 @@ export class SupabaseRepository implements Repository {
       }),
       'editRow',
     )
+  }
+
+  async listMeetingMarks(ctx: MutationContext, memberId?: Id): Promise<MeetingMark[]> {
+    const result = await this.client
+      .from('calendar_meeting_outcomes')
+      .select('google_event_id, outcome')
+      .eq('member_id', memberId ?? ctx.actorId)
+    // Before the migration is applied the table is missing: no meeting is marked.
+    if (result.error && ['PGRST205', '42P01'].includes(result.error.code ?? '')) return []
+    return (this.check(result, 'view') ?? []).map((m) => ({
+      eventKey: String(m.google_event_id),
+      outcome: m.outcome as MeetingOutcome,
+    }))
+  }
+
+  /**
+   * The member's own marks only: policies refuse a meeting that is not in their calendar or has
+   * not ended. The database keeps a missed meeting's history entries out of last touch.
+   */
+  async markMeetings(
+    changes: readonly { eventKey: string; outcome: MeetingOutcome | null }[],
+    ctx: MutationContext,
+  ): Promise<void> {
+    assertCan(await this.actor(), 'markMeeting', { memberId: ctx.actorId })
+    const marks = changes.filter((c) => c.outcome !== null)
+    const cleared = changes.filter((c) => c.outcome === null).map((c) => c.eventKey)
+    if (marks.length > 0) {
+      this.check(
+        await this.client.from('calendar_meeting_outcomes').upsert(
+          marks.map((c) => ({
+            member_id: ctx.actorId,
+            google_event_id: c.eventKey,
+            outcome: c.outcome,
+          })),
+          { onConflict: 'member_id,google_event_id' },
+        ),
+        'markMeeting',
+      )
+    }
+    if (cleared.length > 0) {
+      this.check(
+        await this.client
+          .from('calendar_meeting_outcomes')
+          .delete()
+          .eq('member_id', ctx.actorId)
+          .in('google_event_id', cleared),
+        'markMeeting',
+      )
+    }
   }
 
   /** The actor's own live row, or a refusal (another member's row is never changed). */

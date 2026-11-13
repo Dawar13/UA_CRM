@@ -1,11 +1,13 @@
 import { useMemo } from 'react'
 import { Skeleton } from '@/components/ui/Skeleton'
-import { useMemberHistory, useMemberRows } from '@/data/hooks'
+import { useCalendarEvents, useMemberHistory, useMemberRows } from '@/data/hooks'
 import { type Activity, type ActivityDay, activityByDay, activityStart } from '@/domain/activity'
+import { missedMeetingStarts } from '@/domain/calendar/meetings'
 import { addDaysIso, formatDate, istInstant, todayIst } from '@/domain/dates'
 import type { Id, IsoDate } from '@/domain/types'
 import { cn } from '@/lib/cn'
 import { useNow } from '@/lib/useNow'
+import { useMeetingMarks } from '../calendar/useCalendar'
 import { useAfterIdle } from './useAfterIdle'
 
 /**
@@ -13,8 +15,8 @@ import { useAfterIdle } from './useAfterIdle'
  *
  * Each day is a column. Above the sand zero line: one dot per touch held, stacked upwards, each
  * one a shade deeper so busy days read darker, then a blue dot on top when a stage moved. Below
- * it: one dot per missed follow-up, hanging down from ochre to brick. Weekends are shaded and
- * today is outlined. Colours come from the --field-* tokens.
+ * it: one dot per missed follow-up or meeting, hanging down from ochre to brick. Weekends are
+ * shaded and today is outlined. Colours come from the --field-* tokens.
  */
 
 /** Dot slots above the zero line (held, then the stage-move dot) and below it (missed). */
@@ -218,9 +220,9 @@ export function ActivityFieldSkeleton({ className }: { className?: string }) {
 }
 
 /**
- * The member's last 30 days: touches held, stage moves and missed follow-ups, by IST day. The
- * reads wait until the browser is idle after mount, like the panel's contact matching, so they do
- * not compete with the grid's first paint.
+ * The member's last 30 days: touches held, stage moves, and missed follow-ups and meetings, by
+ * IST day. The reads wait until the browser is idle after mount, like the panel's contact
+ * matching, so they do not compete with the grid's first paint.
  */
 export function ActivityField({ memberId, className }: { memberId: Id; className?: string }) {
   const idle = useAfterIdle()
@@ -236,10 +238,15 @@ export function ActivityField({ memberId, className }: { memberId: Id; className
   )
   const rows = useMemberRows(idle ? memberId : undefined)
   const history = useMemberHistory(idle ? memberId : undefined, range)
-  const activity = useMemo(
-    () => (rows.data && history.data ? activityByDay(history.data, rows.data, now) : null),
-    [rows.data, history.data, now],
-  )
+  // Meetings marked missed (D-059) hang below the line with missed follow-ups.
+  const events = useCalendarEvents(idle ? memberId : undefined, range)
+  const marks = useMeetingMarks(memberId)
+  const activity = useMemo(() => {
+    if (!rows.data || !history.data) return null
+    const missedMeetings =
+      events.data && marks.data ? missedMeetingStarts(events.data, marks.data) : []
+    return activityByDay(history.data, rows.data, now, { missedMeetings })
+  }, [rows.data, history.data, events.data, marks.data, now])
 
   if (rows.isError || history.isError) {
     return (

@@ -102,9 +102,14 @@ export function HistorySection() {
       entry('stage', 'stage', '2026-11-05', '16:12', 'Moved to Pilot scoped', dawar.id, {
         meta: { fromStageIndex: 3, toStageIndex: 4 },
       }),
+      entry('missed', 'meeting', '2026-11-04', '16:00', 'Call with Rohan Mehta', dawar.id, {
+        source: 'calendar',
+        meta: { calendarEventId: 'design-missed', missed: true },
+      }),
       entry('whatsapp', 'whatsapp', '2026-11-04', '11:30', 'Sent the ROI note', dawar.id),
       entry('meeting', 'meeting', '2026-11-03', '10:00', 'Plant visit, Hosur', dawar.id, {
         source: 'calendar',
+        meta: { calendarEventId: 'design-held', missed: false },
       }),
       entry('warmth', 'warmth', '2026-11-03', '10:05', 'Warmth set to Warm', dawar.id, {
         meta: { fromWarmth: 'waiting', toWarmth: 'warm' },
@@ -122,7 +127,7 @@ export function HistorySection() {
     <Section
       id="history"
       title="History"
-      caption="Every kind of touch, newest first. Touches you logged by hand can be edited or deleted: hover or focus one. Stage, warmth and created entries are written by the app and cannot."
+      caption="Every kind of touch, newest first. Touches you logged by hand can be edited or deleted: hover or focus one. Stage, warmth and created entries are written by the app and cannot. A meeting the calendar logged can be marked missed (ochre, not a touch) or held again."
     >
       <Specimen title="Rohan Mehta" bodyClassName="px-5 py-1">
         <HistoryList
@@ -130,6 +135,7 @@ export function HistorySection() {
           members={members}
           onEdit={() => toast('Edit opens in place, in the expanded row')}
           onDelete={() => toast('Deleted, with Undo for 8 seconds')}
+          onMarkMeeting={(_entry, outcome) => toast(`Marked ${outcome}, with Undo for 8 seconds`)}
         />
       </Specimen>
     </Section>

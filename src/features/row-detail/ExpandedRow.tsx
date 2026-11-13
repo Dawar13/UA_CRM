@@ -3,6 +3,7 @@ import { motion, useReducedMotion } from 'motion/react'
 import { type ReactNode, useMemo, useState } from 'react'
 import { useUiStore } from '@/app/uiStore'
 import { useActor } from '@/auth/AuthContext'
+import { useCan } from '@/auth/useCan'
 import { StageTracker, trackerTitleClassName } from '@/components/crm/StageTracker'
 import { WarmthChip, WarmthRadioGroup } from '@/components/crm/WarmthChip'
 import { Button } from '@/components/ui/Button'
@@ -23,6 +24,7 @@ import { formatPhone } from '@/domain/identity'
 import { stageView } from '@/domain/stages'
 import type { ColumnDef, Member, Row, Sheet } from '@/domain/types'
 import { NextActionCalendar, UpcomingMeeting } from '@/features/calendar/NextActionCalendar'
+import { useMarkMeetings, useMeetingMarks } from '@/features/calendar/useCalendar'
 import { isFuzzyDate, isLinkRef } from '@/features/grid/columnModel'
 import { cn } from '@/lib/cn'
 import { useNow } from '@/lib/useNow'
@@ -112,6 +114,9 @@ export function ExpandedRow({
   const showHistory = useUiStore((s) => s.showHistory)
   const { data: linkedFrom = [] } = useSamePersonOf(row.id)
   const actor = useActor()
+  const canMarkMeeting = useCan('markMeeting', { memberId: row.memberId })
+  const markMeeting = useMarkMeetings()
+  const { data: meetingMarks } = useMeetingMarks(row.memberId)
 
   const memberMap = useMemo(() => new Map(members.map((m) => [m.id, m])), [members])
   const stages = useMemo(() => stageView(row, sheet), [row, sheet])
@@ -275,6 +280,17 @@ export function ExpandedRow({
                     ? (entry) => deleteTouch.mutate({ row, entry, actorId })
                     : undefined
                 }
+                onMarkMeeting={
+                  editable && canMarkMeeting
+                    ? (entry, outcome) =>
+                        markMeeting.mutate({
+                          changes: [{ eventKey: entry.meta?.calendarEventId ?? '', outcome }],
+                          label: `Mark ${entry.text} ${outcome}`,
+                          done: `Marked ${outcome}: ${entry.text}`,
+                        })
+                    : undefined
+                }
+                outcomes={meetingMarks}
                 editingId={editingTouch}
                 renderEditor={(entry) => (
                   <EditTouch row={row} entry={entry} onDone={() => setEditingTouch(null)} />

@@ -22,6 +22,7 @@ const TABLES = [
   'calendar_connections',
   'calendar_events',
   'calendar_event_links',
+  'calendar_meeting_outcomes',
 ] as const
 
 /** Changes within this window are refreshed together. */

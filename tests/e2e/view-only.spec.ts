@@ -47,10 +47,16 @@ test.describe('view only', () => {
 
   test('Copy to my sheet makes a linked row in your tab', async ({ page }) => {
     await openSheet(page, 'dhruv', 'investors', ids.kiranSethi)
-    const name =
-      (
-        await gridRow(page, ids.kiranSethi).locator('[role="gridcell"]').first().textContent()
-      )?.trim() ?? ''
+    // The name alone: the cell also holds the upcoming-meeting mark once matching has run.
+    const name = await gridRow(page, ids.kiranSethi)
+      .locator('[role="gridcell"]')
+      .first()
+      .evaluate((cell) => {
+        const copy = cell.cloneNode(true) as HTMLElement
+        copy.querySelector('[data-testid="row-meeting"]')?.remove()
+        return copy.textContent?.trim() ?? ''
+      })
+    expect(name).toBe('Kiran Sethi')
 
     await expandedRow(page).getByRole('button', { name: 'Copy to my sheet' }).click()
     await page.getByRole('menuitem', { name: 'Connectors' }).click()

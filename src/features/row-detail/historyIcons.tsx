@@ -1,5 +1,6 @@
 import {
   CalendarDays,
+  CalendarX2,
   Download,
   Flag,
   Mail,
@@ -36,11 +37,15 @@ const icons = {
   imported: Download,
 } as const
 
-/** How an entry's icon tile is tinted: stage moves blue, lost brick, warmth olive, the rest neutral. */
-export type HistoryTone = 'stage' | 'lost' | 'warmth' | 'neutral'
+/**
+ * How an entry's icon tile is tinted: stage moves blue, lost brick, warmth olive, a missed
+ * meeting ochre (D-059), the rest neutral.
+ */
+export type HistoryTone = 'stage' | 'lost' | 'warmth' | 'missed' | 'neutral'
 
 export function historyTone(entry: Pick<HistoryEntry, 'kind' | 'meta'>): HistoryTone {
   if (entry.kind === 'stage') return entry.meta?.lost ? 'lost' : 'stage'
+  if (entry.kind === 'meeting' && entry.meta?.missed) return 'missed'
   if (entry.kind === 'warmth') return 'warmth'
   return 'neutral'
 }
@@ -50,11 +55,23 @@ export const historyToneClassName: Record<HistoryTone, string> = {
   stage: 'bg-[color-mix(in_srgb,var(--stage4)_18%,transparent)] text-link',
   lost: 'bg-[color-mix(in_srgb,var(--stage-lost)_14%,transparent)] text-lost',
   warmth: 'bg-[color-mix(in_srgb,var(--warm-cell)_18%,transparent)] text-secondary',
+  missed: 'bg-[color-mix(in_srgb,var(--field-down1)_24%,transparent)] text-waiting',
   neutral: 'bg-tile text-secondary',
 }
 
-/** The kind's icon; a lost mark shows a cross instead of the stage flag. */
-export function HistoryKindIcon({ kind, lost = false }: { kind: HistoryKind; lost?: boolean }) {
-  const Icon = lost ? X : icons[kind]
+/**
+ * The kind's icon; a lost mark shows a cross instead of the stage flag, and a missed meeting a
+ * crossed-out calendar.
+ */
+export function HistoryKindIcon({
+  kind,
+  lost = false,
+  missed = false,
+}: {
+  kind: HistoryKind
+  lost?: boolean
+  missed?: boolean
+}) {
+  const Icon = lost ? X : missed ? CalendarX2 : icons[kind]
   return <Icon aria-hidden className="size-3.5" strokeWidth={1.75} />
 }

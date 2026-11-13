@@ -5,10 +5,11 @@
  *   changes are not touches with the person.
  * - Moved: a stage moved forward that day (undo entries do not count).
  * - Missed: a next action due that day (exact date) that was still open when the day passed: no
- *   touch since, and the row is not lost. In Phase 2 missed calendar meetings join it.
+ *   touch since, and the row is not lost. And a calendar meeting its owner marked missed (D-059),
+ *   on the day it started; its logged meeting entry is then not a touch held.
  */
 import { addDaysIso, istDateOf, todayIst, weekdayOf } from './dates'
-import type { HistoryEntry, HistoryKind, IsoDate, Row } from './types'
+import type { HistoryEntry, HistoryKind, IsoDate, IsoDateTime, Row } from './types'
 
 export const ACTIVITY_DAYS = 30
 
@@ -51,7 +52,14 @@ export function activityByDay(
   history: readonly HistoryEntry[],
   rows: readonly Row[],
   now: Date,
-  days = ACTIVITY_DAYS,
+  {
+    days = ACTIVITY_DAYS,
+    missedMeetings = [],
+  }: {
+    days?: number
+    /** When each meeting marked missed started (D-059). */
+    missedMeetings?: readonly IsoDateTime[]
+  } = {},
 ): Activity {
   const today = todayIst(now)
   const start = activityStart(now, days)
@@ -73,7 +81,7 @@ export function activityByDay(
   }
 
   for (const entry of history) {
-    if (entry.fuzzyDate) continue
+    if (entry.fuzzyDate || entry.meta?.missed) continue
     const day = index.get(istDateOf(entry.at))
     if (!day) continue
     if (HELD_KINDS.has(entry.kind)) day.held += 1
@@ -87,6 +95,11 @@ export function activityByDay(
     if (!day) continue
     const lastTouch = row.lastTouchAt ? istDateOf(row.lastTouchAt) : null
     if (lastTouch === null || lastTouch < due.date) day.missed += 1
+  }
+
+  for (const start of missedMeetings) {
+    const day = index.get(istDateOf(start))
+    if (day) day.missed += 1
   }
 
   return {

@@ -5,6 +5,7 @@
  */
 
 import { Dexie } from 'dexie'
+import { calendarEventKey, type MeetingMark, type MeetingOutcome } from '@/domain/calendar/meetings'
 import { addDaysIso, istInstant } from '@/domain/dates'
 import { findDuplicateMatches, pairKey } from '@/domain/dedupe/score'
 import { formatPhone, normaliseName, searchTokens } from '@/domain/identity'
@@ -1567,6 +1568,43 @@ export class LocalRepository implements Repository {
     await this.db.meta.put({
       key: `calendarLink:${ctx.actorId}:${target}:${link.rowId}`,
       value: link,
+    })
+  }
+
+  async listMeetingMarks(ctx: MutationContext, memberId?: Id): Promise<MeetingMark[]> {
+    return (await this.db.meta.toArray())
+      .filter((m) => m.key.startsWith(`meetingMark:${memberId ?? ctx.actorId}:`))
+      .map((m) => m.value as MeetingMark)
+  }
+
+  /**
+   * Sample mode logs no meetings into history, so a mark changes no entry and no last touch; the
+   * database does both (D-059).
+   */
+  async markMeetings(
+    changes: readonly { eventKey: string; outcome: MeetingOutcome | null }[],
+    ctx: MutationContext,
+  ): Promise<void> {
+    const actor = await this.actor(ctx)
+    const events = await this.db.calendarEvents
+      .where('[memberId+start]')
+      .between([ctx.actorId, Dexie.minKey], [ctx.actorId, Dexie.maxKey])
+      .toArray()
+    const byKey = new Map(events.map((e) => [calendarEventKey(e), e]))
+    for (const { eventKey } of changes) {
+      // Another member's meeting is not in the actor's calendar: refused like any other.
+      const event = byKey.get(eventKey)
+      assertCan(actor, 'markMeeting', { memberId: event?.memberId ?? '' })
+      if (event && Date.parse(event.end) > ctx.now.getTime()) {
+        throw new CalendarError('not_ended')
+      }
+    }
+    await this.db.transaction('rw', this.db.meta, async () => {
+      for (const { eventKey, outcome } of changes) {
+        const key = `meetingMark:${ctx.actorId}:${eventKey}`
+        if (outcome === null) await this.db.meta.delete(key)
+        else await this.db.meta.put({ key, value: { eventKey, outcome } satisfies MeetingMark })
+      }
     })
   }
 }

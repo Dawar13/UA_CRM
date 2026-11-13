@@ -4,6 +4,7 @@ import { LocalRepository, RowNotFoundError } from '@/data/local/LocalRepository'
 import { PERF_ROW_COUNT, PERF_SHEET_SLUG } from '@/data/local/perfSheet'
 import { buildSeed, istInstant, SEED_VERSION, seedIds } from '@/data/local/seed'
 import { validateRowFields } from '@/domain/fields'
+import { PermissionDenied } from '@/domain/permissions'
 import { rowSchema } from '@/domain/schemas'
 import { snapshotStage } from '@/domain/stages'
 import type { Row, Sheet } from '@/domain/types'
@@ -445,6 +446,56 @@ describe('calendar', () => {
       to: istInstant('2026-12-01', '00:00'),
     })
     expect(none).toEqual([])
+  })
+})
+
+describe('meetings held or missed (D-059)', () => {
+  // Thu 12 Nov, 6 pm IST: Dawar's meetings on 5, 6 and 10 Nov have ended; 16 Nov's has not.
+  const later = { actorId: DAWAR, now: new Date('2026-11-12T18:00:00+05:30') }
+
+  it('the owner marks an ended meeting missed or held, and takes it back', async () => {
+    await repo.markMeetings(
+      [
+        { eventKey: 'e-dawar-01', outcome: 'missed' },
+        { eventKey: 'e-dawar-03', outcome: 'held' },
+      ],
+      later,
+    )
+    expect(await repo.listMeetingMarks(later)).toEqual(
+      expect.arrayContaining([
+        { eventKey: 'e-dawar-01', outcome: 'missed' },
+        { eventKey: 'e-dawar-03', outcome: 'held' },
+      ]),
+    )
+    await repo.markMeetings([{ eventKey: 'e-dawar-01', outcome: null }], later)
+    expect(await repo.listMeetingMarks(later)).toEqual([
+      { eventKey: 'e-dawar-03', outcome: 'held' },
+    ])
+  })
+
+  it('every member reads the marks; nobody marks another member’s meeting', async () => {
+    await repo.markMeetings([{ eventKey: 'e-dawar-01', outcome: 'missed' }], later)
+    const dhruv = { actorId: DHRUV, now: later.now }
+    expect(await repo.listMeetingMarks(dhruv, DAWAR)).toEqual([
+      { eventKey: 'e-dawar-01', outcome: 'missed' },
+    ])
+    expect(await repo.listMeetingMarks(dhruv)).toEqual([])
+    await expect(
+      repo.markMeetings([{ eventKey: 'e-dawar-01', outcome: 'held' }], dhruv),
+    ).rejects.toBeInstanceOf(PermissionDenied)
+    await expect(
+      repo.markMeetings([{ eventKey: 'e-dhruv-01', outcome: 'missed' }], later),
+    ).rejects.toBeInstanceOf(PermissionDenied)
+    expect(await repo.listMeetingMarks(later)).toEqual([
+      { eventKey: 'e-dawar-01', outcome: 'missed' },
+    ])
+  })
+
+  it('a meeting that has not ended cannot be marked', async () => {
+    await expect(
+      repo.markMeetings([{ eventKey: 'e-dawar-07', outcome: 'missed' }], later),
+    ).rejects.toThrow('not_ended')
+    expect(await repo.listMeetingMarks(later)).toEqual([])
   })
 })
 

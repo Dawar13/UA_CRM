@@ -172,3 +172,62 @@ test('Today lists today’s meetings', async ({ page }) => {
   await expect(meetings.getByRole('button', { name: 'Rohan Mehta' })).toBeVisible()
   await expect(meetings).toContainText('Founders sync')
 })
+
+test.describe('did the meeting happen? (D-059)', () => {
+  // Fri 6 Nov, noon: Thursday's call with Rohan and Friday morning's plant walk have ended.
+  test.beforeEach(async ({ page }) => {
+    await page.clock.setFixedTime(new Date('2026-11-06T12:00:00+05:30'))
+  })
+
+  async function missedCount(page: Page): Promise<number> {
+    const label =
+      (await panel(page)
+        .getByLabel(/^Last 30 days:/)
+        .getAttribute('aria-label')) ?? ''
+    return Number(/(\d+) missed$/.exec(label)?.[1] ?? Number.NaN)
+  }
+
+  test('Today asks; a missed meeting is a missed dot and shows on the calendar', async ({
+    page,
+  }) => {
+    await gotoApp(page, '/today', { waitForReady: true })
+    const checkIn = page.getByTestId('today-confirm')
+    await expect(checkIn.getByTestId('today-confirm-meeting')).toHaveCount(2)
+    await expect(panel(page).getByLabel(/^Last 30 days:/)).toBeVisible()
+    const before = await missedCount(page)
+
+    await checkIn.getByRole('button', { name: 'Missed: Call with Rohan Mehta' }).click()
+    await expect(toast(page, 'Marked missed: Call with Rohan Mehta')).toBeVisible()
+    await expect(checkIn.getByTestId('today-confirm-meeting')).toHaveCount(1)
+    await expect.poll(() => missedCount(page)).toBe(before + 1)
+
+    // The calendar shows it, after a reload too.
+    await memberTab(page, 'Calendar').click()
+    const call = day(page, 'Thu 5 Nov')
+      .getByTestId('week-event')
+      .filter({ hasText: 'Call with Rohan Mehta' })
+    await expect(call).toHaveAttribute('data-outcome', 'missed')
+    await expect(call.getByTestId('week-event-missed')).toHaveText('Missed')
+    await page.reload()
+    await expect(call).toHaveAttribute('data-outcome', 'missed')
+
+    // It happened after all: mark it held from the calendar, then undo.
+    await call.hover()
+    await call.getByRole('button', { name: 'Mark held: Call with Rohan Mehta' }).click()
+    await expect(call).toHaveAttribute('data-outcome', 'held')
+    await undoToast(page, 'Marked held: Call with Rohan Mehta')
+    await expect(call).toHaveAttribute('data-outcome', 'missed')
+  })
+
+  test('only your own meetings that have ended can be marked', async ({ page }) => {
+    await gotoApp(page, '/calendar', { waitForReady: true })
+    // Thursday's two meetings have ended; nothing later in the week has.
+    await expect(day(page, 'Thu 5 Nov').getByTestId('week-event-mark')).toHaveCount(2)
+    await expect(day(page, 'Fri 6 Nov').getByTestId('week-event-mark')).toHaveCount(1)
+    await expect(page.getByTestId('week-event-mark')).toHaveCount(3)
+
+    await gotoApp(page, '/calendar?member=dhruv', { waitForReady: true })
+    await expect(day(page, 'Thu 5 Nov')).toContainText('Coffee with Arvind Menon')
+    await expect(page.getByTestId('week-event-mark')).toHaveCount(0)
+  })
+})

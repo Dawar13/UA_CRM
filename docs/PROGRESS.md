@@ -495,3 +495,15 @@ Part 1 ends with the founders' first connections and a week of use. Part 2 (PDF 
 - **Link preview (D-058):** a shared link to the CRM unfurls into a card on WhatsApp, Slack, LinkedIn and email: "UA · Internal CRM", a one-line description, and an image in the sign-in screen's look (the mark, Utopian Autonomy, Internal CRM). Every link shows the same card, so no contact's details appear. The image is on `/design` under Brand; `pnpm og-image` redraws it.
 
 **Try this:** after the push deploys, send `https://ua-crm-zeta.vercel.app` to yourself on WhatsApp. The card appears under the link.
+
+### Founder feedback, 13 Nov 2026: a missed meeting gets its dot (D-059)
+
+- **Why there was no yellow dot:** Google Calendar cannot say whether a meeting took place, so every meeting that ended counted as held (and a matched one moved the contact's last touch).
+- **Now, both ways the founders chose:** Today asks "Did these happen?" about the past week's meetings with a contact (Held, Missed, All held); on the calendar page your own past meetings have a mark button; and a logged meeting in a contact's history can be marked missed or held. A missed meeting is a missed dot in the 30-day field, an ochre edge with "Missed" on the calendar, and not a touch. Everything can be undone.
+
+**Try this:** open Today after a meeting with a contact has ended: press Missed on it. The side panel's missed count goes up by one. Open Calendar: the meeting has an ochre edge and "Missed". Hover it and press the calendar button to mark it held, then Undo on the toast.
+
+**Deploy order:** apply the migration first (`.\node_modules\.bin\supabase.cmd db push --remote`), then push the code.
+
+**Checks:** typecheck and lint clean; new unit tests (meetings, activity, permissions, local repository, history mapper), component tests (Today's check-in, history) and browser tests (Today to calendar with undo; only your own ended meetings) pass; accessibility on the new screens passes in light and dark; pgTAP for the new table runs in CI (no local Docker). Unit, component and server: 1,157 pass. Browser tests on desktop, 1024 and phone: all pass except "W cycles warmth", which still fails about one run in four (the fourth W press is sometimes lost; known since 11 Nov). "Copy to my sheet" was flaky because it read the name cell with its upcoming-meeting mark; it now reads the name alone and passes. Screenshots: `docs/screenshots/p2-missed-*`.
+

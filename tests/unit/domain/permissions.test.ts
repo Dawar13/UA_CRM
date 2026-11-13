@@ -29,6 +29,8 @@ const ownerActions = [
   'manageStages',
   'manageFiles',
   'viewTrash',
+  // Marking a meeting held or missed (D-059): the target is the calendar's member.
+  'markMeeting',
 ] as const satisfies readonly Action[]
 
 const readActions = ['view', 'contact', 'copyCell', 'export'] as const satisfies readonly Action[]

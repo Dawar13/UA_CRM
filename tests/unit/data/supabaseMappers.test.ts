@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseMember, toMember } from '@/data/supabase/mappers'
+import { parseHistory, parseMember, toMember } from '@/data/supabase/mappers'
 
 const record = {
   id: '6f0b8a52-1111-4222-8333-944445555666',
@@ -48,5 +48,22 @@ describe('members read from Supabase', () => {
 
   it('still rejects a row that is not a member at all', () => {
     expect(() => toMember({ ...record, slug: 'Not A Slug' })).toThrow()
+  })
+})
+
+describe('history read from Supabase', () => {
+  it('a meeting the calendar logged keeps its event and whether it was missed (D-059)', () => {
+    const entry = parseHistory({
+      id: 'h-1',
+      rowId: 'r-1',
+      kind: 'meeting',
+      source: 'calendar',
+      at: '2026-11-12T16:00:00.000Z',
+      fuzzyDate: null,
+      text: 'Call with Rohan',
+      memberId: 'm-dawar',
+      meta: { calendarEventId: 'g-1', missed: true },
+    })
+    expect(entry.meta).toEqual({ calendarEventId: 'g-1', missed: true })
   })
 })

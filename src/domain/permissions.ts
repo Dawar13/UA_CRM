@@ -46,6 +46,8 @@ export interface PermissionTargets {
   manageFiles: Owned
   /** See and restore Trash. Target: the tab. */
   viewTrash: Owned
+  /** Mark a meeting held or missed (D-059). Target: the calendar's member. */
+  markMeeting: Owned
   // Across tabs.
   /** Introduced by, connects to and "keep both, linked": stored on the source row's side. */
   linkRows: { source: Owned; target: Owned }
@@ -105,6 +107,7 @@ const OWNER_ACTIONS = new Set<Action>([
   'manageStages',
   'manageFiles',
   'viewTrash',
+  'markMeeting',
 ])
 
 /** Whether `actor` may do `action` on `target`, and why not. */

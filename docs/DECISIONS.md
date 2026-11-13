@@ -681,3 +681,19 @@ Container jobs first make sure git is installed (otherwise checkout falls back t
 **Decision.** `index.html` carries Open Graph and Twitter card tags: the title "UA · Internal CRM", a one-line description, and a 1200 × 630 image (`public/og.png`) in the sign-in screen's look: the soft wash, the founders' mark, the wordmark and the Internal CRM label, centred so that WhatsApp's square crop still shows the mark. `scripts/og-image.ts` (`pnpm og-image`) draws the image in Playwright's Chromium from the brand files, the self-hosted Geist fonts and the tokens; it is about 90 KB, under WhatsApp's limit. Crawlers need full addresses, so `og:url` and `og:image` name production (`https://ua-crm-zeta.vercel.app`); previews on sample data show the same card.
 
 **Consequences.** Every path opens the same page, so a shared link to a row or a calendar shows the same card and never a contact's details. A new domain means changing the two addresses in `index.html`; a new logo means running `pnpm og-image`. WhatsApp keeps a preview it has fetched for a while, so a changed card can take time to show on a link already shared. The card is on `/design` under Brand, and an end-to-end test checks the tags and the image size.
+
+## D-059 · 13 Nov 2026 · Did the meeting happen?
+
+**Context.** Dawar missed a meeting on 12 Nov and expected a missed (yellow) dot. Google Calendar does not record whether anyone joined, so the CRM treated every meeting that ended as held: a matched one was logged into the contact's history as a meeting, counted as a touch held and moved last touch. Missed dots came only from follow-ups (a next action whose exact day passed with no touch).
+
+**Decision (founders: both ways).** A meeting that ended counts as held until its owner answers.
+- **Today** asks "Did these happen?": your meetings with a contact that ended in the last 7 days and have no answer, oldest first, each with Held and Missed, and All held for the rest. Unanswered meetings stay held and leave the list after a week.
+- **The calendar page**: your own past meetings have a mark button (on hover or focus, always on touch); a missed one has an ochre edge and a "Missed" label, for every member who views it.
+- **History**: a meeting the calendar logged has Mark missed or Mark held on your own rows; a missed one has an ochre tile and "Missed" in its meta line.
+- **Effect**: a missed meeting is a missed dot in the 30-day field on the day it started, its logged entry is not a touch held, and last touch skips it. Every mark can be undone (toast and Ctrl+Z).
+- **Storage**: `calendar_meeting_outcomes` (member, Google event id, held or missed). Every member reads it; only the owner writes, and only for a timed meeting of their own calendar that has ended and is not declined, cancelled or one of the CRM's next-action events (`ua_markable_meeting`). The last-touch trigger and a trigger on marks keep `rows.last_touch_at` right; `ua_history_json` adds `calendarEventId` and `missed` to a logged meeting's meta. Sample mode keeps marks in the local meta store (it logs no meetings into history).
+
+**Rejected.** Guessing from Google (the member's RSVP, or whether a Meet link was opened): neither says whether the meeting took place. Deleting the logged entry for a missed meeting: the history would lose it, and the next sync would log it again.
+
+**Consequences.** The migration `20261113090000_meeting_outcomes.sql` must reach production before the code, since Realtime subscribes to the new table. pgTAP covers the policies and triggers (including another member refused); unit, component, browser and accessibility tests cover the rest.
+

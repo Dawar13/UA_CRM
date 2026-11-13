@@ -5,7 +5,7 @@
  * changing events stays in Google Calendar. Opens from the side panel and the member switch.
  * Left and right arrows move a week.
  */
-import { ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react'
+import { CalendarCheck2, CalendarX2, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react'
 import { Tabs } from 'radix-ui'
 import { useEffect, useMemo, useRef } from 'react'
 import { useSearchParams } from 'react-router'
@@ -13,10 +13,12 @@ import { Header } from '@/app/Header'
 import { ShellSkeleton } from '@/app/MainView'
 import { useJumpToRow } from '@/app/navigation'
 import { useActor } from '@/auth/AuthContext'
+import { useCan } from '@/auth/useCan'
 import { Button } from '@/components/ui/Button'
 import { IconButton } from '@/components/ui/IconButton'
 import { useCalendarEvents, useMembers } from '@/data/hooks'
 import type { RowLocation } from '@/data/repository'
+import { calendarEventKey, isMarkable, type MeetingOutcome } from '@/domain/calendar/meetings'
 import {
   coversDay,
   layoutDay,
@@ -39,7 +41,7 @@ import { cn } from '@/lib/cn'
 import { isTypingTarget } from '@/lib/platform'
 import { useNow } from '@/lib/useNow'
 import { ConnectCalendarCard, NotConnectedYet, ReconnectBanner, SyncStatus } from './CalendarStatus'
-import { useCalendarConnection } from './useCalendar'
+import { useCalendarConnection, useMarkMeetings, useMeetingMarks } from './useCalendar'
 
 /** One hour is this tall. */
 const HOUR_PX = 48
@@ -79,43 +81,75 @@ function EventBlock({
   contacts,
   style,
   compact,
+  outcome,
+  onMark,
 }: {
   event: CalendarEvent
   contacts: RowLocation[]
   style?: React.CSSProperties
   compact?: boolean
+  /** The owner's answer: did it happen? (D-059) */
+  outcome?: MeetingOutcome | undefined
+  /** Your own meeting that has ended: mark it missed, or held again. */
+  onMark?: (outcome: MeetingOutcome) => void
 }) {
   const time = event.allDay ? 'All day' : `${formatTime(event.start)} to ${formatTime(event.end)}`
   const title = event.title || 'Busy'
+  const missed = outcome === 'missed'
   return (
     <li
       style={style}
       className={cn(
-        'flex min-w-0 flex-col gap-px overflow-hidden rounded-[6px] border border-border border-l-[3px] border-l-brand-500 bg-surface-raised px-1.5 py-[3px] shadow-card',
-        style ? 'absolute' : '',
+        'group/event flex min-w-0 flex-col gap-px overflow-hidden rounded-[6px] border border-border border-l-[3px] bg-surface-raised px-1.5 py-[3px] shadow-card',
+        // Missed: the ochre of the missed dots in the 30-day field.
+        missed ? 'border-l-(--field-down1)' : 'border-l-brand-500',
+        style ? 'absolute' : 'relative',
       )}
       data-testid="week-event"
+      data-outcome={outcome}
     >
       <span className="sr-only">{`${time}, `}</span>
-      {event.htmlLink ? (
-        <a
-          href={event.htmlLink}
-          target="_blank"
-          rel="noreferrer"
-          className="group/link inline-flex min-w-0 shrink-0 items-center gap-1 text-[12px] leading-[15px] font-semibold text-text hover:underline"
+      <span className="flex min-w-0 shrink-0 items-center gap-1">
+        {missed ? (
+          <span
+            className="shrink-0 font-mono text-[9.5px] leading-[15px] font-semibold tracking-[0.06em] text-waiting uppercase"
+            data-testid="week-event-missed"
+          >
+            Missed
+          </span>
+        ) : null}
+        {event.htmlLink ? (
+          <a
+            href={event.htmlLink}
+            target="_blank"
+            rel="noreferrer"
+            className="group/link inline-flex min-w-0 items-center gap-1 text-[12px] leading-[15px] font-semibold text-text hover:underline"
+          >
+            <span className="truncate">{title}</span>
+            <ExternalLink
+              aria-hidden
+              className="size-3 shrink-0 opacity-0 group-hover/link:opacity-60"
+            />
+            <span className="sr-only"> (opens Google Calendar)</span>
+          </a>
+        ) : (
+          <span className="min-w-0 truncate text-[12px] leading-[15px] font-semibold text-text">
+            {title}
+          </span>
+        )}
+      </span>
+      {onMark ? (
+        <IconButton
+          aria-label={missed ? `Mark held: ${title}` : `Mark missed: ${title}`}
+          tooltip={missed ? 'It happened: mark held' : 'Mark missed'}
+          tooltipSide="top"
+          onClick={() => onMark(missed ? 'held' : 'missed')}
+          className="absolute top-0.5 right-0.5 size-5 bg-surface-raised opacity-0 group-focus-within/event:opacity-100 group-hover/event:opacity-100 pointer-coarse:opacity-100 [&_svg]:size-3"
+          data-testid="week-event-mark"
         >
-          <span className="truncate">{title}</span>
-          <ExternalLink
-            aria-hidden
-            className="size-3 shrink-0 opacity-0 group-hover/link:opacity-60"
-          />
-          <span className="sr-only"> (opens Google Calendar)</span>
-        </a>
-      ) : (
-        <span className="shrink-0 truncate text-[12px] leading-[15px] font-semibold text-text">
-          {title}
-        </span>
-      )}
+          {missed ? <CalendarCheck2 /> : <CalendarX2 />}
+        </IconButton>
+      ) : null}
       {compact ? null : (
         <span
           aria-hidden
@@ -135,7 +169,18 @@ function EventBlock({
   )
 }
 
-function WeekGrid({ start, memberId, now }: { start: IsoDate; memberId: string; now: Date }) {
+function WeekGrid({
+  start,
+  memberId,
+  now,
+  editable,
+}: {
+  start: IsoDate
+  memberId: string
+  now: Date
+  /** Your own calendar: past meetings can be marked missed (D-059). */
+  editable: boolean
+}) {
   const days = useMemo(() => weekDays(start), [start])
   const range = useMemo(
     () => ({
@@ -146,6 +191,22 @@ function WeekGrid({ start, memberId, now }: { start: IsoDate; memberId: string; 
   )
   const { data: events = [] } = useCalendarEvents(memberId, range)
   const { data: matches } = useEventContacts(events, memberId)
+  const { data: marks } = useMeetingMarks(memberId)
+  const mark = useMarkMeetings()
+  const markProps = (event: CalendarEvent) => ({
+    outcome: marks?.get(calendarEventKey(event)),
+    onMark:
+      editable && isMarkable(event, now)
+        ? (outcome: MeetingOutcome) => {
+            const title = event.title || 'the meeting'
+            mark.mutate({
+              changes: [{ eventKey: calendarEventKey(event), outcome }],
+              label: `Mark ${title} ${outcome}`,
+              done: outcome === 'missed' ? `Marked missed: ${title}` : `Marked held: ${title}`,
+            })
+          }
+        : undefined,
+  })
   const today = todayIst(now)
   const scroller = useRef<HTMLDivElement>(null)
   const head = useRef<HTMLDivElement>(null)
@@ -234,6 +295,7 @@ function WeekGrid({ start, memberId, now }: { start: IsoDate; memberId: string; 
                     event={event}
                     contacts={matches?.contacts.get(event.id) ?? []}
                     compact
+                    {...markProps(event)}
                   />
                 ))}
               </ul>
@@ -288,6 +350,7 @@ function WeekGrid({ start, memberId, now }: { start: IsoDate; memberId: string; 
                       key={p.event.id}
                       event={p.event}
                       contacts={contacts}
+                      {...markProps(p.event)}
                       // The time line goes first when the block is short (it is read out anyway).
                       compact={minutes < 60 || (contacts.length > 0 && minutes < 90)}
                       style={{
@@ -370,6 +433,7 @@ export function CalendarPage() {
   // Yours, or another member's week, view only (D-054).
   const owner = members?.find((m) => m.slug === params.get('member')) ?? member
   const own = owner !== undefined && owner.id === member?.id
+  const canMark = useCan('markMeeting', { memberId: owner?.id ?? '' })
   const { data: connection } = useCalendarConnection(owner?.id)
   const thisWeek = weekStartOf(todayIst(now))
   const asked = params.get('week')
@@ -468,7 +532,7 @@ export function CalendarPage() {
         </div>
         {own && connection?.state === 'needs_reconnect' ? <ReconnectBanner /> : null}
         {!connection ? null : connected ? (
-          <WeekGrid key={owner.id} start={start} memberId={owner.id} now={now} />
+          <WeekGrid key={owner.id} start={start} memberId={owner.id} now={now} editable={canMark} />
         ) : (
           <div className="grid flex-1 place-items-center">
             {own ? <ConnectCalendarCard /> : <NotConnectedYet member={owner} />}

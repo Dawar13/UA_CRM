@@ -10,6 +10,7 @@
  * Stage, warmth and history changes are one operation: each mutation writes the row and appends
  * its history entry atomically, and updates `row.lastTouchAt`.
  */
+import type { MeetingMark, MeetingOutcome } from '@/domain/calendar/meetings'
 import type { AiContact } from '@/domain/quickadd/fromAi'
 import type { NewRowValues, RowPatch } from '@/domain/rows'
 import type { StageMoves } from '@/domain/sheetEdits'
@@ -402,6 +403,16 @@ export interface Repository {
   removeNextActionEvent(rowId: Id, ctx: MutationContext): Promise<void>
   /** The actor's event links, or another member's (view only). */
   listEventLinks(ctx: MutationContext, memberId?: Id): Promise<EventLink[]>
+  /** Meetings marked held or missed (D-059): the actor's, or another member's (view only). */
+  listMeetingMarks(ctx: MutationContext, memberId?: Id): Promise<MeetingMark[]>
+  /**
+   * Marks meetings of the actor's own calendar held or missed; `null` takes the answer back. Only
+   * a meeting that has ended can be marked; another member's meeting is refused.
+   */
+  markMeetings(
+    changes: readonly { eventKey: string; outcome: MeetingOutcome | null }[],
+    ctx: MutationContext,
+  ): Promise<void>
 
   // ---------- Reading contacts with AI (D-055) ----------
   /** Contacts in free text or a file, read by the AI on the server; nothing is saved. */

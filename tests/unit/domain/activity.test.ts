@@ -121,4 +121,19 @@ describe('activityByDay', () => {
     expect(result.days.find((d) => d.date === '2026-10-28')?.missed).toBe(1)
     expect(result.missed).toBe(2)
   })
+
+  it('a meeting marked missed is a missed dot on its IST day, and its logged entry is not held', () => {
+    const history = [
+      entry('meeting', '2026-11-02T05:00:00.000Z'),
+      entry('meeting', '2026-11-03T05:00:00.000Z', { calendarEventId: 'g-1', missed: true }),
+    ]
+    // 11:30 pm IST on 3 Nov is 3 Nov; a meeting before the window is left out.
+    const result = activityByDay(history, [], now, {
+      missedMeetings: ['2026-11-03T18:00:00.000Z', '2026-09-01T05:00:00.000Z'],
+    })
+    const day = (date: string) => result.days.find((d) => d.date === date)
+    expect(day('2026-11-02')).toMatchObject({ held: 1, missed: 0 })
+    expect(day('2026-11-03')).toMatchObject({ held: 0, missed: 1 })
+    expect(result).toMatchObject({ held: 1, missed: 1 })
+  })
 })

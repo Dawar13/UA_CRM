@@ -156,6 +156,7 @@ For the signed-in member, with each section collapsible:
 - Overdue next actions.
 - Due today.
 - Today's meetings (Phase 2).
+- Did these happen? (Phase 2, D-059): your meetings with a contact from the past week, each with Held and Missed.
 - Stale relationships: Warm or Waiting with no touch for 14 days (Phase 2).
 - Added this week.
 
@@ -166,8 +167,9 @@ For the signed-in member, with each section collapsible:
 - **Sync window:** sync starts on **5 Nov 2026**. Nothing earlier is imported. The server keeps a window up to 60 days ahead, synced on open (if over 5 minutes old), every 15 minutes while the app is open, on Sync now, on Google push notifications (live), and by a daily job.
 - **Sharing (D-054):** calendars are shared, view only, like sheets. In another member's tab the panel shows their week ("Dhruv's calendar, view only"), without Sync now, connect or suggestions; before they connect it says "Dhruv has not connected Google Calendar". Policies let every member read every member's events, connection status and links; only the server writes events and connections, and only the owner writes their links. Tokens stay unreadable to every client.
 - **Matching events to contacts:** attendee email first; when none matches, a title naming one of your own contacts suggests "Rohan Mehta?" with yes or no. A matched meeting in the next week shows as a mark beside the name in the grid and as Next meeting in the expanded row. After it ends, a Meeting history entry is added automatically, to your own rows only.
+- **Did it happen? (D-059):** Google cannot say whether anyone joined, so a meeting that ended counts as held. Its owner marks it missed in Today's check-in, on the calendar page or on its entry in the contact's history, and can mark it held again (with undo). A missed meeting is a missed dot in the 30-day field and an ochre edge with "Missed" on the calendar; its history entry stays and reads as missed, and is not a touch, so last touch skips it. Only timed meetings of your own calendar that have ended can be marked; marks are visible to every member.
 - **Creating events:** "Add to calendar" on a next action with an exact day creates the event in the member's calendar (all day, or a time for 30 minutes). Adding the contact as a guest is off by default. CRM edits update or remove the event; a move in Google updates the next action with a note; a deletion in Google offers Add again.
-- **The calendar page** (`/calendar`, the Calendar item after Today, set apart from the member tabs by a hairline): "Dawar's calendar", a week like Google Calendar's week view, with contacts on events. A switch beside the title opens another member's week, view only (`/calendar?member=dhruv`). It reads and links; changing events stays in Google Calendar.
+- **The calendar page** (`/calendar`, the Calendar item after Today, set apart from the member tabs by a hairline): "Dawar's calendar", a week like Google Calendar's week view, with contacts on events. A switch beside the title opens another member's week, view only (`/calendar?member=dhruv`). It reads and links, and your own past meetings can be marked missed; changing events stays in Google Calendar.
 
 ### 2.11 Import and export (Phase 1)
 

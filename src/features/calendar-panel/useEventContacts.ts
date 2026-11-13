@@ -3,6 +3,7 @@ import { useActor } from '@/auth/AuthContext'
 import { useRepository } from '@/data/RepositoryContext'
 import type { EventLink, RowLocation } from '@/data/repository'
 import { matchEventToRows } from '@/domain/calendar/events'
+import { calendarEventKey } from '@/domain/calendar/meetings'
 import { suggestRowForTitle } from '@/domain/calendar/suggest'
 import type { CalendarEvent } from '@/domain/types'
 import { useEventLinks } from '@/features/calendar/useCalendar'
@@ -16,7 +17,7 @@ export interface EventMatches {
 }
 
 /** The Google id of an event (sample events have none: their own id stands in). */
-export const eventKey = (event: CalendarEvent): string => event.externalId ?? event.id
+export const eventKey = calendarEventKey
 
 function linksOf(event: CalendarEvent, links: readonly EventLink[]): EventLink[] {
   return links.filter(

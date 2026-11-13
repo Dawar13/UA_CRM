@@ -279,7 +279,9 @@ export const historyEntrySchema = z.object({
       reopened: z.boolean().optional(),
       /** True when this entry records an undo. */
       undo: z.boolean().optional(),
+      /** A meeting logged by the calendar: its Google id, and whether its owner marked it missed. */
       calendarEventId: idSchema.optional(),
+      missed: z.boolean().optional(),
     })
     .optional(),
 })

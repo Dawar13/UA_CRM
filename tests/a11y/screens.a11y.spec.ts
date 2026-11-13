@@ -49,6 +49,23 @@ for (const theme of ['light', 'dark'] as const) {
       expect(await seriousViolations(page)).toEqual([])
     })
 
+    test('Today asking about past meetings, and a missed one on the calendar (D-059)', async ({
+      page,
+    }) => {
+      // Fri 6 Nov, noon: Thursday's call and Friday morning's plant walk have ended.
+      await page.clock.setFixedTime(new Date('2026-11-06T12:00:00+05:30'))
+      await gotoApp(page, '/today', { waitForReady: true })
+      const checkIn = page.getByTestId('today-confirm')
+      await expect(checkIn.getByTestId('today-confirm-meeting')).toHaveCount(2)
+      expect(await seriousViolations(page)).toEqual([])
+
+      await checkIn.getByRole('button', { name: 'Missed: Call with Rohan Mehta' }).click()
+      await expect(checkIn.getByTestId('today-confirm-meeting')).toHaveCount(1)
+      await gotoApp(page, '/calendar', { waitForReady: true })
+      await expect(page.getByTestId('week-event-missed')).toHaveCount(1)
+      expect(await seriousViolations(page)).toEqual([])
+    })
+
     test("another member's tab, view only", async ({ page }) => {
       await gotoApp(page, '/m/dhruv/customers', { waitForReady: true })
       await expect(page.getByTestId('view-only-note')).toBeVisible()

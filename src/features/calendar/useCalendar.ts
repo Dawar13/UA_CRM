@@ -8,6 +8,7 @@ import { useEffect, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import { toast } from 'sonner'
 import { useActor } from '@/auth/AuthContext'
+import { UNDO_TOAST_DURATION } from '@/data/hooks/mutations'
 import { useRepository } from '@/data/RepositoryContext'
 import {
   CalendarError,
@@ -16,13 +17,16 @@ import {
   type MutationContext,
   type NextActionEventInput,
 } from '@/data/repository'
+import type { MeetingMark, MeetingOutcome } from '@/domain/calendar/meetings'
 import type { Id } from '@/domain/types'
+import { type UndoEntry, useUndoStack } from '@/lib/undoStack'
 
 const ctxOf = (actorId: Id): MutationContext => ({ actorId, now: new Date() })
 
 export const calendarKeys = {
   connection: (memberId: Id) => ['calendarConnection', memberId] as const,
   links: (memberId: Id) => ['eventLinks', memberId] as const,
+  marks: (memberId: Id) => ['meetingMarks', memberId] as const,
 }
 
 /** Sync on open when the last one is older than this (D-050). */
@@ -258,6 +262,101 @@ export function useRemoveNextActionEvent() {
       return repository.removeNextActionEvent(rowId, ctxOf(actor.id))
     },
     onError: (error) => toast.error(calendarErrorMessage(error)),
+    onSettled: refresh,
+  })
+}
+
+// ---------- Did a meeting happen? (D-059) ----------
+
+/** One meeting's answer; `null` takes it back (unanswered counts as held). */
+export interface MeetingChange {
+  eventKey: string
+  outcome: MeetingOutcome | null
+}
+
+const toOutcomes = (marks: MeetingMark[]): ReadonlyMap<string, MeetingOutcome> =>
+  new Map(marks.map((m) => [m.eventKey, m.outcome]))
+
+/** Meetings marked held or missed, by event key: yours, or another member's (view only). */
+export function useMeetingMarks(memberId?: Id) {
+  const repository = useRepository()
+  const actor = useActor()
+  const owner = memberId ?? actor?.id ?? ''
+  return useQuery({
+    queryKey: calendarKeys.marks(owner),
+    queryFn: actor ? () => repository.listMeetingMarks(ctxOf(actor.id), owner) : skipToken,
+    select: toOutcomes,
+  })
+}
+
+function withChanges(
+  marks: readonly MeetingMark[],
+  changes: readonly MeetingChange[],
+): MeetingMark[] {
+  const next = new Map(marks.map((m) => [m.eventKey, m.outcome]))
+  for (const { eventKey, outcome } of changes) {
+    if (outcome === null) next.delete(eventKey)
+    else next.set(eventKey, outcome)
+  }
+  return [...next].map(([eventKey, outcome]) => ({ eventKey, outcome }))
+}
+
+/**
+ * Marks your own meetings held or missed: on screen at once, then saved, with Undo on the toast
+ * and in the undo stack. A missed meeting's history entry and last touch follow from the server.
+ */
+export function useMarkMeetings() {
+  const repository = useRepository()
+  const actor = useActor()
+  const queryClient = useQueryClient()
+  const key = calendarKeys.marks(actor?.id ?? '')
+  const save = (changes: readonly MeetingChange[]) => {
+    if (!actor) throw new CalendarError('unauthorized')
+    return repository.markMeetings(changes, ctxOf(actor.id))
+  }
+  const refresh = () =>
+    Promise.all(
+      ['meetingMarks', 'history', 'memberHistory', 'rows', 'row', 'memberRows'].map((k) =>
+        queryClient.invalidateQueries({ queryKey: [k] }),
+      ),
+    )
+  return useMutation({
+    /** `label` names the change for undo ("Mark Call with Rohan missed"); `done` is the toast. */
+    mutationFn: (v: { changes: MeetingChange[]; label: string; done: string }) => save(v.changes),
+    onMutate: async (v) => {
+      await queryClient.cancelQueries({ queryKey: key })
+      const before = queryClient.getQueryData<MeetingMark[]>(key) ?? []
+      queryClient.setQueryData<MeetingMark[]>(key, withChanges(before, v.changes))
+      return { before }
+    },
+    onError: (_error, _v, snapshot) => {
+      queryClient.setQueryData(key, snapshot?.before)
+      toast.error('The meeting could not be marked. Try again.')
+    },
+    onSuccess: (_d, v, snapshot) => {
+      const previous = new Map((snapshot?.before ?? []).map((m) => [m.eventKey, m.outcome]))
+      const undo = v.changes.map((c) => ({
+        eventKey: c.eventKey,
+        outcome: previous.get(c.eventKey) ?? null,
+      }))
+      const entry: UndoEntry = {
+        label: v.label,
+        undo: async () => {
+          await save(undo)
+          await refresh()
+        },
+        redo: async () => {
+          await save(v.changes)
+          await refresh()
+        },
+      }
+      useUndoStack.getState().push(entry)
+      toast(v.done, {
+        id: 'mark-meeting',
+        duration: UNDO_TOAST_DURATION,
+        action: { label: 'Undo', onClick: () => void useUndoStack.getState().undoEntry(entry) },
+      })
+    },
     onSettled: refresh,
   })
 }
